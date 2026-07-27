@@ -1,0 +1,54 @@
+# ==========================
+# Build
+# ==========================
+build/
+.gradle/
+bin/
+out/
+
+# ==========================
+# Build Artifacts
+# ==========================
+*.jar
+*.zip
+
+# ==========================
+# IDE
+# ==========================
+.idea/
+.vscode/
+*.iml
+
+# ==========================
+# Claude / AI
+# ==========================
+.clinerules/
+
+# ==========================
+# Documentation
+# ==========================
+CLAUDE.md
+FISHING_PLUGIN_PLAN.md
+IMPLEMENTATION_PLAN.md
+PROGRESS.md
+PROGRESS_ARCHIVE.md
+
+# README는 업로드
+!README.md
+
+# ==========================
+# Other Scripts
+# ==========================
+*.sk
+*.py
+
+# push.bat는 제외
+push.bat
+
+# gradlew.bat는 업로드
+!gradlew.bat
+
+# ==========================
+# GitHub
+# ==========================
+.github/
