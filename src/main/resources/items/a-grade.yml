@@ -1,0 +1,49 @@
+# ============================================================
+#  A등급 아이템 목록
+#  높은 등급으로, 드물게 낚입니다.
+#  자세한 설정 방법은 f-grade.yml의 상단 주석을 참고하세요.
+# ============================================================
+items:
+  diamond:
+    id: "diamond"
+    use-type: vanilla
+    vanilla-material: DIAMOND
+    vanilla-name: "&b다이아몬드"
+    vanilla-lore:
+      - "&7반짝이는 다이아몬드입니다."
+    weight: 40
+    double-enabled: true
+    commands: []
+
+  slime_ball:
+    id: "slime_ball"
+    use-type: vanilla
+    vanilla-material: SLIME_BALL
+    vanilla-name: "&a슬라임볼"
+    vanilla-lore:
+      - "&7끈적이는 슬라임볼입니다."
+    weight: 30
+    double-enabled: true
+    commands: []
+
+  scute:
+    id: "scute"
+    use-type: vanilla
+    vanilla-material: SCUTE
+    vanilla-name: "&3인갑"
+    vanilla-lore:
+      - "&7거북의 인갑입니다."
+    weight: 20
+    double-enabled: true
+    commands: []
+
+  nautilus_shell:
+    id: "nautilus_shell"
+    use-type: vanilla
+    vanilla-material: NAUTILUS_SHELL
+    vanilla-name: "&3앵무조개 껍데기"
+    vanilla-lore:
+      - "&7앵무조개 껍데기입니다."
+    weight: 10
+    double-enabled: true
+    commands: []

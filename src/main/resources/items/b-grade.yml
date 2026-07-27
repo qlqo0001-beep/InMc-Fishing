@@ -1,0 +1,49 @@
+# ============================================================
+#  B등급 아이템 목록
+#  중상위 등급입니다.
+#  자세한 설정 방법은 f-grade.yml의 상단 주석을 참고하세요.
+# ============================================================
+items:
+  iron_ingot:
+    id: "iron_ingot"
+    use-type: vanilla
+    vanilla-material: IRON_INGOT
+    vanilla-name: "&f철 주괴"
+    vanilla-lore:
+      - "&7튼튼한 철 주괴입니다."
+    weight: 40
+    double-enabled: true
+    commands: []
+
+  golden_apple:
+    id: "golden_apple"
+    use-type: vanilla
+    vanilla-material: GOLDEN_APPLE
+    vanilla-name: "&6황금 사과"
+    vanilla-lore:
+      - "&7황금 사과입니다."
+    weight: 30
+    double-enabled: true
+    commands: []
+
+  book:
+    id: "book"
+    use-type: vanilla
+    vanilla-material: BOOK
+    vanilla-name: "&3책"
+    vanilla-lore:
+      - "&7지식이 담긴 책입니다."
+    weight: 20
+    double-enabled: true
+    commands: []
+
+  bucket:
+    id: "bucket"
+    use-type: vanilla
+    vanilla-material: BUCKET
+    vanilla-name: "&3양동이"
+    vanilla-lore:
+      - "&7양동이입니다."
+    weight: 10
+    double-enabled: true
+    commands: []

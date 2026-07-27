@@ -1,0 +1,60 @@
+# ============================================================
+#  S등급 아이템 목록
+#  최상위 등급으로, 가장 드물게 낚입니다.
+#  자세한 설정 방법은 f-grade.yml의 상단 주석을 참고하세요.
+# ============================================================
+items:
+  nether_star:
+    id: "nether_star"
+    use-type: vanilla
+    vanilla-material: NETHER_STAR
+    vanilla-name: "&b네더의 별"
+    vanilla-lore:
+      - "&7신비로운 네더의 별입니다."
+    weight: 30
+    double-enabled: true
+    commands: []
+
+  netherite_scrap:
+    id: "netherite_scrap"
+    use-type: vanilla
+    vanilla-material: NETHERITE_SCRAP
+    vanilla-name: "&c네더라이트 파편"
+    vanilla-lore:
+      - "&7네더라이트 파편입니다."
+    weight: 25
+    double-enabled: true
+    commands: []
+
+  heart_of_the_sea:
+    id: "heart_of_the_sea"
+    use-type: vanilla
+    vanilla-material: HEART_OF_THE_SEA
+    vanilla-name: "&b바다의 심장"
+    vanilla-lore:
+      - "&7바다의 심장입니다."
+    weight: 20
+    double-enabled: true
+    commands: []
+
+  experience_bottle:
+    id: "experience_bottle"
+    use-type: vanilla
+    vanilla-material: EXPERIENCE_BOTTLE
+    vanilla-name: "&a경험치 병"
+    vanilla-lore:
+      - "&7경험치가 담긴 병입니다."
+    weight: 15
+    double-enabled: true
+    commands: []
+
+  saddle:
+    id: "saddle"
+    use-type: vanilla
+    vanilla-material: SADDLE
+    vanilla-name: "&6안장"
+    vanilla-lore:
+      - "&7안장입니다."
+    weight: 10
+    double-enabled: true
+    commands: []

@@ -1,0 +1,38 @@
+# ============================================================
+#  C등급 아이템 목록
+#  중간 등급입니다.
+#  자세한 설정 방법은 f-grade.yml의 상단 주석을 참고하세요.
+# ============================================================
+items:
+  emerald:
+    id: "emerald"
+    use-type: vanilla
+    vanilla-material: EMERALD
+    vanilla-name: "&a에메랄드"
+    vanilla-lore:
+      - "&7신비로운 에메랄드입니다."
+    weight: 50
+    double-enabled: true
+    commands: []
+
+  diamond_block:
+    id: "diamond_block"
+    use-type: vanilla
+    vanilla-material: DIAMOND_BLOCK
+    vanilla-name: "&b다이아몬드 블록"
+    vanilla-lore:
+      - "&7반짝이는 다이아몬드 블록입니다."
+    weight: 30
+    double-enabled: true
+    commands: []
+
+  gold_block:
+    id: "gold_block"
+    use-type: vanilla
+    vanilla-material: GOLD_BLOCK
+    vanilla-name: "&6금 블록"
+    vanilla-lore:
+      - "&7귀한 금 블록입니다."
+    weight: 20
+    double-enabled: true
+    commands: []

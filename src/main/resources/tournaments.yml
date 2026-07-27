@@ -1,0 +1,66 @@
+tournaments:
+  weekly_grade_s:
+    id: "weekly_grade_s"
+    name: "&c주간 S등급 대회"
+    description:
+      - "&7S등급 물고기를 낚아 점수를 획득하세요!"
+    type: GRADE
+    grade: S
+    duration-minutes: 60
+    auto-start: true
+    schedule: "WEEKLY"
+    schedule-day: "SUNDAY"
+    schedule-time: "20:00"
+    min-players: 1
+    max-players: 100
+    entry-fee: 0
+    refund-on-leave: true
+    rewards:
+      1st:
+        - "give {player} diamond 10"
+        - "give {player} nether_star 1"
+        - "broadcast {player}님이 주간 S등급 대회에서 1위를 차지했습니다!"
+      2nd:
+        - "give {player} diamond 5"
+      3rd:
+        - "give {player} diamond 3"
+    participation-reward:
+      - "give {player} exp 100"
+
+  size_championship:
+    id: "size_championship"
+    name: "&b최고의 낚시꾼 대회"
+    description:
+      - "&7가장 큰 물고기를 낚아라!"
+    type: SIZE
+    duration-minutes: 120
+    auto-start: false
+    min-players: 2
+    max-players: 50
+    entry-fee: 0
+    refund-on-leave: true
+    rewards:
+      1st:
+        - "give {player} cod 10"
+        - "give {player} name_tag 1"
+        - "broadcast {player}님이 최고의 낚시꾼 대회에서 1위를 차지했습니다!"
+
+  weekend_frenzy:
+    id: "weekend_frenzy"
+    name: "&a주말 낚시 광란"
+    description:
+      - "&7주말 동안 가장 많이 낚아라!"
+    type: COUNT
+    duration-minutes: 2880
+    auto-start: true
+    schedule: "WEEKLY"
+    schedule-day: "SATURDAY"
+    schedule-time: "00:00"
+    min-players: 1
+    max-players: 200
+    entry-fee: 0
+    refund-on-leave: true
+    rewards:
+      1st:
+        - "give {player} cod 100"
+        - "give {player} beacon 1"

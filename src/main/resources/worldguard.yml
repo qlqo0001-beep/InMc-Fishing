@@ -1,0 +1,12 @@
+regions:
+  spawn_lake:
+    world: world
+    region: fishing_lake
+    fishing-enabled: true
+    grade-weight-multiplier:
+      S: 1.5
+
+  no_fish_zone:
+    world: world
+    region: spawn_protection
+    fishing-enabled: false

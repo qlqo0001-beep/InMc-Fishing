@@ -1,0 +1,60 @@
+# ============================================================
+#  F등급 아이템 목록
+#  가장 낮은 등급으로, 가장 자주 낚입니다.
+# ============================================================
+#
+# [items 속성 설명]
+#   id:             아이템 식별자 (내부용, 중복 불가)
+#   use-type:       vanilla (바닐라 아이템) 또는 mmoitems (MMOItems 아이템)
+#
+#   [use-type: vanilla 전용]
+#   vanilla-material: 바닐라 아이템 종류 (Material 이름)
+#                     예: COD, SALMON, TROPICAL_FISH, BONE, STRING 등
+#   vanilla-name:     아이템에 표시될 이름 (& 색상코드 사용 가능)
+#   vanilla-lore:     아이템 설명 (& 색상코드 사용 가능, 여러 줄 가능)
+#
+#   [use-type: mmoitems 전용]
+#   mmoitems-type:    MMOItems 아이템 타입
+#   mmoitems-id:      MMOItems 아이템 ID
+#
+#   weight:           아이템 가중치 (높을수록 자주 나옴)
+#                     같은 등급 내 아이템들 간의 상대적인 확률
+#   double-enabled:   true = 더블 보상 가능 (2개 지급)
+#                     false = 더블 보상 불가능 (항상 1개)
+#   commands:         낚시 성공 시 실행될 콘솔 명령어 목록
+#                     {player} - 플레이어 이름으로 치환
+#                     {item}   - 아이템 이름으로 치환
+# ============================================================
+items:
+  cod:
+    id: "cod"
+    use-type: vanilla
+    vanilla-material: COD
+    vanilla-name: "&3생대구"
+    vanilla-lore:
+      - "&7신선한 생대구입니다."
+    weight: 70          # 70% 확률로 선택됨 (F등급 내에서)
+    double-enabled: true # 더블 보상 가능
+    commands: []        # 추가 명령어 없음
+
+  salmon:
+    id: "salmon"
+    use-type: vanilla
+    vanilla-material: SALMON
+    vanilla-name: "&3연어"
+    vanilla-lore:
+      - "&7신선한 연어입니다."
+    weight: 20
+    double-enabled: true
+    commands: []
+
+  tropical_fish:
+    id: "tropical_fish"
+    use-type: vanilla
+    vanilla-material: TROPICAL_FISH
+    vanilla-name: "&3열대어"
+    vanilla-lore:
+      - "&7알록달록한 열대어입니다."
+    weight: 10
+    double-enabled: true
+    commands: []

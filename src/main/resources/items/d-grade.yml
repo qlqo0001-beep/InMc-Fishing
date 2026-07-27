@@ -1,0 +1,60 @@
+# ============================================================
+#  D등급 아이템 목록
+#  중간 이하 등급입니다.
+#  자세한 설정 방법은 f-grade.yml의 상단 주석을 참고하세요.
+# ============================================================
+items:
+  leather:
+    id: "leather"
+    use-type: vanilla
+    vanilla-material: LEATHER
+    vanilla-name: "&3가죽"
+    vanilla-lore:
+      - "&7가죽입니다."
+    weight: 30
+    double-enabled: true
+    commands: []
+
+  ink_sac:
+    id: "ink_sac"
+    use-type: vanilla
+    vanilla-material: INK_SAC
+    vanilla-name: "&3먹물 주머니"
+    vanilla-lore:
+      - "&7먹물 주머니입니다."
+    weight: 25
+    double-enabled: true
+    commands: []
+
+  pufferfish:
+    id: "pufferfish"
+    use-type: vanilla
+    vanilla-material: PUFFERFISH
+    vanilla-name: "&e복어"
+    vanilla-lore:
+      - "&7복어입니다. 독이 있습니다!"
+    weight: 20
+    double-enabled: true
+    commands: []
+
+  coal:
+    id: "coal"
+    use-type: vanilla
+    vanilla-material: COAL
+    vanilla-name: "&3석탄"
+    vanilla-lore:
+      - "&7석탄입니다."
+    weight: 15
+    double-enabled: true
+    commands: []
+
+  nametag:
+    id: "nametag"
+    use-type: vanilla
+    vanilla-material: NAME_TAG
+    vanilla-name: "&f이름표"
+    vanilla-lore:
+      - "&7이름표입니다."
+    weight: 10
+    double-enabled: true
+    commands: []

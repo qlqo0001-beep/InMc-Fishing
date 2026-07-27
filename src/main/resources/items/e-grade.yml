@@ -1,0 +1,51 @@
+# ============================================================
+#  E등급 아이템 목록
+#  낮은 등급으로, 자주 낚입니다.
+# ============================================================
+#
+# 자세한 설정 방법은 f-grade.yml의 상단 주석을 참고하세요.
+# ============================================================
+items:
+  bone:
+    id: "bone"
+    use-type: vanilla
+    vanilla-material: BONE
+    vanilla-name: "&8뼈다귀"
+    vanilla-lore:
+      - "&7뼈다귀입니다."
+    weight: 40
+    double-enabled: true
+    commands: []
+
+  string:
+    id: "string"
+    use-type: vanilla
+    vanilla-material: STRING
+    vanilla-name: "&f실"
+    vanilla-lore:
+      - "&7실타래입니다."
+    weight: 30
+    double-enabled: true
+    commands: []
+
+  stick:
+    id: "stick"
+    use-type: vanilla
+    vanilla-material: STICK
+    vanilla-name: "&6막대기"
+    vanilla-lore:
+      - "&7평범한 막대기입니다."
+    weight: 20
+    double-enabled: true
+    commands: []
+
+  rotten_flesh:
+    id: "rotten_flesh"
+    use-type: vanilla
+    vanilla-material: ROTTEN_FLESH
+    vanilla-name: "&7썩은 살점"
+    vanilla-lore:
+      - "&7썩은 살점입니다."
+    weight: 10
+    double-enabled: true
+    commands: []

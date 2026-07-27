@@ -1,0 +1,18 @@
+name: InMc-Fishing
+version: '1.0.0'
+main: me.ninesik.fishing.InMcFishing
+description: Java 25 / Paper 26.2 기반 ?�시 ?�러그인 (?�급�?미니게임, ?�감, ?�??
+author: NineSik
+api-version: '26.1'
+aliases: [IF]
+
+softdepend: [MMOItems, PlaceholderAPI, Vault, WorldGuard, ProtocolLib]
+
+commands:
+  fishing:
+    description: InMc-Fishing 관리자/?��? 명령??    usage: /<command> [reload|debug|simulate|info|...]
+
+permissions:
+  infishing.admin:
+    description: InMc-Fishing 관리자 명령??권한
+    default: op
