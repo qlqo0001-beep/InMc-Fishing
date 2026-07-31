@@ -6,6 +6,9 @@ import me.ninesik.fishing.model.Rod;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 
+import java.util.ArrayList;
+import java.util.List;
+
 public class MMOItemsHook {
     private final InMcFishing plugin;
     private boolean available = false;
@@ -94,5 +97,28 @@ public class MMOItemsHook {
         } catch (Exception e) {
             return null;
         }
+    }
+
+    /**
+     * 세션 19: MMOItems 아이템 Lore에 {size} 플레이스홀더를 실제 사이즈로 치환한다.
+     * MMOItems Lore 템플릿에 "&7사이즈: &f{size}cm" 형식으로 작성하면 치환된다.
+     */
+    public ItemStack applySizePlaceholder(ItemStack item, double size) {
+        if (!available || item == null) return item;
+
+        org.bukkit.inventory.meta.ItemMeta meta = item.getItemMeta();
+        if (meta == null) return item;
+
+        List<String> lore = meta.getLore();
+        if (lore == null || lore.isEmpty()) return item;
+
+        String sizeStr = String.format("%.1f", size);
+        List<String> replaced = new ArrayList<>();
+        for (String line : lore) {
+            replaced.add(line.replace("{size}", sizeStr));
+        }
+        meta.setLore(replaced);
+        item.setItemMeta(meta);
+        return item;
     }
 }

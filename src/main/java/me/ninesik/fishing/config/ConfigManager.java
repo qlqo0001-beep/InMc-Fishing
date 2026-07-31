@@ -1,4 +1,4 @@
-﻿package me.ninesik.fishing.config;
+package me.ninesik.fishing.config;
 
 import me.ninesik.fishing.InMcFishing;
 import me.ninesik.fishing.util.Texts;
@@ -9,6 +9,7 @@ import org.bukkit.entity.Player;
 
 import java.io.File;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -142,6 +143,10 @@ public class ConfigManager {
         return config;
     }
 
+    public List<String> getAllowedWorlds() {
+        return config.getStringList("settings.allowed-worlds");
+    }
+
     /**
      * permission 섹션에 정의된 모든 권한 인덱스를 순회해서, 플레이어가 가진 권한의 배수를 모두 곱해 반환한다.
      * (여러 권한을 동시에 보유할 수 있으므로 누적 곱연산으로 처리 — 15.2의 "모든 Modifier는 곱연산으로 통일" 기준)
@@ -159,116 +164,5 @@ public class ConfigManager {
             }
         }
         return result;
-    }
-
-        if (event.getAction().toString().contains("RIGHT_CLICK")) {
-            // 우클릭: 현재 틱 기록 후 정상 처리
-            lastRightClickTick.put(player.getUniqueId(), currentTick);
-            game.handleInput(player, MiniGame.InputType.RIGHT_CLICK);
-            event.setCancelled(true);
-        } else if (event.getAction().toString().contains("LEFT_CLICK")) {
-            // 좌클릭: 같은 틱에 우클릭이 있었다면 유령 클릭으로 무시
-            Integer lastTick = lastRightClickTick.get(player.getUniqueId());
-            if (lastTick != null && lastTick == currentTick) {
-                return; // 유령 좌클릭 무시
-            }
-            game.handleInput(player, MiniGame.InputType.LEFT_CLICK);
-            event.setCancelled(true);
-        }
-    }
-
-    @EventHandler
-    public void onPlayerQuit(PlayerQuitEvent event) {
-        cleanupPlayer(event.getPlayer());
-    }
-
-    @EventHandler
-    public void onPlayerChangedWorld(PlayerChangedWorldEvent event) {
-        cleanupPlayer(event.getPlayer());
-    }
-
-    @EventHandler
-    public void onPlayerDeath(PlayerDeathEvent event) {
-        if (event.getEntity() instanceof Player player) {
-            cleanupPlayer(player);
-        }
-    }
-
-    @EventHandler
-    public void onPlayerDropItem(PlayerDropItemEvent event) {
-        cleanupPlayer(event.getPlayer());
-    }
-
-    @EventHandler
-    public void onPlayerItemHeld(PlayerItemHeldEvent event) {
-        cleanupPlayer(event.getPlayer());
-    }
-
-    /**
-     * 손에 든 아이템으로 등록된 낚싯대를 조회한다. (29.1)
-     *
-     * - MMOItems 아이템: rod.yml에 mmoitems-type: ROD로 등록되어 있으면 Matched, 아니면
-     *   UnregisteredMmoItemRod (낚시 차단 — 미등록 MMOItems 낚싯대를 통한 우회 악용 방지).
-     * - 바닐라 FISHING_ROD: rod.yml의 vanilla-name(색상 변환 후)과 실제 displayName이 일치하면
-     *   Matched, 일치하는 게 없으면 UnregisteredVanilla (보너스 0으로 낚시 정상 진행 허용).
-     * - 그 외: NotARod (낚시 차단 — BITE 상태는 이미 낚싯대를 든 상태에서만 발생하므로 실질적으로는
-     *   거의 발생하지 않지만, 방어적으로 차단 처리한다).
-     */
-    private RodLookupResult lookupRod(Player player) {
-        ItemStack item = player.getInventory().getItemInMainHand();
-        if (item == null || item.getType() == Material.AIR) {
-            return new RodLookupResult.NotARod();
-        }
-
-        // MMOItems 아이템 확인
-        if (dependencyManager.getMMOItems().isAvailable() &&
-            dependencyManager.getMMOItems().isMMOItem(item)) {
-            String mmoItemId = dependencyManager.getMMOItems().getMMOItemId(item);
-            if (mmoItemId != null) {
-                for (Rod rod : rodRegistry.getAll().values()) {
-                    if ("mmoitems".equalsIgnoreCase(rod.getUseType()) && mmoItemId.equals(rod.getMmoitemsId())) {
-                        return new RodLookupResult.Matched(rod);
-                    }
-                }
-            }
-            return new RodLookupResult.UnregisteredMmoItemRod();
-        }
-
-        // 바닐라 낚싯대 확인 (rod.yml의 vanilla-name을 실제로 조회해서 매칭 — 하드코딩 문자열 비교 금지)
-        if (item.getType() == Material.FISHING_ROD) {
-            ItemMeta meta = item.hasItemMeta() ? item.getItemMeta() : null;
-            String displayName = (meta != null && meta.hasDisplayName()) ? meta.getDisplayName() : null;
-
-            if (displayName != null) {
-                for (Rod rod : rodRegistry.getAll().values()) {
-                    if (!"vanilla".equalsIgnoreCase(rod.getUseType())) {
-                        continue;
-                    }
-                    String configuredName = rod.getVanillaName();
-                    if (configuredName == null || configuredName.isEmpty()) {
-                        continue;
-                    }
-                    String translated = ChatColor.translateAlternateColorCodes('&', configuredName);
-                    if (translated.equals(displayName)) {
-                        return new RodLookupResult.Matched(rod);
-                    }
-                }
-            }
-
-            // 29.1: 이름/로어가 없거나(또는 등록된 이름과 매칭되지 않는) 일반 바닐라 FISHING_ROD →
-            // rod.yml에 없어도 낚시는 정상 진행, 보너스만 0으로 취급
-            return new RodLookupResult.UnregisteredVanilla();
-        }
-
-        return new RodLookupResult.NotARod();
-    }
-
-    private sealed interface RodLookupResult
-            permits RodLookupResult.Matched, RodLookupResult.UnregisteredVanilla,
-                    RodLookupResult.UnregisteredMmoItemRod, RodLookupResult.NotARod {
-        record Matched(Rod rod) implements RodLookupResult {}
-        record UnregisteredVanilla() implements RodLookupResult {}
-        record UnregisteredMmoItemRod() implements RodLookupResult {}
-        record NotARod() implements RodLookupResult {}
     }
 }

@@ -63,6 +63,11 @@ public class FishLoader {
                     List<String> vanillaLore = itemSection.getStringList("vanilla-lore");
                     List<String> commands = itemSection.getStringList("commands");
 
+                    double minSize = itemSection.getDouble("min-size", 10.0);
+                    double maxSize = itemSection.getDouble("max-size", 100.0);
+                    double avgSize = itemSection.getDouble("avg-size", 0.0);
+                    if (avgSize <= 0) avgSize = (minSize + maxSize) / 2.0;
+
                     Fish fish = Fish.builder()
                             .id(id)
                             .useType(useType)
@@ -75,6 +80,10 @@ public class FishLoader {
                             .doubleEnabled(itemSection.getBoolean("double-enabled", true))
                             .commands(commands)
                             .grade(grade)
+                            .minSize(minSize)
+                            .maxSize(maxSize)
+                            .avgSize(avgSize)
+                            .customModelData(itemSection.getInt("custom-model-data", 0))
                             .build();
 
                     fishMap.put(id, fish);

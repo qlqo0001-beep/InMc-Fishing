@@ -1,72 +1,159 @@
 # ============================================================
 #  A등급 아이템 목록
-#  최상위 등급, 전설의 아이템이 낚입니다.
-#  더블 보상이 불가능하며, 모든 아이템이 매우 희귀합니다.
-# ============================================================
-#
-# [grade-settings 속성 설명]
-#   input-count:    미니게임 성공에 필요한 클릭 횟수
-#   time-seconds:   미니게임 제한 시간 (초, 소수점 가능)
-#   weight:         등급 가중치 (grades.yml의 weight와 동일)
-#
-# [items 속성 설명]
-#   id:             아이템 식별자 (내부용, 중복 불가)
-#   use-type:       vanilla (바닐라 아이템) 또는 mmoitems (MMOItems 아이템)
-#
-#   [use-type: vanilla 전용]
-#   vanilla-material: 바닐라 아이템 종류 (Material 이름)
-#   vanilla-name:     아이템에 표시될 이름 (& 색상코드 사용 가능)
-#   vanilla-lore:     아이템 설명 (& 색상코드 사용 가능, 여러 줄 가능)
-#
-#   [use-type: mmoitems 전용]
-#   mmoitems-type:    MMOItems 아이템 타입
-#   mmoitems-id:      MMOItems 아이템 ID
-#
-#   weight:           아이템 가중치 (높을수록 자주 나옴)
-#   double-enabled:   true = 더블 보상 가능 (2개 지급)
-#                     false = 더블 보상 불가능 (항상 1개)
-#   commands:         낚시 성공 시 실행될 콘솔 명령어 목록
-#                     {player} - 플레이어 이름으로 치환
+#  최상위 등급, 신화급 물고기가 낚입니다.
 # ============================================================
 grade-settings:
-  input-count: 8    # 8번 클릭해야 성공
-  time-seconds: 3.2 # 3.2초 안에 클릭 완료
-  weight: 2         # 2% 확률로 A등급이 선택됨
+  input-count: 8
+  time-seconds: 3.2
+  weight: 2
 
 items:
-  # 드래곤 알 — A등급에서 가장 희귀한 전설의 아이템 (더블 불가)
-  dragon_egg:
-    id: "dragon_egg"
+  world_serpent:
+    id: "world_serpent"
     use-type: vanilla
-    vanilla-material: DRAGON_EGG
-    vanilla-name: "&c드래곤 알"
+    vanilla-material: SALMON
+    vanilla-name: "&c세계뱀"
     vanilla-lore:
-      - "&7전설의 드래곤 알입니다."
-      - "&7매우 희귀합니다."
-    weight: 30
+      - "&7세상을 휘감는 전설의 뱀입니다."
+    min-size: 1000.0
+    max-size: 5000.0
+    avg-size: 2500.0
+    custom-model-data: 6001
+    weight: 22
     double-enabled: false
     commands: []
 
-  # 고급 네더의 별 — A등급의 특별한 네더의 별 (더블 불가)
-  nether_star:
-    id: "nether_star_rare"
+  celestial_whale:
+    id: "celestial_whale"
     use-type: vanilla
-    vanilla-material: NETHER_STAR
-    vanilla-name: "&b고급 네더의 별"
+    vanilla-material: COD
+    vanilla-name: "&c천상 고래"
     vanilla-lore:
-      - "&7특별한 힘이 깃든 별입니다."
-    weight: 35
+      - "&7하늘을 유영하는 신성한 고래입니다."
+    min-size: 800.0
+    max-size: 3000.0
+    avg-size: 1500.0
+    custom-model-data: 6002
+    weight: 18
     double-enabled: false
     commands: []
 
-  # 고급 신호기 — A등급의 강력한 신호기 (더블 불가)
-  beacon:
-    id: "beacon_rare"
+  phoenix_fish:
+    id: "phoenix_fish"
     use-type: vanilla
-    vanilla-material: BEACON
-    vanilla-name: "&6고급 신호기"
+    vanilla-material: TROPICAL_FISH
+    vanilla-name: "&c불사조 물고기"
     vanilla-lore:
-      - "&7강력한 힘을 발휘하는 신호기입니다."
-    weight: 35
+      - "&7불꽃에서 다시 태어나는 물고기입니다."
+    min-size: 30.0
+    max-size: 100.0
+    avg-size: 60.0
+    custom-model-data: 6003
+    weight: 14
+    double-enabled: false
+    commands: []
+
+  time_eel:
+    id: "time_eel"
+    use-type: vanilla
+    vanilla-material: SALMON
+    vanilla-name: "&c시간 장어"
+    vanilla-lore:
+      - "&7시간을 넘나드는 장어입니다."
+    min-size: 100.0
+    max-size: 500.0
+    avg-size: 250.0
+    custom-model-data: 6004
+    weight: 12
+    double-enabled: false
+    commands: []
+
+  storm_ray:
+    id: "storm_ray"
+    use-type: vanilla
+    vanilla-material: COD
+    vanilla-name: "&c폭풍 가오리"
+    vanilla-lore:
+      - "&7폭풍우를 부르는 가오리입니다."
+    min-size: 200.0
+    max-size: 800.0
+    avg-size: 400.0
+    custom-model-data: 6005
+    weight: 10
+    double-enabled: false
+    commands: []
+
+  crystal_leviathan:
+    id: "crystal_leviathan"
+    use-type: vanilla
+    vanilla-material: COD
+    vanilla-name: "&c수정 리바이어던"
+    vanilla-lore:
+      - "&7수정으로 이루어진 거대 괴수입니다."
+    min-size: 500.0
+    max-size: 2000.0
+    avg-size: 1000.0
+    custom-model-data: 6006
+    weight: 8
+    double-enabled: false
+    commands: []
+
+  shadow_shark:
+    id: "shadow_shark"
+    use-type: vanilla
+    vanilla-material: COD
+    vanilla-name: "&c그림자 상어"
+    vanilla-lore:
+      - "&7그림자 속에서 사냥하는 상어입니다."
+    min-size: 300.0
+    max-size: 1000.0
+    avg-size: 550.0
+    custom-model-data: 6007
+    weight: 6
+    double-enabled: false
+    commands: []
+
+  spirit_koi:
+    id: "spirit_koi"
+    use-type: vanilla
+    vanilla-material: TROPICAL_FISH
+    vanilla-name: "&c정령 비단잉어"
+    vanilla-lore:
+      - "&7숲의 정령이 깃든 비단잉어입니다."
+    min-size: 30.0
+    max-size: 100.0
+    avg-size: 55.0
+    custom-model-data: 6008
+    weight: 5
+    double-enabled: false
+    commands: []
+
+  void_serpent:
+    id: "void_serpent"
+    use-type: vanilla
+    vanilla-material: SALMON
+    vanilla-name: "&c공허 뱀"
+    vanilla-lore:
+      - "&7공허의 끝에서 온 뱀입니다."
+    min-size: 500.0
+    max-size: 3000.0
+    avg-size: 1500.0
+    custom-model-data: 6009
+    weight: 3
+    double-enabled: false
+    commands: []
+
+  diamond_koi:
+    id: "diamond_koi"
+    use-type: vanilla
+    vanilla-material: TROPICAL_FISH
+    vanilla-name: "&c다이아몬드 비단잉어"
+    vanilla-lore:
+      - "&7다이아몬드처럼 빛나는 비단잉어입니다."
+    min-size: 35.0
+    max-size: 90.0
+    avg-size: 55.0
+    custom-model-data: 6010
+    weight: 1
     double-enabled: false
     commands: []

@@ -79,6 +79,14 @@ public class FishingService {
         // config.yml/modifiers.yml 재로드 (Registry 재생성은 RegistryManager에서 별도로 처리)
         plugin.reloadConfig();
         configManager.load();
+        if (plugin instanceof me.ninesik.fishing.InMcFishing inMcFishing) {
+            if (inMcFishing.getCollectionManager() != null) {
+                inMcFishing.getCollectionManager().reload();
+            }
+            if (inMcFishing.getTournamentManager() != null) {
+                inMcFishing.getTournamentManager().reload();
+            }
+        }
     }
 
     public void shutdown() {

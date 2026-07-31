@@ -1,69 +1,159 @@
 # ============================================================
 #  D등급 아이템 목록
-#  중간 등급, 광물류가 주로 낚입니다.
-# ============================================================
-#
-# [grade-settings 속성 설명]
-#   input-count:    미니게임 성공에 필요한 클릭 횟수
-#   time-seconds:   미니게임 제한 시간 (초, 소수점 가능)
-#   weight:         등급 가중치 (grades.yml의 weight와 동일)
-#
-# [items 속성 설명]
-#   id:             아이템 식별자 (내부용, 중복 불가)
-#   use-type:       vanilla (바닐라 아이템) 또는 mmoitems (MMOItems 아이템)
-#
-#   [use-type: vanilla 전용]
-#   vanilla-material: 바닐라 아이템 종류 (Material 이름)
-#   vanilla-name:     아이템에 표시될 이름 (& 색상코드 사용 가능)
-#   vanilla-lore:     아이템 설명 (& 색상코드 사용 가능, 여러 줄 가능)
-#
-#   [use-type: mmoitems 전용]
-#   mmoitems-type:    MMOItems 아이템 타입
-#   mmoitems-id:      MMOItems 아이템 ID
-#
-#   weight:           아이템 가중치 (높을수록 자주 나옴)
-#   double-enabled:   true = 더블 보상 가능 (2개 지급)
-#   commands:         낚시 성공 시 실행될 콘솔 명령어 목록
-#                     {player} - 플레이어 이름으로 치환
+#  중간 등급, 대형/특수 물고기가 낚입니다.
 # ============================================================
 grade-settings:
-  input-count: 5    # 5번 클릭해야 성공
-  time-seconds: 4.0 # 4초 안에 클릭 완료
-  weight: 15        # 15% 확률로 D등급이 선택됨
+  input-count: 5
+  time-seconds: 4.0
+  weight: 15
 
 items:
-  # 다이아몬드 — D등급에서 가장 자주 낚이는 광물
-  diamond:
-    id: "diamond"
+  swordfish:
+    id: "swordfish"
     use-type: vanilla
-    vanilla-material: DIAMOND
-    vanilla-name: "&b다이아몬드"
+    vanilla-material: COD
+    vanilla-name: "&9황새치"
     vanilla-lore:
-      - "&7반짝이는 다이아몬드입니다."
-    weight: 40
+      - "&7긴 코를 가진 황새치입니다."
+    min-size: 80.0
+    max-size: 300.0
+    avg-size: 180.0
+    custom-model-data: 3001
+    weight: 18
     double-enabled: true
     commands: []
 
-  # 금괴 — D등급에서 중간 확률로 낚이는 광물
-  gold_ingot:
-    id: "gold_ingot"
+  tuna:
+    id: "tuna"
     use-type: vanilla
-    vanilla-material: GOLD_INGOT
-    vanilla-name: "&6금괴"
+    vanilla-material: COD
+    vanilla-name: "&9참치"
     vanilla-lore:
-      - "&7무게가 느껴지는 금괴입니다."
-    weight: 35
+      - "&7빠른 참치입니다."
+    min-size: 60.0
+    max-size: 250.0
+    avg-size: 150.0
+    custom-model-data: 3002
+    weight: 16
     double-enabled: true
     commands: []
 
-  # 철괴 — D등급에서 드물게 낚이는 광물
-  iron_ingot:
-    id: "iron_ingot"
+  shark_small:
+    id: "shark_small"
     use-type: vanilla
-    vanilla-material: IRON_INGOT
-    vanilla-name: "&7철괴"
+    vanilla-material: COD
+    vanilla-name: "&9작은 상어"
     vanilla-lore:
-      - "&7단단한 철괴입니다."
-    weight: 25
+      - "&7아직 어린 상어입니다."
+    min-size: 50.0
+    max-size: 200.0
+    avg-size: 120.0
+    custom-model-data: 3003
+    weight: 14
+    double-enabled: true
+    commands: []
+
+  sturgeon:
+    id: "sturgeon"
+    use-type: vanilla
+    vanilla-material: COD
+    vanilla-name: "&9철갑상어"
+    vanilla-lore:
+      - "&7고대의 물고기 철갑상어입니다."
+    min-size: 60.0
+    max-size: 300.0
+    avg-size: 150.0
+    custom-model-data: 3004
+    weight: 12
+    double-enabled: true
+    commands: []
+
+  giant_catfish:
+    id: "giant_catfish"
+    use-type: vanilla
+    vanilla-material: COD
+    vanilla-name: "&9거대 메기"
+    vanilla-lore:
+      - "&7전설처럼 큰 메기입니다."
+    min-size: 50.0
+    max-size: 250.0
+    avg-size: 130.0
+    custom-model-data: 3005
+    weight: 10
+    double-enabled: true
+    commands: []
+
+  marlin:
+    id: "marlin"
+    use-type: vanilla
+    vanilla-material: COD
+    vanilla-name: "&9청새치"
+    vanilla-lore:
+      - "&7바다의 검사 청새치입니다."
+    min-size: 100.0
+    max-size: 400.0
+    avg-size: 250.0
+    custom-model-data: 3006
+    weight: 8
+    double-enabled: true
+    commands: []
+
+  grouper:
+    id: "grouper"
+    use-type: vanilla
+    vanilla-material: COD
+    vanilla-name: "&9다금바리"
+    vanilla-lore:
+      - "&7거대한 입을 가진 다금바리입니다."
+    min-size: 30.0
+    max-size: 120.0
+    avg-size: 70.0
+    custom-model-data: 3007
+    weight: 6
+    double-enabled: true
+    commands: []
+
+  barracuda:
+    id: "barracuda"
+    use-type: vanilla
+    vanilla-material: SALMON
+    vanilla-name: "&9바라쿠다"
+    vanilla-lore:
+      - "&7날카로운 이빨의 바라쿠다입니다."
+    min-size: 40.0
+    max-size: 180.0
+    avg-size: 100.0
+    custom-model-data: 3008
+    weight: 5
+    double-enabled: true
+    commands: []
+
+  arapaima:
+    id: "arapaima"
+    use-type: vanilla
+    vanilla-material: COD
+    vanilla-name: "&9아라파이마"
+    vanilla-lore:
+      - "&7아마존의 거대한 물고기입니다."
+    min-size: 100.0
+    max-size: 350.0
+    avg-size: 200.0
+    custom-model-data: 3009
+    weight: 3
+    double-enabled: true
+    commands: []
+
+  crystal_koi:
+    id: "crystal_koi"
+    use-type: vanilla
+    vanilla-material: TROPICAL_FISH
+    vanilla-name: "&b수정 비단잉어"
+    vanilla-lore:
+      - "&7수정처럼 투명한 비단잉어입니다."
+    min-size: 20.0
+    max-size: 60.0
+    avg-size: 35.0
+    custom-model-data: 3010
+    weight: 1
     double-enabled: true
     commands: []

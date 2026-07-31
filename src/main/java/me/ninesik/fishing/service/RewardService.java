@@ -2,6 +2,7 @@ package me.ninesik.fishing.service;
 
 import me.ninesik.fishing.config.ConfigManager;
 import me.ninesik.fishing.dependency.DependencyManager;
+import me.ninesik.fishing.event.FishCatchEvent;
 import me.ninesik.fishing.model.Fish;
 import me.ninesik.fishing.model.Grade;
 import me.ninesik.fishing.model.RewardEntry;
@@ -48,7 +49,7 @@ public class RewardService {
         Fish fish = reward.getFish();
         int amount = reward.getAmount();
 
-        ItemStack item = createItemStack(fish, amount);
+        ItemStack item = createItemStack(fish, amount, reward.getSize());
         if (item == null) {
             logger.warning("Failed to create reward item for fish id=" + fish.getId()
                     + " use-type=" + fish.getUseType() + " player=" + player.getName());
@@ -117,6 +118,9 @@ public class RewardService {
         // Fish.commands 콘솔 실행 (CLAUDE.md: 결과 로그 남김)
         runCommands(player, reward, itemDisplay);
 
+        // 이벤트 발행 — 도감/랭킹/대회 등이 수신
+        Bukkit.getPluginManager().callEvent(new FishCatchEvent(player, fish, reward));
+
         return true;
     }
 
@@ -161,7 +165,15 @@ public class RewardService {
         return Texts.humanize(fish.getId());
     }
 
-    private ItemStack createItemStack(Fish fish, int amount) {
+    public ItemStack createItemStack(Fish fish, int amount) {
+        return createItemStack(fish, amount, 0.0);
+    }
+
+    /**
+     * 세션 18: 사이즈 정보를 포함하여 아이템 생성.
+     * @param size 물고기 사이즈(cm), 사이즈 없는 아이템은 0.0
+     */
+    public ItemStack createItemStack(Fish fish, int amount, double size) {
         String useType = fish.getUseType() != null ? fish.getUseType().toLowerCase() : "vanilla";
 
         if ("vanilla".equals(useType)) {
@@ -178,11 +190,24 @@ public class RewardService {
                 if (displayName != null && !displayName.isEmpty()) {
                     meta.setDisplayName(Texts.colorize(displayName));
                 }
+
+                // 기존 vanilla-lore + 사이즈 정보 추가
+                List<String> lore = new java.util.ArrayList<>();
                 if (fish.getVanillaLore() != null && !fish.getVanillaLore().isEmpty()) {
-                    meta.setLore(fish.getVanillaLore().stream()
+                    lore.addAll(fish.getVanillaLore().stream()
                             .map(Texts::colorize)
-                            .collect(java.util.stream.Collectors.toList()));
+                            .toList());
                 }
+                appendSizeLore(fish, lore, size);
+                if (!lore.isEmpty()) {
+                    meta.setLore(lore);
+                }
+
+                // CustomModelData 적용
+                if (fish.getCustomModelData() > 0) {
+                    meta.setCustomModelData(fish.getCustomModelData());
+                }
+
                 item.setItemMeta(meta);
             }
             return item;
@@ -203,6 +228,11 @@ public class RewardService {
             // amount 적용 (MMOItems는 보통 1개 반환)
             ItemStack result = base.clone();
             result.setAmount(amount);
+
+            // MMOItems Lore에 {size} 플레이스홀더 적용
+            if (fish.hasSize()) {
+                result = applySizePlaceholder(result, size);
+            }
             return result;
         }
 
@@ -219,30 +249,7 @@ public class RewardService {
         Map<String, String> ph = placeholders(player, reward, itemDisplay);
         // commands 치환 변수는 색상 코드 없는 plain 값이 더 안전
         ph.put("item", stripColor(itemDisplay));
-        ph.put("player", player.getName());
-        ph.put("uuid", player.getUniqueId().toString());
-
-        for (String raw : commands) {
-            if (raw == null || raw.isBlank()) {
-                continue;
-            }
-            String command = Texts.apply(raw, ph);
-            // 선행 '/' 제거 (dispatchCommand는 슬래시 없이)
-            if (command.startsWith("/")) {
-                command = command.substring(1);
-            }
-            try {
-                boolean ok = Bukkit.dispatchCommand(Bukkit.getConsoleSender(), command);
-                if (ok) {
-                    logger.info("Executed reward command for " + player.getName() + ": /" + command);
-                } else {
-                    logger.warning("Reward command returned false for " + player.getName() + ": /" + command);
-                }
-            } catch (Exception e) {
-                logger.warning("Reward command failed for " + player.getName()
-                        + ": /" + command + " (" + e.getMessage() + ")");
-            }
-        }
+        me.ninesik.fishing.util.CommandRunner.execute(plugin, player, commands, "Reward", ph);
     }
 
     private Map<String, String> placeholders(Player player, RewardEntry reward, String itemDisplay) {
@@ -262,5 +269,34 @@ public class RewardService {
     private static String stripColor(String input) {
         if (input == null) return "";
         return org.bukkit.ChatColor.stripColor(input);
+    }
+
+    /**
+     * Lore에 사이즈 정보를 추가한다.
+     * 사이즈가 없는 아이템(쓰레기/광물)은 추가하지 않는다.
+     */
+    private void appendSizeLore(Fish fish, List<String> lore, double size) {
+        if (!fish.hasSize()) return;
+        lore.add("§7사이즈: §f" + String.format("%.1f", size) + "cm");
+    }
+
+    /**
+     * MMOItems Lore에 {size} 플레이스홀더를 실제 사이즈로 치환한다.
+     */
+    private ItemStack applySizePlaceholder(ItemStack item, double size) {
+        if (item == null) return item;
+        org.bukkit.inventory.meta.ItemMeta meta = item.getItemMeta();
+        if (meta == null) return item;
+
+        List<String> lore = meta.getLore();
+        if (lore != null) {
+            String sizeStr = String.format("%.1f", size);
+            List<String> replaced = lore.stream()
+                    .map(line -> line.replace("{size}", sizeStr))
+                    .toList();
+            meta.setLore(replaced);
+            item.setItemMeta(meta);
+        }
+        return item;
     }
 }

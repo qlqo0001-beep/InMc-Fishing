@@ -1,11 +1,15 @@
 package me.ninesik.fishing.model;
 
+/**
+ * 낚시 결과 보상 엔트리.
+ */
 public class RewardEntry {
     private final Fish fish;
     private final Grade grade;
     private final Grade originalGrade;
     private final boolean isDouble;
     private final boolean isBigFish;
+    private final double size;  // 세션 18: 물고기 사이즈 (cm)
 
     private RewardEntry(Builder b) {
         this.fish = b.fish;
@@ -13,6 +17,7 @@ public class RewardEntry {
         this.originalGrade = b.originalGrade;
         this.isDouble = b.isDouble;
         this.isBigFish = b.isBigFish;
+        this.size = b.size;
     }
 
     public Fish getFish() { return fish; }
@@ -20,6 +25,7 @@ public class RewardEntry {
     public boolean isDouble() { return isDouble; }
     public boolean isBigFish() { return isBigFish; }
     public Grade getOriginalGrade() { return originalGrade; }
+    public double getSize() { return size; }
 
     public int getAmount() {
         return isDouble && fish.isDoubleEnabled() ? 2 : 1;
@@ -33,12 +39,14 @@ public class RewardEntry {
         private Grade originalGrade;
         private boolean isDouble = false;
         private boolean isBigFish = false;
+        private double size = 0.0;
 
         public Builder fish(Fish v) { fish = v; return this; }
         public Builder grade(Grade v) { grade = v; return this; }
         public Builder isDouble(boolean v) { isDouble = v; return this; }
         public Builder isBigFish(boolean v) { isBigFish = v; return this; }
         public Builder originalGrade(Grade v) { originalGrade = v; return this; }
+        public Builder size(double v) { size = v; return this; }
 
         public RewardEntry build() {
             if (fish == null)

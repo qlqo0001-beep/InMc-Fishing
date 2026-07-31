@@ -1,6 +1,12 @@
 package me.ninesik.fishing;
 
+import me.ninesik.fishing.collection.CollectionListener;
+import me.ninesik.fishing.collection.CollectionManager;
 import me.ninesik.fishing.dependency.DependencyManager;
+import me.ninesik.fishing.gui.GuiListener;
+import me.ninesik.fishing.ranking.RankingManager;
+import me.ninesik.fishing.tournament.TournamentListener;
+import me.ninesik.fishing.tournament.TournamentManager;
 import me.ninesik.fishing.loader.FishLoader;
 import me.ninesik.fishing.loader.GradeLoader;
 import me.ninesik.fishing.loader.RodLoader;
@@ -38,6 +44,9 @@ public final class InMcFishing extends JavaPlugin {
     private DependencyManager dependencyManager;
     private RegistryManager registryManager;
     private FishingService fishingService;
+    private CollectionManager collectionManager;
+    private RankingManager rankingManager;
+    private TournamentManager tournamentManager;
 
     @Override
     public void onEnable() {
@@ -65,6 +74,23 @@ public final class InMcFishing extends JavaPlugin {
         fishingService.initialize();
         fishingService.load();
 
+        // 도감 시스템 초기화
+        collectionManager = new CollectionManager(this, registryManager.getFishRegistry(), fishingService.getRewardService());
+        rankingManager = new RankingManager(this, collectionManager);
+        rankingManager.load();
+        collectionManager.setRankingManager(rankingManager);
+        getServer().getPluginManager().registerEvents(
+                new CollectionListener(this, collectionManager), this);
+        getServer().getPluginManager().registerEvents(
+                new GuiListener(), this);
+
+        // 대회 시스템 초기화
+        tournamentManager = new TournamentManager(this);
+        tournamentManager.load();
+        tournamentManager.startScheduler();
+        getServer().getPluginManager().registerEvents(
+                new TournamentListener(tournamentManager), this);
+
         // 명령어 등록 (fishingService 초기화 후 — NPE 방지)
         me.ninesik.fishing.command.FishingCommand cmd = new me.ninesik.fishing.command.FishingCommand(this);
         getCommand("fishing").setExecutor(cmd);
@@ -75,6 +101,15 @@ public final class InMcFishing extends JavaPlugin {
 
     @Override
     public void onDisable() {
+        if (collectionManager != null) {
+            collectionManager.saveAll();
+        }
+        if (rankingManager != null) {
+            rankingManager.shutdown();
+        }
+        if (tournamentManager != null) {
+            tournamentManager.shutdown();
+        }
         if (fishingService != null) {
             fishingService.shutdown();
         }
@@ -132,6 +167,7 @@ public final class InMcFishing extends JavaPlugin {
         saveResource("modifiers.yml", false);
         saveResource("worldguard.yml", false);
         saveResource("tournaments.yml", false);
+        saveResource("collections.yml", false);
         saveResource("items/rod.yml", false);
         saveResource("items/f-grade.yml", false);
         saveResource("items/e-grade.yml", false);
@@ -140,6 +176,7 @@ public final class InMcFishing extends JavaPlugin {
         saveResource("items/b-grade.yml", false);
         saveResource("items/a-grade.yml", false);
         saveResource("items/s-grade.yml", false);
+        saveResource("mmoitems-example.yml", false);
     }
 
     public static InMcFishing getInstance() {
@@ -156,5 +193,17 @@ public final class InMcFishing extends JavaPlugin {
 
     public FishingService getFishingService() {
         return fishingService;
+    }
+
+    public CollectionManager getCollectionManager() {
+        return collectionManager;
+    }
+
+    public RankingManager getRankingManager() {
+        return rankingManager;
+    }
+
+    public TournamentManager getTournamentManager() {
+        return tournamentManager;
     }
 }

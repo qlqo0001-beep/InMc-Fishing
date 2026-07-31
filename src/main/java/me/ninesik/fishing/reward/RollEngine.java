@@ -9,11 +9,9 @@ import me.ninesik.fishing.registry.FishRegistry;
 import me.ninesik.fishing.registry.GradeRegistry;
 import org.bukkit.entity.Player;
 
-import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 public class RollEngine {
     private final RandomService randomService;
@@ -38,7 +36,7 @@ public class RollEngine {
         // 1. 등급 롤
         Grade rolledGrade = gradeRoller.rollGrade(player, rod);
         
-        // 2. 대어 확률 판정 (config + rod 보너스) - 29.3: 대어 판정이 항상 먼저
+        // 2. 대어 확률 판정 (config + rod 본너스) - 29.3: 대어 판정이 항상 먼저
         boolean isBigFish = false;
         Grade finalGrade = rolledGrade;
         double bigFishChance = configManager.getBigFishChance()
@@ -61,7 +59,7 @@ public class RollEngine {
             return null;
         }
 
-        // 4. 더블 확률 판정 (config + rod 보너스)
+        // 4. 더블 확률 판정 (config + rod 본너스)
         boolean isDouble = false;
         double doubleChance = configManager.getDoubleChance()
                 + (rod != null ? rod.getDoubleChanceBonus() : 0.0);
@@ -69,7 +67,28 @@ public class RollEngine {
             isDouble = true;
         }
 
-        return new RollResult(rewardFish, finalGrade, rolledGrade, isDouble, isBigFish);
+        // 5. 물고기 사이즈 산정 (세션 18)
+        double size = calculateSize(rewardFish);
+
+        return new RollResult(rewardFish, finalGrade, rolledGrade, isDouble, isBigFish, size);
+    }
+
+    /**
+     * 가우시안 분포 기반으로 물고기 사이즈를 산정한다.
+     * min/max 범위를 벗어나지 않도록 클램프한다.
+     * 사이즈가 없는 아이템(쓰레기/광물)은 0.0을 반환한다.
+     */
+    private double calculateSize(Fish fish) {
+        if (!fish.hasSize()) return 0.0;
+        double min = fish.getMinSize();
+        double max = fish.getMaxSize();
+        double avg = fish.getAvgSize();
+
+        // 표준편차: 범위의 1/6 (99.7%가 min~max 안에 들어오도록)
+        double stddev = (max - min) / 6.0;
+        double size = avg + randomService.nextGaussian() * stddev;
+        size = Math.max(min, Math.min(max, size));
+        return Math.round(size * 10.0) / 10.0;
     }
 
     /**
@@ -175,13 +194,15 @@ public class RollEngine {
         private final Grade originalGrade;
         private final boolean isDouble;
         private final boolean isBigFish;
+        private final double size;
 
-        public RollResult(Fish fish, Grade grade, Grade originalGrade, boolean isDouble, boolean isBigFish) {
+        public RollResult(Fish fish, Grade grade, Grade originalGrade, boolean isDouble, boolean isBigFish, double size) {
             this.fish = fish;
             this.grade = grade;
             this.originalGrade = originalGrade;
             this.isDouble = isDouble;
             this.isBigFish = isBigFish;
+            this.size = size;
         }
 
         public Fish getFish() { return fish; }
@@ -189,5 +210,6 @@ public class RollEngine {
         public Grade getOriginalGrade() { return originalGrade; }
         public boolean isDouble() { return isDouble; }
         public boolean isBigFish() { return isBigFish; }
+        public double getSize() { return size; }
     }
 }

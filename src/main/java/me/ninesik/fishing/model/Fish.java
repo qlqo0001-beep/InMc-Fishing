@@ -2,6 +2,9 @@ package me.ninesik.fishing.model;
 
 import java.util.List;
 
+/**
+ * 낚시 보상 아이템(물고기/쓰레기/광물) 모델.
+ */
 public class Fish {
     private final String id;
     private final String useType;
@@ -15,6 +18,12 @@ public class Fish {
     private final boolean doubleEnabled;
     private final Grade grade;
 
+    // 세션 18: 사이즈 시스템
+    private final double minSize;          // 최소 사이즈 (cm)
+    private final double maxSize;          // 최대 사이즈 (cm)
+    private final double avgSize;          // 평균 사이즈 (cm)
+    private final int customModelData;     // 리소스팩 커스텀 모델 번호
+
     private Fish(Builder b) {
         this.id = b.id;
         this.useType = b.useType;
@@ -27,6 +36,10 @@ public class Fish {
         this.doubleEnabled = b.doubleEnabled;
         this.commands = b.commands != null ? List.copyOf(b.commands) : List.of();
         this.grade = b.grade;
+        this.minSize = b.minSize;
+        this.maxSize = b.maxSize;
+        this.avgSize = b.avgSize;
+        this.customModelData = b.customModelData;
     }
 
     public String getId() { return id; }
@@ -40,6 +53,18 @@ public class Fish {
     public boolean isDoubleEnabled() { return doubleEnabled; }
     public List<String> getCommands() { return commands; }
     public Grade getGrade() { return grade; }
+
+    public double getMinSize() { return minSize; }
+    public double getMaxSize() { return maxSize; }
+    public double getAvgSize() { return avgSize; }
+    public int getCustomModelData() { return customModelData; }
+
+    /**
+     * 사이즈가 유효한지 확인한다. 0이면 사이즈 시스템 대상이 아님(쓰레기/광물).
+     */
+    public boolean hasSize() {
+        return minSize > 0 && maxSize > 0 && avgSize > 0;
+    }
 
     public static Builder builder() { return new Builder(); }
 
@@ -55,6 +80,10 @@ public class Fish {
         private int weight = 1;
         private boolean doubleEnabled = true;
         private Grade grade;
+        private double minSize = 10.0;
+        private double maxSize = 100.0;
+        private double avgSize = 55.0;
+        private int customModelData = 0;
 
         public Builder id(String v) { id = v; return this; }
         public Builder useType(String v) { useType = v; return this; }
@@ -67,6 +96,10 @@ public class Fish {
         public Builder doubleEnabled(boolean v) { doubleEnabled = v; return this; }
         public Builder commands(List<String> v) { commands = v; return this; }
         public Builder grade(Grade v) { grade = v; return this; }
+        public Builder minSize(double v) { minSize = v; return this; }
+        public Builder maxSize(double v) { maxSize = v; return this; }
+        public Builder avgSize(double v) { avgSize = v; return this; }
+        public Builder customModelData(int v) { customModelData = v; return this; }
 
         public Fish build() {
             if (id == null || id.isEmpty())

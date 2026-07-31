@@ -29,6 +29,7 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -90,6 +91,11 @@ public class FishingListener implements Listener {
 
         Player player = event.getPlayer();
 
+        // 허용된 월드인지 확인
+        if (!isAllowedWorld(player)) {
+            return;
+        }
+
         // 이미 미니게임 중인지 확인
         if (miniGameManager.hasActiveGame(player)) {
             event.setCancelled(true);
@@ -131,6 +137,7 @@ public class FishingListener implements Listener {
                 .isDouble(result.isDouble())
                 .isBigFish(result.isBigFish())
                 .originalGrade(result.getOriginalGrade())
+                .size(result.getSize())
                 .build();
         fishingMiniGame.start(player, result.getGrade(), reward);
     }
@@ -179,7 +186,9 @@ public class FishingListener implements Listener {
 
     @EventHandler
     public void onPlayerQuit(PlayerQuitEvent event) {
-        cleanupPlayer(event.getPlayer());
+        Player player = event.getPlayer();
+        cleanupPlayer(player);
+        lastRightClickTick.remove(player.getUniqueId());
     }
 
     @EventHandler
@@ -261,6 +270,14 @@ public class FishingListener implements Listener {
         }
 
         return new RodLookupResult.NotARod();
+    }
+
+    private boolean isAllowedWorld(Player player) {
+        List<String> worlds = configManager.getAllowedWorlds();
+        if (worlds == null || worlds.isEmpty()) {
+            return true;
+        }
+        return worlds.contains(player.getWorld().getName());
     }
 
     private sealed interface RodLookupResult

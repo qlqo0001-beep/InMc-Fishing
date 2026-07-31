@@ -1,0 +1,35 @@
+# ============================================================
+#  MMOItems 물고기 등록 예시
+#  이 파일은 실제 로드되지 않는 참고용 파일입니다.
+#  MMOItems를 사용할 때 items/*.yml에 아래 형식으로 등록하세요.
+# ============================================================
+#
+# [MMOItems 물고기 등록 방법]
+#   1. MMOItems에서 아이템을 먼저 생성합니다.
+#   2. items/*.yml에 use-type: mmoitems로 등록합니다.
+#   3. Lore에 {size} 플레이스홀더를 사용하면 실제 사이즈로 자동 치환됩니다.
+#
+# [예시]
+# items:
+#   custom_fish_01:
+#     id: "custom_fish_01"
+#     use-type: mmoitems
+#     mmoitems-type: FISH          # MMOItems 아이템 타입
+#     mmoitems-id: GOLDEN_SALMON   # MMOItems 아이템 ID
+#     min-size: 20.0
+#     max-size: 150.0
+#     avg-size: 70.0
+#     custom-model-data: 0         # MMOItems 자체 모델 사용 시 0
+#     weight: 10
+#     double-enabled: true
+#     commands: []
+#
+# [MMOItems Lore 템플릿에 {size} 사용]
+#   MMOItems 에디터에서 Lore에 다음을 추가:
+#     - "&7사이즈: &f{size}cm"
+#   → 플러그인이 낚시 시 {size}를 실제 사이즈로 치환하여 아이템 생성
+#
+# [주의사항]
+#   - MMOItems 아이템의 기본 Lore는 유지되며, {size}만 치환됩니다.
+#   - custom-model-data는 MMOItems 자체 모델링을 사용하므로 보통 0으로 둡니다.
+#   - MMOItems가 설치되지 않은 서버에서는 mmoitems 타입 물고기가 낚이지 않습니다.

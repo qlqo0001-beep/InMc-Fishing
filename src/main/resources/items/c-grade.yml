@@ -1,69 +1,159 @@
 # ============================================================
 #  C등급 아이템 목록
-#  중간~상위 등급, 블록 형태의 귀한 광물이 낚입니다.
-# ============================================================
-#
-# [grade-settings 속성 설명]
-#   input-count:    미니게임 성공에 필요한 클릭 횟수
-#   time-seconds:   미니게임 제한 시간 (초, 소수점 가능)
-#   weight:         등급 가중치 (grades.yml의 weight와 동일)
-#
-# [items 속성 설명]
-#   id:             아이템 식별자 (내부용, 중복 불가)
-#   use-type:       vanilla (바닐라 아이템) 또는 mmoitems (MMOItems 아이템)
-#
-#   [use-type: vanilla 전용]
-#   vanilla-material: 바닐라 아이템 종류 (Material 이름)
-#   vanilla-name:     아이템에 표시될 이름 (& 색상코드 사용 가능)
-#   vanilla-lore:     아이템 설명 (& 색상코드 사용 가능, 여러 줄 가능)
-#
-#   [use-type: mmoitems 전용]
-#   mmoitems-type:    MMOItems 아이템 타입
-#   mmoitems-id:      MMOItems 아이템 ID
-#
-#   weight:           아이템 가중치 (높을수록 자주 나옴)
-#   double-enabled:   true = 더블 보상 가능 (2개 지급)
-#   commands:         낚시 성공 시 실행될 콘솔 명령어 목록
-#                     {player} - 플레이어 이름으로 치환
+#  중상위 등급, 희귀한 물고기가 낚입니다.
 # ============================================================
 grade-settings:
-  input-count: 6    # 6번 클릭해야 성공
-  time-seconds: 3.8 # 3.8초 안에 클릭 완료
-  weight: 8         # 8% 확률로 C등급이 선택됨
+  input-count: 6
+  time-seconds: 3.8
+  weight: 8
 
 items:
-  # 에메랄드 — C등급에서 가장 자주 낚이는 귀한 광물
-  emerald:
-    id: "emerald"
+  whale_small:
+    id: "whale_small"
     use-type: vanilla
-    vanilla-material: EMERALD
-    vanilla-name: "&a에메랄드"
+    vanilla-material: COD
+    vanilla-name: "&a작은 고래"
     vanilla-lore:
-      - "&7신비로운 에메랄드입니다."
-    weight: 50
+      - "&7고래의 새끼입니다."
+    min-size: 200.0
+    max-size: 800.0
+    avg-size: 450.0
+    custom-model-data: 4001
+    weight: 18
     double-enabled: true
     commands: []
 
-  # 다이아몬드 블록 — C등급에서 중간 확률로 낚이는 블록
-  diamond_block:
-    id: "diamond_block"
+  giant_squid:
+    id: "giant_squid"
     use-type: vanilla
-    vanilla-material: DIAMOND_BLOCK
-    vanilla-name: "&b다이아몬드 블록"
+    vanilla-material: COD
+    vanilla-name: "&a거대 오징어"
     vanilla-lore:
-      - "&7반짝이는 다이아몬드 블록입니다."
-    weight: 30
+      - "&7심해의 거대 오징어입니다."
+    min-size: 100.0
+    max-size: 500.0
+    avg-size: 250.0
+    custom-model-data: 4002
+    weight: 16
     double-enabled: true
     commands: []
 
-  # 금 블록 — C등급에서 드물게 낚이는 블록
-  gold_block:
-    id: "gold_block"
+  manta_ray:
+    id: "manta_ray"
     use-type: vanilla
-    vanilla-material: GOLD_BLOCK
-    vanilla-name: "&6금 블록"
+    vanilla-material: COD
+    vanilla-name: "&a만타가오리"
     vanilla-lore:
-      - "&7귀한 금 블록입니다."
-    weight: 20
+      - "&7우아하게 헤엄치는 만타가오리입니다."
+    min-size: 100.0
+    max-size: 400.0
+    avg-size: 200.0
+    custom-model-data: 4003
+    weight: 14
+    double-enabled: true
+    commands: []
+
+  electric_eel:
+    id: "electric_eel"
+    use-type: vanilla
+    vanilla-material: SALMON
+    vanilla-name: "&a전기뱀장어"
+    vanilla-lore:
+      - "&7전기를 낿는 장어입니다."
+    min-size: 50.0
+    max-size: 200.0
+    avg-size: 120.0
+    custom-model-data: 4004
+    weight: 12
+    double-enabled: true
+    commands: []
+
+  piranha_king:
+    id: "piranha_king"
+    use-type: vanilla
+    vanilla-material: TROPICAL_FISH
+    vanilla-name: "&a피라니아 왕"
+    vanilla-lore:
+      - "&7모든 피라니아를 다스리는 왕입니다."
+    min-size: 15.0
+    max-size: 40.0
+    avg-size: 25.0
+    custom-model-data: 4005
+    weight: 10
+    double-enabled: true
+    commands: []
+
+  anglerfish:
+    id: "anglerfish"
+    use-type: vanilla
+    vanilla-material: COD
+    vanilla-name: "&a아귀"
+    vanilla-lore:
+      - "&7등불을 든 심해의 아귀입니다."
+    min-size: 20.0
+    max-size: 100.0
+    avg-size: 50.0
+    custom-model-data: 4006
+    weight: 8
+    double-enabled: true
+    commands: []
+
+  coelacanth:
+    id: "coelacanth"
+    use-type: vanilla
+    vanilla-material: COD
+    vanilla-name: "&a실러캔스"
+    vanilla-lore:
+      - "&7살아있는 화석 실러캔스입니다."
+    min-size: 80.0
+    max-size: 200.0
+    avg-size: 130.0
+    custom-model-data: 4007
+    weight: 6
+    double-enabled: true
+    commands: []
+
+  oarfish:
+    id: "oarfish"
+    use-type: vanilla
+    vanilla-material: SALMON
+    vanilla-name: "&a산갈치"
+    vanilla-lore:
+      - "&7용궁의 사신이라 불리는 산갈치입니다."
+    min-size: 200.0
+    max-size: 800.0
+    avg-size: 400.0
+    custom-model-data: 4008
+    weight: 5
+    double-enabled: true
+    commands: []
+
+  sunfish:
+    id: "sunfish"
+    use-type: vanilla
+    vanilla-material: COD
+    vanilla-name: "&a개복치"
+    vanilla-lore:
+      - "&7둥근 몸의 개복치입니다."
+    min-size: 100.0
+    max-size: 350.0
+    avg-size: 200.0
+    custom-model-data: 4009
+    weight: 3
+    double-enabled: true
+    commands: []
+
+  jade_koi:
+    id: "jade_koi"
+    use-type: vanilla
+    vanilla-material: TROPICAL_FISH
+    vanilla-name: "&a비취 비단잉어"
+    vanilla-lore:
+      - "&7비취처럼 푸른 비단잉어입니다."
+    min-size: 25.0
+    max-size: 70.0
+    avg-size: 40.0
+    custom-model-data: 4010
+    weight: 1
     double-enabled: true
     commands: []
