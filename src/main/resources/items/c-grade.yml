@@ -1,9 +1,38 @@
 # ============================================================
 #  C등급 아이템 목록
-#  중간 등급입니다.
-#  자세한 설정 방법은 f-grade.yml의 상단 주석을 참고하세요.
+#  중간~상위 등급, 블록 형태의 귀한 광물이 낚입니다.
 # ============================================================
+#
+# [grade-settings 속성 설명]
+#   input-count:    미니게임 성공에 필요한 클릭 횟수
+#   time-seconds:   미니게임 제한 시간 (초, 소수점 가능)
+#   weight:         등급 가중치 (grades.yml의 weight와 동일)
+#
+# [items 속성 설명]
+#   id:             아이템 식별자 (내부용, 중복 불가)
+#   use-type:       vanilla (바닐라 아이템) 또는 mmoitems (MMOItems 아이템)
+#
+#   [use-type: vanilla 전용]
+#   vanilla-material: 바닐라 아이템 종류 (Material 이름)
+#   vanilla-name:     아이템에 표시될 이름 (& 색상코드 사용 가능)
+#   vanilla-lore:     아이템 설명 (& 색상코드 사용 가능, 여러 줄 가능)
+#
+#   [use-type: mmoitems 전용]
+#   mmoitems-type:    MMOItems 아이템 타입
+#   mmoitems-id:      MMOItems 아이템 ID
+#
+#   weight:           아이템 가중치 (높을수록 자주 나옴)
+#   double-enabled:   true = 더블 보상 가능 (2개 지급)
+#   commands:         낚시 성공 시 실행될 콘솔 명령어 목록
+#                     {player} - 플레이어 이름으로 치환
+# ============================================================
+grade-settings:
+  input-count: 6    # 6번 클릭해야 성공
+  time-seconds: 3.8 # 3.8초 안에 클릭 완료
+  weight: 8         # 8% 확률로 C등급이 선택됨
+
 items:
+  # 에메랄드 — C등급에서 가장 자주 낚이는 귀한 광물
   emerald:
     id: "emerald"
     use-type: vanilla
@@ -15,6 +44,7 @@ items:
     double-enabled: true
     commands: []
 
+  # 다이아몬드 블록 — C등급에서 중간 확률로 낚이는 블록
   diamond_block:
     id: "diamond_block"
     use-type: vanilla
@@ -26,6 +56,7 @@ items:
     double-enabled: true
     commands: []
 
+  # 금 블록 — C등급에서 드물게 낚이는 블록
   gold_block:
     id: "gold_block"
     use-type: vanilla

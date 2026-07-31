@@ -1,60 +1,69 @@
 # ============================================================
 #  D등급 아이템 목록
-#  중간 이하 등급입니다.
-#  자세한 설정 방법은 f-grade.yml의 상단 주석을 참고하세요.
+#  중간 등급, 광물류가 주로 낚입니다.
 # ============================================================
+#
+# [grade-settings 속성 설명]
+#   input-count:    미니게임 성공에 필요한 클릭 횟수
+#   time-seconds:   미니게임 제한 시간 (초, 소수점 가능)
+#   weight:         등급 가중치 (grades.yml의 weight와 동일)
+#
+# [items 속성 설명]
+#   id:             아이템 식별자 (내부용, 중복 불가)
+#   use-type:       vanilla (바닐라 아이템) 또는 mmoitems (MMOItems 아이템)
+#
+#   [use-type: vanilla 전용]
+#   vanilla-material: 바닐라 아이템 종류 (Material 이름)
+#   vanilla-name:     아이템에 표시될 이름 (& 색상코드 사용 가능)
+#   vanilla-lore:     아이템 설명 (& 색상코드 사용 가능, 여러 줄 가능)
+#
+#   [use-type: mmoitems 전용]
+#   mmoitems-type:    MMOItems 아이템 타입
+#   mmoitems-id:      MMOItems 아이템 ID
+#
+#   weight:           아이템 가중치 (높을수록 자주 나옴)
+#   double-enabled:   true = 더블 보상 가능 (2개 지급)
+#   commands:         낚시 성공 시 실행될 콘솔 명령어 목록
+#                     {player} - 플레이어 이름으로 치환
+# ============================================================
+grade-settings:
+  input-count: 5    # 5번 클릭해야 성공
+  time-seconds: 4.0 # 4초 안에 클릭 완료
+  weight: 15        # 15% 확률로 D등급이 선택됨
+
 items:
-  leather:
-    id: "leather"
+  # 다이아몬드 — D등급에서 가장 자주 낚이는 광물
+  diamond:
+    id: "diamond"
     use-type: vanilla
-    vanilla-material: LEATHER
-    vanilla-name: "&3가죽"
+    vanilla-material: DIAMOND
+    vanilla-name: "&b다이아몬드"
     vanilla-lore:
-      - "&7가죽입니다."
-    weight: 30
+      - "&7반짝이는 다이아몬드입니다."
+    weight: 40
     double-enabled: true
     commands: []
 
-  ink_sac:
-    id: "ink_sac"
+  # 금괴 — D등급에서 중간 확률로 낚이는 광물
+  gold_ingot:
+    id: "gold_ingot"
     use-type: vanilla
-    vanilla-material: INK_SAC
-    vanilla-name: "&3먹물 주머니"
+    vanilla-material: GOLD_INGOT
+    vanilla-name: "&6금괴"
     vanilla-lore:
-      - "&7먹물 주머니입니다."
+      - "&7무게가 느껴지는 금괴입니다."
+    weight: 35
+    double-enabled: true
+    commands: []
+
+  # 철괴 — D등급에서 드물게 낚이는 광물
+  iron_ingot:
+    id: "iron_ingot"
+    use-type: vanilla
+    vanilla-material: IRON_INGOT
+    vanilla-name: "&7철괴"
+    vanilla-lore:
+      - "&7단단한 철괴입니다."
     weight: 25
-    double-enabled: true
-    commands: []
-
-  pufferfish:
-    id: "pufferfish"
-    use-type: vanilla
-    vanilla-material: PUFFERFISH
-    vanilla-name: "&e복어"
-    vanilla-lore:
-      - "&7복어입니다. 독이 있습니다!"
-    weight: 20
-    double-enabled: true
-    commands: []
-
-  coal:
-    id: "coal"
-    use-type: vanilla
-    vanilla-material: COAL
-    vanilla-name: "&3석탄"
-    vanilla-lore:
-      - "&7석탄입니다."
-    weight: 15
-    double-enabled: true
-    commands: []
-
-  nametag:
-    id: "nametag"
-    use-type: vanilla
-    vanilla-material: NAME_TAG
-    vanilla-name: "&f이름표"
-    vanilla-lore:
-      - "&7이름표입니다."
-    weight: 10
     double-enabled: true
     commands: []

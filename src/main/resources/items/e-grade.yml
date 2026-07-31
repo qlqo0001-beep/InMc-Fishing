@@ -1,51 +1,69 @@
 # ============================================================
 #  E등급 아이템 목록
-#  낮은 등급으로, 자주 낚입니다.
+#  F등급보다 한 단계 높은 등급, 비교적 자주 낚입니다.
 # ============================================================
 #
-# 자세한 설정 방법은 f-grade.yml의 상단 주석을 참고하세요.
+# [grade-settings 속성 설명]
+#   input-count:    미니게임 성공에 필요한 클릭 횟수
+#   time-seconds:   미니게임 제한 시간 (초, 소수점 가능)
+#   weight:         등급 가중치 (grades.yml의 weight와 동일)
+#
+# [items 속성 설명]
+#   id:             아이템 식별자 (내부용, 중복 불가)
+#   use-type:       vanilla (바닐라 아이템) 또는 mmoitems (MMOItems 아이템)
+#
+#   [use-type: vanilla 전용]
+#   vanilla-material: 바닐라 아이템 종류 (Material 이름)
+#   vanilla-name:     아이템에 표시될 이름 (& 색상코드 사용 가능)
+#   vanilla-lore:     아이템 설명 (& 색상코드 사용 가능, 여러 줄 가능)
+#
+#   [use-type: mmoitems 전용]
+#   mmoitems-type:    MMOItems 아이템 타입
+#   mmoitems-id:      MMOItems 아이템 ID
+#
+#   weight:           아이템 가중치 (높을수록 자주 나옴)
+#   double-enabled:   true = 더블 보상 가능 (2개 지급)
+#   commands:         낚시 성공 시 실행될 콘솔 명령어 목록
+#                     {player} - 플레이어 이름으로 치환
 # ============================================================
+grade-settings:
+  input-count: 4    # 4번 클릭해야 성공
+  time-seconds: 4.5 # 4.5초 안에 클릭 완료
+  weight: 25        # 25% 확률로 E등급이 선택됨
+
 items:
-  bone:
-    id: "bone"
+  # 복어 — E등급에서 가장 자주 낚이는 물고기
+  pufferfish:
+    id: "pufferfish"
     use-type: vanilla
-    vanilla-material: BONE
-    vanilla-name: "&8뼈다귀"
+    vanilla-material: PUFFERFISH
+    vanilla-name: "&b복어"
     vanilla-lore:
-      - "&7뼈다귀입니다."
-    weight: 40
+      - "&7독이 있는 복어입니다."
+    weight: 60
     double-enabled: true
     commands: []
 
-  string:
-    id: "string"
+  # 큰 생대구 — E등급의 희귀한 대구
+  cod:
+    id: "cod_rare"
     use-type: vanilla
-    vanilla-material: STRING
-    vanilla-name: "&f실"
+    vanilla-material: COD
+    vanilla-name: "&b큰 생대구"
     vanilla-lore:
-      - "&7실타래입니다."
+      - "&7평소보다 큰 생대구입니다."
     weight: 30
     double-enabled: true
     commands: []
 
-  stick:
-    id: "stick"
+  # 큰 연어 — E등급에서 드물게 낚이는 연어
+  salmon:
+    id: "salmon_rare"
     use-type: vanilla
-    vanilla-material: STICK
-    vanilla-name: "&6막대기"
+    vanilla-material: SALMON
+    vanilla-name: "&b큰 연어"
     vanilla-lore:
-      - "&7평범한 막대기입니다."
-    weight: 20
-    double-enabled: true
-    commands: []
-
-  rotten_flesh:
-    id: "rotten_flesh"
-    use-type: vanilla
-    vanilla-material: ROTTEN_FLESH
-    vanilla-name: "&7썩은 살점"
-    vanilla-lore:
-      - "&7썩은 살점입니다."
+      - "&7평소보다 큰 연어입니다."
     weight: 10
     double-enabled: true
     commands: []

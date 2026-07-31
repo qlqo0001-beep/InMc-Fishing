@@ -1,60 +1,75 @@
 # ============================================================
 #  S등급 아이템 목록
-#  최상위 등급으로, 가장 드물게 낚입니다.
-#  자세한 설정 방법은 f-grade.yml의 상단 주석을 참고하세요.
+#  최상위 등급, 전설 속의 전설 아이템이 낚입니다.
+#  더블 보상이 불가능하며, 낚았을 때 서버 전체에 방송이 나갑니다.
 # ============================================================
+#
+# [grade-settings 속성 설명]
+#   input-count:    미니게임 성공에 필요한 클릭 횟수
+#   time-seconds:   미니게임 제한 시간 (초, 소수점 가능)
+#   weight:         등급 가중치 (grades.yml의 weight와 동일)
+#
+# [items 속성 설명]
+#   id:             아이템 식별자 (내부용, 중복 불가)
+#   use-type:       vanilla (바닐라 아이템) 또는 mmoitems (MMOItems 아이템)
+#
+#   [use-type: vanilla 전용]
+#   vanilla-material: 바닐라 아이템 종류 (Material 이름)
+#   vanilla-name:     아이템에 표시될 이름 (& 색상코드 사용 가능)
+#   vanilla-lore:     아이템 설명 (& 색상코드 사용 가능, 여러 줄 가능)
+#
+#   [use-type: mmoitems 전용]
+#   mmoitems-type:    MMOItems 아이템 타입
+#   mmoitems-id:      MMOItems 아이템 ID
+#
+#   weight:           아이템 가중치 (높을수록 자주 나옴)
+#   double-enabled:   true = 더블 보상 가능 (2개 지급)
+#                     false = 더블 보상 불가능 (항상 1개)
+#   commands:         낚시 성공 시 실행될 콘솔 명령어 목록
+#                     {player} - 플레이어 이름으로 치환
+#                     {item}   - 아이템 이름으로 치환
+# ============================================================
+grade-settings:
+  input-count: 9    # 9번 클릭해야 성공 (가장 어려움)
+  time-seconds: 3.0 # 3초 안에 클릭 완료 (가장 짧음)
+  weight: 1         # 1% 확률로 S등급이 선택됨
+
 items:
-  nether_star:
-    id: "nether_star"
+  # 전설의 드래곤 알 — S등급 최고 아이템, 낚으면 서버 전체 방송
+  dragon_egg:
+    id: "dragon_egg_rare"
+    use-type: vanilla
+    vanilla-material: DRAGON_EGG
+    vanilla-name: "&c전설의 드래곤 알"
+    vanilla-lore:
+      - "&7전설 속 드래곤의 알입니다."
+      - "&7절대 잃어버리지 마세요!"
+    weight: 40
+    double-enabled: false
+    commands:
+      - "broadcast &c{player}님이 전설의 드래곤 알을 낚았습니다!"
+
+  # 커맨드 블록 — S등급의 강력한 관리자 아이템 (더블 불가)
+  command_block:
+    id: "command_block"
+    use-type: vanilla
+    vanilla-material: COMMAND_BLOCK
+    vanilla-name: "&4커맨드 블록"
+    vanilla-lore:
+      - "&7강력한 커맨드 블록입니다."
+      - "&7관리자만 사용할 수 있습니다."
+    weight: 35
+    double-enabled: false
+    commands: []
+
+  # 엘리트 네더의 별 — S등급의 최상급 별 (더블 불가)
+  nether_star_elite:
+    id: "nether_star_elite"
     use-type: vanilla
     vanilla-material: NETHER_STAR
-    vanilla-name: "&b네더의 별"
+    vanilla-name: "&b엘리트 네더의 별"
     vanilla-lore:
-      - "&7신비로운 네더의 별입니다."
-    weight: 30
-    double-enabled: true
-    commands: []
-
-  netherite_scrap:
-    id: "netherite_scrap"
-    use-type: vanilla
-    vanilla-material: NETHERITE_SCRAP
-    vanilla-name: "&c네더라이트 파편"
-    vanilla-lore:
-      - "&7네더라이트 파편입니다."
+      - "&7최상급 힘이 깃든 별입니다."
     weight: 25
-    double-enabled: true
-    commands: []
-
-  heart_of_the_sea:
-    id: "heart_of_the_sea"
-    use-type: vanilla
-    vanilla-material: HEART_OF_THE_SEA
-    vanilla-name: "&b바다의 심장"
-    vanilla-lore:
-      - "&7바다의 심장입니다."
-    weight: 20
-    double-enabled: true
-    commands: []
-
-  experience_bottle:
-    id: "experience_bottle"
-    use-type: vanilla
-    vanilla-material: EXPERIENCE_BOTTLE
-    vanilla-name: "&a경험치 병"
-    vanilla-lore:
-      - "&7경험치가 담긴 병입니다."
-    weight: 15
-    double-enabled: true
-    commands: []
-
-  saddle:
-    id: "saddle"
-    use-type: vanilla
-    vanilla-material: SADDLE
-    vanilla-name: "&6안장"
-    vanilla-lore:
-      - "&7안장입니다."
-    weight: 10
-    double-enabled: true
+    double-enabled: false
     commands: []

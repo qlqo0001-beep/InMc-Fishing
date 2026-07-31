@@ -1,0 +1,266 @@
+package me.ninesik.fishing.service;
+
+import me.ninesik.fishing.config.ConfigManager;
+import me.ninesik.fishing.dependency.DependencyManager;
+import me.ninesik.fishing.model.Fish;
+import me.ninesik.fishing.model.Grade;
+import me.ninesik.fishing.model.RewardEntry;
+import me.ninesik.fishing.util.InventoryUtil;
+import me.ninesik.fishing.util.Sounds;
+import me.ninesik.fishing.util.Texts;
+import org.bukkit.Bukkit;
+import org.bukkit.entity.Player;
+import org.bukkit.inventory.ItemStack;
+import org.bukkit.plugin.java.JavaPlugin;
+
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.logging.Logger;
+
+/**
+ * 미니게임 성공 시 보상 지급, 메시지/사운드, Fish.commands 실행을 담당한다.
+ * 아이템 지급·메시지·사운드는 반드시 메인 스레드에서 호출해야 한다 (CLAUDE.md 비동기 경계).
+ */
+public class RewardService {
+    private final JavaPlugin plugin;
+    private final DependencyManager dependencyManager;
+    private final ConfigManager configManager;
+    private final Logger logger;
+
+    public RewardService(JavaPlugin plugin, DependencyManager dependencyManager, ConfigManager configManager) {
+        this.plugin = plugin;
+        this.dependencyManager = dependencyManager;
+        this.configManager = configManager;
+        this.logger = plugin.getLogger();
+    }
+
+    /**
+     * 미니게임 성공 시 호출. 아이템 지급 + 메시지 + 사운드 + commands.
+     *
+     * @return 아이템 지급에 성공(또는 overflow 드롭)했으면 true, 인벤 부족으로 거부되면 false
+     */
+    public boolean giveReward(Player player, RewardEntry reward) {
+        if (player == null || reward == null || reward.getFish() == null) {
+            return false;
+        }
+
+        Fish fish = reward.getFish();
+        int amount = reward.getAmount();
+
+        ItemStack item = createItemStack(fish, amount);
+        if (item == null) {
+            logger.warning("Failed to create reward item for fish id=" + fish.getId()
+                    + " use-type=" + fish.getUseType() + " player=" + player.getName());
+            String msg = configManager.formatMessage("no-rewards", placeholders(player, reward, ""));
+            if (!msg.isEmpty()) {
+                player.sendMessage(msg);
+            }
+            return false;
+        }
+
+        // 인벤토리 여유 확인 (29.9)
+        boolean canFit = InventoryUtil.canFit(player.getInventory(), item);
+        if (!canFit) {
+            if (!configManager.isDropOverflowItems()) {
+                String msg = configManager.formatMessage("no-empty-slot");
+                if (!msg.isEmpty()) {
+                    player.sendMessage(msg);
+                }
+                return false;
+            }
+        }
+
+        // 실제 지급
+        Map<Integer, ItemStack> remaining = player.getInventory().addItem(item);
+        if (!remaining.isEmpty() && configManager.isDropOverflowItems()) {
+            for (ItemStack drop : remaining.values()) {
+                player.getWorld().dropItemNaturally(player.getLocation(), drop);
+            }
+        } else if (!remaining.isEmpty()) {
+            // drop-overflow-items=false인데 일부만 들어간 경우 — 이미 들어간 건 되돌리기 어려우므로
+            // 사전 canFit이 false였어야 함. 방어적으로 no-empty-slot 메시지만 출력.
+            String msg = configManager.formatMessage("no-empty-slot");
+            if (!msg.isEmpty()) {
+                player.sendMessage(msg);
+            }
+            return false;
+        }
+
+        // 표시명 (메시지용, 색상 포함) — 8장 fallback 순서
+        String itemDisplay = resolveDisplayName(fish, item);
+        itemDisplay = Texts.colorize(itemDisplay);
+
+        // 대어 메시지 (S 등급 승급 없음은 RollEngine에서 isBigFish=false로 처리됨)
+        if (reward.isBigFish()) {
+            String bigFishMsg = configManager.formatMessage("big-fish", placeholders(player, reward, itemDisplay));
+            if (!bigFishMsg.isEmpty()) {
+                player.sendMessage(bigFishMsg);
+            }
+            Sounds.play(player, configManager.getSound("big-fish"));
+        }
+
+        // 성공/더블 메시지
+        boolean effectiveDouble = reward.isDouble() && fish.isDoubleEnabled();
+        String catchKey = effectiveDouble ? "caught-double" : "caught";
+        String catchMsg = configManager.formatMessage(catchKey, placeholders(player, reward, itemDisplay));
+        if (!catchMsg.isEmpty()) {
+            player.sendMessage(catchMsg);
+        }
+
+        // 사운드
+        Sounds.play(player, configManager.getSound("success"));
+        if (effectiveDouble) {
+            Sounds.play(player, configManager.getSound("double"));
+        }
+
+        // Fish.commands 콘솔 실행 (CLAUDE.md: 결과 로그 남김)
+        runCommands(player, reward, itemDisplay);
+
+        return true;
+    }
+
+    /**
+     * 미니게임 실패/타임아웃 시 호출.
+     */
+    public void handleFail(Player player) {
+        if (player == null) {
+            return;
+        }
+        String msg = configManager.formatMessage("fail");
+        if (!msg.isEmpty()) {
+            player.sendMessage(msg);
+        }
+        Sounds.play(player, configManager.getSound("fail"));
+    }
+
+    /**
+     * 8장 명세의 display name fallback 순서를 구현한다:
+     * 1. Fish.vanillaName (vanilla-name) — config에 명시된 표시명
+     * 2. 실제 생성된 ItemStack의 메타 displayName
+     * 3. MMOItems/ItemStack 자체 display name (이미 메타에 있음)
+     * 4. Texts.humanize(Fish.id) — SNAKE_CASE → Title Case
+     */
+    private String resolveDisplayName(Fish fish, ItemStack item) {
+        // 1. vanilla-name이 설정되어 있으면 최우선
+        if (fish.getVanillaName() != null && !fish.getVanillaName().isEmpty()) {
+            return fish.getVanillaName();
+        }
+
+        // 2. 생성된 ItemStack의 메타 displayName
+        if (item != null && item.hasItemMeta() && item.getItemMeta().hasDisplayName()) {
+            return item.getItemMeta().getDisplayName();
+        }
+
+        // 3-4. MMOItems/ItemStack 자체 타입 이름 → Texts.humanize fallback
+        if (item != null && item.getType() != org.bukkit.Material.AIR) {
+            return Texts.humanize(item.getType().name());
+        }
+
+        // 최종 fallback: fish.getId()를 humanize
+        return Texts.humanize(fish.getId());
+    }
+
+    private ItemStack createItemStack(Fish fish, int amount) {
+        String useType = fish.getUseType() != null ? fish.getUseType().toLowerCase() : "vanilla";
+
+        if ("vanilla".equals(useType)) {
+            org.bukkit.Material material = org.bukkit.Material.matchMaterial(fish.getVanillaMaterial());
+            if (material == null) {
+                logger.warning("Unknown vanilla material: " + fish.getVanillaMaterial() + " (fish=" + fish.getId() + ")");
+                return null;
+            }
+
+            ItemStack item = new ItemStack(material, amount);
+            org.bukkit.inventory.meta.ItemMeta meta = item.getItemMeta();
+            if (meta != null) {
+                String displayName = fish.getVanillaName();
+                if (displayName != null && !displayName.isEmpty()) {
+                    meta.setDisplayName(Texts.colorize(displayName));
+                }
+                if (fish.getVanillaLore() != null && !fish.getVanillaLore().isEmpty()) {
+                    meta.setLore(fish.getVanillaLore().stream()
+                            .map(Texts::colorize)
+                            .collect(java.util.stream.Collectors.toList()));
+                }
+                item.setItemMeta(meta);
+            }
+            return item;
+
+        } else if ("mmoitems".equals(useType)) {
+            if (!dependencyManager.getMMOItems().isAvailable()) {
+                logger.warning("MMOItems not available, cannot create item: "
+                        + fish.getMmoitemsType() + ":" + fish.getMmoitemsId());
+                return null;
+            }
+            ItemStack base = dependencyManager.getMMOItems()
+                    .getMMOItem(fish.getMmoitemsType(), fish.getMmoitemsId());
+            if (base == null) {
+                logger.warning("MMOItems returned null for: "
+                        + fish.getMmoitemsType() + ":" + fish.getMmoitemsId());
+                return null;
+            }
+            // amount 적용 (MMOItems는 보통 1개 반환)
+            ItemStack result = base.clone();
+            result.setAmount(amount);
+            return result;
+        }
+
+        logger.warning("Unknown use-type: " + useType + " (fish=" + fish.getId() + ")");
+        return null;
+    }
+
+    private void runCommands(Player player, RewardEntry reward, String itemDisplay) {
+        List<String> commands = reward.getFish().getCommands();
+        if (commands == null || commands.isEmpty()) {
+            return;
+        }
+
+        Map<String, String> ph = placeholders(player, reward, itemDisplay);
+        // commands 치환 변수는 색상 코드 없는 plain 값이 더 안전
+        ph.put("item", stripColor(itemDisplay));
+        ph.put("player", player.getName());
+        ph.put("uuid", player.getUniqueId().toString());
+
+        for (String raw : commands) {
+            if (raw == null || raw.isBlank()) {
+                continue;
+            }
+            String command = Texts.apply(raw, ph);
+            // 선행 '/' 제거 (dispatchCommand는 슬래시 없이)
+            if (command.startsWith("/")) {
+                command = command.substring(1);
+            }
+            try {
+                boolean ok = Bukkit.dispatchCommand(Bukkit.getConsoleSender(), command);
+                if (ok) {
+                    logger.info("Executed reward command for " + player.getName() + ": /" + command);
+                } else {
+                    logger.warning("Reward command returned false for " + player.getName() + ": /" + command);
+                }
+            } catch (Exception e) {
+                logger.warning("Reward command failed for " + player.getName()
+                        + ": /" + command + " (" + e.getMessage() + ")");
+            }
+        }
+    }
+
+    private Map<String, String> placeholders(Player player, RewardEntry reward, String itemDisplay) {
+        Map<String, String> map = new HashMap<>();
+        map.put("player", player.getName());
+        map.put("uuid", player.getUniqueId().toString());
+        map.put("item", itemDisplay != null ? itemDisplay : "");
+        Grade grade = reward.getGrade();
+        Grade original = reward.getOriginalGrade();
+        map.put("grade", grade != null ? grade.getId().toUpperCase() : "");
+        map.put("original_grade", original != null ? original.getId().toUpperCase() : "");
+        map.put("double", String.valueOf(reward.isDouble() && reward.getFish().isDoubleEnabled()));
+        map.put("big_fish", String.valueOf(reward.isBigFish()));
+        return map;
+    }
+
+    private static String stripColor(String input) {
+        if (input == null) return "";
+        return org.bukkit.ChatColor.stripColor(input);
+    }
+}

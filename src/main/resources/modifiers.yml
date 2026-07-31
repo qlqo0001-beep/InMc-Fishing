@@ -26,41 +26,53 @@
 # 키: 월드 이름 (Bukkit 월드 이름과 정확히 일치해야 함)
 # 값: grade-weight-multiplier
 world:
-  # 예시: "world" 월드에서는 기본 확률 사용
-  world:
-    grade-weight-multiplier: {}
+  # 예시: 네더 월드에서 S/A등급 확률 증가
+  world_nether:
+    grade-weight-multiplier:
+      S: 2.0
+      A: 1.5
 
 # 바이옴(생물군계)별 확률 조정
 # 키: 바이옴 이름 (대소문자 구분, Bukkit Biome.name() 값 사용)
 #     주요 바이옴: OCEAN, RIVER, BEACH, FOREST, PLAINS, SWAMP, JUNGLE 등
 biome:
-  # 예시: 바다에서 낚시하면 S등급 확률 3배
-  # OCEAN:
-  #   grade-weight-multiplier:
-  #     S: 3.0
+  # 예시: 바다에서 낚시하면 F등급 확률 유지
+  OCEAN:
+    grade-weight-multiplier:
+      F: 1.0
+  # 예시: 강에서 F등급 확률 약간 증가
+  RIVER:
+    grade-weight-multiplier:
+      F: 1.2
 
 # 날씨별 확률 조정
 # 키: CLEAR (맑음), RAIN (비), THUNDER (뇌우)
+# THUNDER는 RAIN과 동일하게 처리됩니다
 weather:
+  # 비 오는 날 A/S등급 확률 증가
+  RAIN:
+    grade-weight-multiplier:
+      A: 1.3
+      S: 1.5
   CLEAR:
     grade-weight-multiplier: {}
-  RAIN:
-    grade-weight-multiplier: {}
-  # THUNDER는 RAIN과 동일하게 처리됩니다
 
 # 시간대별 확률 조정
 # 키: DAY (낮, 0~12000틱), NIGHT (밤, 12000~24000틱)
 time:
-  DAY:
-    grade-weight-multiplier: {}
+  # 밤에 S등급 확률 약간 증가
   NIGHT:
+    grade-weight-multiplier:
+      S: 1.2
+  DAY:
     grade-weight-multiplier: {}
 
 # 권한(Permission)별 확률 조정
 # 플레이어가 특정 권한을 가지고 있으면 해당 등급의 확률이 조정됩니다
 # 여러 권한을 동시에 보유하면 모든 배수가 곱연산으로 누적됩니다
 permission:
-  # 예시: fishing.vip 권한이 있는 플레이어는 S등급 확률 2배
-  # fishing.vip:
-  #   grade-weight-multiplier:
-  #     S: 2.0
+  # 예시: fishing.vip 권한이 있는 플레이어는 A/S등급 확률 1.1배
+  fishing.vip:
+    grade-weight-multiplier:
+      A: 1.1
+      S: 1.1

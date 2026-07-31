@@ -1,49 +1,72 @@
 # ============================================================
 #  A등급 아이템 목록
-#  높은 등급으로, 드물게 낚입니다.
-#  자세한 설정 방법은 f-grade.yml의 상단 주석을 참고하세요.
+#  최상위 등급, 전설의 아이템이 낚입니다.
+#  더블 보상이 불가능하며, 모든 아이템이 매우 희귀합니다.
 # ============================================================
+#
+# [grade-settings 속성 설명]
+#   input-count:    미니게임 성공에 필요한 클릭 횟수
+#   time-seconds:   미니게임 제한 시간 (초, 소수점 가능)
+#   weight:         등급 가중치 (grades.yml의 weight와 동일)
+#
+# [items 속성 설명]
+#   id:             아이템 식별자 (내부용, 중복 불가)
+#   use-type:       vanilla (바닐라 아이템) 또는 mmoitems (MMOItems 아이템)
+#
+#   [use-type: vanilla 전용]
+#   vanilla-material: 바닐라 아이템 종류 (Material 이름)
+#   vanilla-name:     아이템에 표시될 이름 (& 색상코드 사용 가능)
+#   vanilla-lore:     아이템 설명 (& 색상코드 사용 가능, 여러 줄 가능)
+#
+#   [use-type: mmoitems 전용]
+#   mmoitems-type:    MMOItems 아이템 타입
+#   mmoitems-id:      MMOItems 아이템 ID
+#
+#   weight:           아이템 가중치 (높을수록 자주 나옴)
+#   double-enabled:   true = 더블 보상 가능 (2개 지급)
+#                     false = 더블 보상 불가능 (항상 1개)
+#   commands:         낚시 성공 시 실행될 콘솔 명령어 목록
+#                     {player} - 플레이어 이름으로 치환
+# ============================================================
+grade-settings:
+  input-count: 8    # 8번 클릭해야 성공
+  time-seconds: 3.2 # 3.2초 안에 클릭 완료
+  weight: 2         # 2% 확률로 A등급이 선택됨
+
 items:
-  diamond:
-    id: "diamond"
+  # 드래곤 알 — A등급에서 가장 희귀한 전설의 아이템 (더블 불가)
+  dragon_egg:
+    id: "dragon_egg"
     use-type: vanilla
-    vanilla-material: DIAMOND
-    vanilla-name: "&b다이아몬드"
+    vanilla-material: DRAGON_EGG
+    vanilla-name: "&c드래곤 알"
     vanilla-lore:
-      - "&7반짝이는 다이아몬드입니다."
-    weight: 40
-    double-enabled: true
-    commands: []
-
-  slime_ball:
-    id: "slime_ball"
-    use-type: vanilla
-    vanilla-material: SLIME_BALL
-    vanilla-name: "&a슬라임볼"
-    vanilla-lore:
-      - "&7끈적이는 슬라임볼입니다."
+      - "&7전설의 드래곤 알입니다."
+      - "&7매우 희귀합니다."
     weight: 30
-    double-enabled: true
+    double-enabled: false
     commands: []
 
-  scute:
-    id: "scute"
+  # 고급 네더의 별 — A등급의 특별한 네더의 별 (더블 불가)
+  nether_star:
+    id: "nether_star_rare"
     use-type: vanilla
-    vanilla-material: SCUTE
-    vanilla-name: "&3인갑"
+    vanilla-material: NETHER_STAR
+    vanilla-name: "&b고급 네더의 별"
     vanilla-lore:
-      - "&7거북의 인갑입니다."
-    weight: 20
-    double-enabled: true
+      - "&7특별한 힘이 깃든 별입니다."
+    weight: 35
+    double-enabled: false
     commands: []
 
-  nautilus_shell:
-    id: "nautilus_shell"
+  # 고급 신호기 — A등급의 강력한 신호기 (더블 불가)
+  beacon:
+    id: "beacon_rare"
     use-type: vanilla
-    vanilla-material: NAUTILUS_SHELL
-    vanilla-name: "&3앵무조개 껍데기"
+    vanilla-material: BEACON
+    vanilla-name: "&6고급 신호기"
     vanilla-lore:
-      - "&7앵무조개 껍데기입니다."
-    weight: 10
-    double-enabled: true
+      - "&7강력한 힘을 발휘하는 신호기입니다."
+    weight: 35
+    double-enabled: false
     commands: []

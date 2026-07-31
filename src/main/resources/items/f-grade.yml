@@ -3,6 +3,11 @@
 #  가장 낮은 등급으로, 가장 자주 낚입니다.
 # ============================================================
 #
+# [grade-settings 속성 설명]
+#   input-count:    미니게임 성공에 필요한 클릭 횟수
+#   time-seconds:   미니게임 제한 시간 (초, 소수점 가능)
+#   weight:         등급 가중치 (grades.yml의 weight와 동일)
+#
 # [items 속성 설명]
 #   id:             아이템 식별자 (내부용, 중복 불가)
 #   use-type:       vanilla (바닐라 아이템) 또는 mmoitems (MMOItems 아이템)
@@ -25,7 +30,13 @@
 #                     {player} - 플레이어 이름으로 치환
 #                     {item}   - 아이템 이름으로 치환
 # ============================================================
+grade-settings:
+  input-count: 3    # 3번 클릭해야 성공
+  time-seconds: 5.0 # 5초 안에 클릭 완료
+  weight: 45        # 45% 확률로 F등급이 선택됨
+
 items:
+  # 생대구 — F등급에서 가장 자주 낚이는 기본 물고기
   cod:
     id: "cod"
     use-type: vanilla
@@ -37,6 +48,7 @@ items:
     double-enabled: true # 더블 보상 가능
     commands: []        # 추가 명령어 없음
 
+  # 연어 — F등급에서 가끔 낚이는 물고기
   salmon:
     id: "salmon"
     use-type: vanilla
@@ -48,6 +60,7 @@ items:
     double-enabled: true
     commands: []
 
+  # 열대어 — F등급에서 드물게 낚이는 물고기
   tropical_fish:
     id: "tropical_fish"
     use-type: vanilla

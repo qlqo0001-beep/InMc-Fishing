@@ -1,4 +1,21 @@
+# ============================================================
+#  WorldGuard 연동 설정 파일
+#  WorldGuard 보호 구역별 낚시 허용/차단 및
+#  등급별 확률 배수를 설정합니다.
+# ============================================================
+#
+# 각 영역(region)은 다음 속성을 가집니다:
+#
+#   world:               월드 이름 (Bukkit 월드 이름과 정확히 일치해야 함)
+#   region:              WorldGuard 보호 구역 이름
+#   fishing-enabled:     true  = 해당 구역에서 낚시 허용
+#                        false = 해당 구역에서 낚시 차단
+#   grade-weight-multiplier: 등급별 확률 배수 (modifiers.yml과 동일 방식)
+#                        1.0 = 변동 없음, 2.0 = 2배, 0.5 = 절반
+# ============================================================
 regions:
+  # --- 낚시 호수 ---
+  # 특정 보호 구역에서 낚시를 허용하고 S등급 확률을 1.5배 높임
   spawn_lake:
     world: world
     region: fishing_lake
@@ -6,6 +23,8 @@ regions:
     grade-weight-multiplier:
       S: 1.5
 
+  # --- 낚시 금지 구역 ---
+  # 스폰 보호 구역에서는 낚시 자체를 차단
   no_fish_zone:
     world: world
     region: spawn_protection
