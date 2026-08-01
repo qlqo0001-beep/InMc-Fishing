@@ -3,6 +3,7 @@ package me.ninesik.fishing.tournament;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -32,6 +33,7 @@ public class Tournament {
     private boolean running = false;
     private long startTimeMillis = 0;
     private final Map<UUID, TournamentEntry> entries = new ConcurrentHashMap<>();
+    private final Set<UUID> registeredPlayers = ConcurrentHashMap.newKeySet(); // 사전 참여 신청자
 
     private Tournament(Builder b) {
         this.id = b.id;
@@ -50,6 +52,9 @@ public class Tournament {
         this.refundOnLeave = b.refundOnLeave;
         this.rewards = b.rewards != null ? new ConcurrentHashMap<>(b.rewards) : new ConcurrentHashMap<>();
         this.participationReward = b.participationReward != null ? List.copyOf(b.participationReward) : List.of();
+        if (b.registeredPlayers != null) {
+            this.registeredPlayers.addAll(b.registeredPlayers);
+        }
     }
 
     public String getId() { return id; }
@@ -72,11 +77,19 @@ public class Tournament {
     public boolean isRunning() { return running; }
     public long getStartTimeMillis() { return startTimeMillis; }
     public Map<UUID, TournamentEntry> getEntries() { return entries; }
+    public Set<UUID> getRegisteredPlayers() { return registeredPlayers; }
 
+    /**
+     * 대회를 시작한다. 사전 신청자(registeredPlayers)를 실제 참가자(entries)로 전환한다.
+     */
     public void start() {
         this.running = true;
         this.startTimeMillis = System.currentTimeMillis();
         this.entries.clear();
+        for (UUID uuid : registeredPlayers) {
+            TournamentEntry entry = new TournamentEntry(uuid);
+            entries.put(uuid, entry);
+        }
     }
 
     public void stop() {
@@ -86,6 +99,18 @@ public class Tournament {
 
     public TournamentEntry getOrCreateEntry(UUID playerUuid) {
         return entries.computeIfAbsent(playerUuid, TournamentEntry::new);
+    }
+
+    public boolean isRegistered(UUID playerUuid) {
+        return registeredPlayers.contains(playerUuid);
+    }
+
+    public boolean registerPlayer(UUID playerUuid) {
+        return registeredPlayers.add(playerUuid);
+    }
+
+    public boolean unregisterPlayer(UUID playerUuid) {
+        return registeredPlayers.remove(playerUuid);
     }
 
     public static Builder builder() { return new Builder(); }
@@ -107,6 +132,7 @@ public class Tournament {
         private boolean refundOnLeave = true;
         private Map<String, List<String>> rewards;
         private List<String> participationReward;
+        private Set<UUID> registeredPlayers;
 
         public Builder id(String v) { id = v; return this; }
         public Builder name(String v) { name = v; return this; }
@@ -124,6 +150,7 @@ public class Tournament {
         public Builder refundOnLeave(boolean v) { refundOnLeave = v; return this; }
         public Builder rewards(Map<String, List<String>> v) { rewards = v; return this; }
         public Builder participationReward(List<String> v) { participationReward = v; return this; }
+        public Builder registeredPlayers(Set<UUID> v) { registeredPlayers = v; return this; }
 
         public Tournament build() {
             if (id == null || id.isEmpty())

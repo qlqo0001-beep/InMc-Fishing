@@ -271,7 +271,7 @@ public class FishingCommand implements CommandExecutor, TabCompleter {
             return;
         }
         if (args.length < 2) {
-            sender.sendMessage("§e[InMc-Fishing] §7사용법: /fishing tournament <list|join|gui|start|stop> [id]");
+            sender.sendMessage("§e[InMc-Fishing] §7사용법: /fishing tournament <list|join|leave|gui|start|stop> [id]");
             return;
         }
 
@@ -283,6 +283,13 @@ public class FishingCommand implements CommandExecutor, TabCompleter {
                     return;
                 }
                 tournamentManager.join(player, args[2]);
+            }
+            case "leave" -> {
+                if (args.length < 3) {
+                    sender.sendMessage("§c사용법: /fishing tournament leave <대회ID>");
+                    return;
+                }
+                tournamentManager.leave(player, args[2]);
             }
             case "gui" -> new me.ninesik.fishing.tournament.TournamentGui(player, tournamentManager).open();
             case "start" -> {
@@ -331,14 +338,14 @@ public class FishingCommand implements CommandExecutor, TabCompleter {
     private List<String> completeTournament(String[] args) {
         if (args.length == 2) {
             List<String> subs = new ArrayList<>();
-            for (String sub : new String[]{"list", "join", "gui", "start", "stop"}) {
+            for (String sub : new String[]{"list", "join", "leave", "gui", "start", "stop"}) {
                 if (sub.startsWith(args[1].toLowerCase())) {
                     subs.add(sub);
                 }
             }
             return subs;
         }
-        if (args.length == 3 && (args[1].equalsIgnoreCase("join") || args[1].equalsIgnoreCase("start") || args[1].equalsIgnoreCase("stop"))) {
+        if (args.length == 3 && (args[1].equalsIgnoreCase("join") || args[1].equalsIgnoreCase("leave") || args[1].equalsIgnoreCase("start") || args[1].equalsIgnoreCase("stop"))) {
             List<String> ids = new ArrayList<>();
             for (Tournament tournament : tournamentManager.getTournaments()) {
                 if (tournament.getId().toLowerCase().startsWith(args[2].toLowerCase())) {

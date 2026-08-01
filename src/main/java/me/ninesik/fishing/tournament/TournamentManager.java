@@ -31,15 +31,19 @@ import java.util.concurrent.ConcurrentHashMap;
 public class TournamentManager {
 
     private static final long SCHEDULER_INTERVAL_TICKS = 20L * 60L; // 1분
+    private static final long AUTOSAVE_INTERVAL_TICKS = 20L * 60L * 5L; // 5분
 
     private final InMcFishing plugin;
+    private final TournamentStorage storage;
     private final Map<String, Tournament> tournaments = new ConcurrentHashMap<>();
     private final Set<String> startedToday = ConcurrentHashMap.newKeySet();
     private final Map<String, Integer> endTaskIds = new ConcurrentHashMap<>();
     private int schedulerTaskId = -1;
+    private int autosaveTaskId = -1;
 
     public TournamentManager(InMcFishing plugin) {
         this.plugin = plugin;
+        this.storage = new TournamentStorage(plugin.getDataFolder());
     }
 
     public void load() {
@@ -59,7 +63,52 @@ public class TournamentManager {
             }
         }
 
+        // active.yml에서 진행 중인 대회 상태 복원
+        restoreActiveTournaments();
+
         plugin.getLogger().info("Loaded " + tournaments.size() + " tournament(s).");
+    }
+
+    private void restoreActiveTournaments() {
+        Map<String, TournamentStorage.ActiveTournamentData> activeData = storage.loadActive();
+        for (Map.Entry<String, TournamentStorage.ActiveTournamentData> e : activeData.entrySet()) {
+            Tournament tournament = tournaments.get(e.getKey());
+            if (tournament == null) continue;
+
+            TournamentStorage.ActiveTournamentData data = e.getValue();
+            if (!data.running()) continue;
+
+            tournament.getRegisteredPlayers().addAll(data.registeredPlayers());
+            tournament.start();
+            // 복원된 시작 시간 설정
+            try {
+                java.lang.reflect.Field field = Tournament.class.getDeclaredField("startTimeMillis");
+                field.setAccessible(true);
+                field.setLong(tournament, data.startTimeMillis());
+            } catch (Exception ex) {
+                plugin.getLogger().warning("Failed to restore startTimeMillis for tournament " + tournament.getId());
+            }
+
+            for (TournamentEntry entry : data.entries().values()) {
+                tournament.getEntries().put(entry.getPlayerUuid(), entry);
+            }
+
+            // 남은 시간만큼 자동 종료 태스크 재예약
+            long elapsedMillis = System.currentTimeMillis() - data.startTimeMillis();
+            long durationMillis = 60L * 1000L * tournament.getDurationMinutes();
+            long remainingMillis = Math.max(0, durationMillis - elapsedMillis);
+            long remainingTicks = remainingMillis / 50L;
+
+            int taskId = Bukkit.getScheduler().runTaskLater(plugin, () -> {
+                if (tournament.isRunning()) {
+                    finishTournament(tournament, false);
+                }
+            }, remainingTicks).getTaskId();
+            endTaskIds.put(tournament.getId().toLowerCase(), taskId);
+
+            plugin.getLogger().info("Restored tournament " + tournament.getId()
+                    + " with " + tournament.getEntries().size() + " participant(s).");
+        }
     }
 
     /**
@@ -114,6 +163,7 @@ public class TournamentManager {
     public void startScheduler() {
         if (schedulerTaskId != -1) return;
         schedulerTaskId = Bukkit.getScheduler().runTaskTimer(plugin, this::checkSchedules, SCHEDULER_INTERVAL_TICKS, SCHEDULER_INTERVAL_TICKS).getTaskId();
+        autosaveTaskId = Bukkit.getScheduler().runTaskTimer(plugin, this::saveActive, AUTOSAVE_INTERVAL_TICKS, AUTOSAVE_INTERVAL_TICKS).getTaskId();
     }
 
     public void shutdown() {
@@ -121,14 +171,27 @@ public class TournamentManager {
             Bukkit.getScheduler().cancelTask(schedulerTaskId);
             schedulerTaskId = -1;
         }
+        if (autosaveTaskId != -1) {
+            Bukkit.getScheduler().cancelTask(autosaveTaskId);
+            autosaveTaskId = -1;
+        }
         for (int taskId : endTaskIds.values()) {
             Bukkit.getScheduler().cancelTask(taskId);
         }
         endTaskIds.clear();
+        saveActive();
         for (Tournament tournament : tournaments.values()) {
             if (tournament.isRunning()) {
                 finishTournament(tournament, true);
             }
+        }
+    }
+
+    private void saveActive() {
+        try {
+            storage.saveActive(tournaments.values());
+        } catch (Exception e) {
+            plugin.getLogger().warning("Failed to save active tournaments: " + e.getMessage());
         }
     }
 
@@ -152,7 +215,9 @@ public class TournamentManager {
     }
 
     /**
-     * 플레이어가 대회에 참가한다 (/fishing tournament join <id>).
+     * 플레이어가 대회에 참가/사전 신청한다 (/fishing tournament join <id>).
+     * - 대회 시작 전: 사전 신청 (참가비 징수)
+     * - 대회 진행 중: 이미 시작된 대회는 추가 참여 불가 (사전 신청자는 시작 시 자동 참여)
      */
     public boolean join(Player player, String id) {
         Tournament tournament = tournaments.get(id.toLowerCase());
@@ -160,21 +225,20 @@ public class TournamentManager {
             player.sendMessage(ChatColor.RED + "존재하지 않는 대회입니다.");
             return false;
         }
-        if (!tournament.isRunning()) {
-            player.sendMessage(ChatColor.RED + "현재 진행 중인 대회가 아닙니다.");
+        if (tournament.isRunning()) {
+            player.sendMessage(ChatColor.RED + "이미 시작된 대회입니다. 사전 신청하지 않은 플레이어는 참여할 수 없습니다.");
             return false;
         }
-        if (tournament.getEntries().size() >= tournament.getMaxPlayers()) {
+        if (tournament.isRegistered(player.getUniqueId())) {
+            player.sendMessage(ChatColor.RED + "이미 사전 신청한 대회입니다.");
+            return false;
+        }
+        if (tournament.getRegisteredPlayers().size() >= tournament.getMaxPlayers()) {
             player.sendMessage(ChatColor.RED + "대회 인원이 가득 찼습니다.");
             return false;
         }
-        TournamentEntry entry = tournament.getOrCreateEntry(player.getUniqueId());
-        if (entry.getPlayerName() != null) {
-            player.sendMessage(ChatColor.RED + "이미 참가 중입니다.");
-            return false;
-        }
 
-        // 참가비 처리
+        // 참가비 처리 (사전 신청 시 징수)
         double fee = tournament.getEntryFee();
         if (fee > 0) {
             VaultHook vault = plugin.getDependencyManager().getVault();
@@ -192,30 +256,60 @@ public class TournamentManager {
             }
         }
 
-        entry.setPlayerName(player.getName());
-        player.sendMessage(ChatColor.GREEN + "대회에 참가했습니다: " + ChatColor.stripColor(tournament.getName()));
+        tournament.registerPlayer(player.getUniqueId());
+        player.sendMessage(ChatColor.GREEN + "대회에 사전 신청했습니다: " + ChatColor.stripColor(tournament.getName()));
         return true;
     }
 
     /**
-     * 플레이어가 접속 종료 시 환불 처리.
-     * 점수는 순위 집계를 위해 유지하되, 보상 지급은 제외한다.
+     * 플레이어가 대회에서 수동 퇴장한다 (/fishing tournament leave <id>).
+     * 접속 종료와는 별개로 동작한다.
+     */
+    public boolean leave(Player player, String id) {
+        Tournament tournament = tournaments.get(id.toLowerCase());
+        if (tournament == null) {
+            player.sendMessage(ChatColor.RED + "존재하지 않는 대회입니다.");
+            return false;
+        }
+        if (!tournament.isRunning()) {
+            // 시작 전이면 사전 신청 취소
+            if (tournament.isRegistered(player.getUniqueId())) {
+                tournament.unregisterPlayer(player.getUniqueId());
+                refund(player, tournament);
+                player.sendMessage(ChatColor.GREEN + "대회 사전 신청을 취소했습니다: " + ChatColor.stripColor(tournament.getName()));
+                return true;
+            }
+            player.sendMessage(ChatColor.RED + "신청하지 않은 대회입니다.");
+            return false;
+        }
+
+        TournamentEntry entry = tournament.getEntries().get(player.getUniqueId());
+        if (entry == null || entry.hasLeft()) {
+            player.sendMessage(ChatColor.RED + "참가 중인 대회가 아닙니다.");
+            return false;
+        }
+
+        entry.setLeft(true);
+        refund(player, tournament);
+        player.sendMessage(ChatColor.GREEN + "대회에서 퇴장했습니다: " + ChatColor.stripColor(tournament.getName()));
+        return true;
+    }
+
+    private void refund(Player player, Tournament tournament) {
+        if (!tournament.isRefundOnLeave() || tournament.getEntryFee() <= 0) return;
+        VaultHook vault = plugin.getDependencyManager().getVault();
+        if (vault.isAvailable()) {
+            vault.deposit(player, tournament.getEntryFee());
+            plugin.getLogger().info("Refunded tournament fee to " + player.getName() + " for " + tournament.getId());
+        }
+    }
+
+    /**
+     * 플레이어가 접속 종료필도 대회에서 퇴장하지 않는다.
+     * 대회 상태는 active.yml에 저장되어 서버 재시작 후 복원된다.
      */
     public void handleQuit(Player player) {
-        for (Tournament tournament : tournaments.values()) {
-            if (!tournament.isRunning()) continue;
-            TournamentEntry entry = tournament.getEntries().get(player.getUniqueId());
-            if (entry == null || entry.getPlayerName() == null || entry.hasLeft()) continue;
-
-            if (tournament.isRefundOnLeave() && tournament.getEntryFee() > 0) {
-                VaultHook vault = plugin.getDependencyManager().getVault();
-                if (vault.isAvailable()) {
-                    vault.deposit(player, tournament.getEntryFee());
-                    plugin.getLogger().info("Refunded tournament fee to " + player.getName() + " for " + tournament.getId());
-                }
-            }
-            entry.setLeft(true);
-        }
+        // 접속 종료 시 퇴장 처리하지 않음 — 오직 /fishing tournament leave 명령어로만 퇴장
     }
 
     /**
@@ -267,23 +361,31 @@ public class TournamentManager {
     }
 
     private boolean beginTournament(Tournament tournament, Player starter) {
-        // 자동 시작 시 최소 인원 체크
-        if (starter == null && tournament.getEntries().size() < tournament.getMinPlayers()) {
+        // 자동 시작 시 최소 인원 체크 (사전 신청자 기준)
+        if (starter == null && tournament.getRegisteredPlayers().size() < tournament.getMinPlayers()) {
             plugin.getLogger().info("Tournament " + tournament.getId()
                     + " auto-start skipped: not enough players ("
-                    + tournament.getEntries().size() + "/" + tournament.getMinPlayers() + ")");
+                    + tournament.getRegisteredPlayers().size() + "/" + tournament.getMinPlayers() + ")");
             return false;
         }
 
         tournament.start();
         startedToday.add(tournament.getId().toLowerCase());
 
+        // 복원된 상태에서는 playerName이 없을 수 있으므로 온라인 플레이어 이름으로 채운다
+        for (TournamentEntry entry : tournament.getEntries().values()) {
+            Player p = Bukkit.getPlayer(entry.getPlayerUuid());
+            if (p != null && entry.getPlayerName() == null) {
+                entry.setPlayerName(p.getName());
+            }
+        }
+
         String message = ChatColor.YELLOW + "[낚시 대회] " + ChatColor.WHITE + ChatColor.stripColor(tournament.getName())
                 + "이(가) 시작되었습니다! ";
         if (tournament.getEntryFee() > 0) {
             message += ChatColor.GOLD + "(참가비: " + tournament.getEntryFee() + ")";
         }
-        message += ChatColor.GRAY + " /fishing tournament join " + tournament.getId() + " 로 참가하세요!";
+        message += ChatColor.GRAY + " 사전 신청자는 자동 참여되었습니다.";
         Bukkit.broadcastMessage(message);
 
         // duration-minutes 후 자동 종료 예약
@@ -294,6 +396,8 @@ public class TournamentManager {
             }
         }, durationTicks).getTaskId();
         endTaskIds.put(tournament.getId().toLowerCase(), taskId);
+
+        saveActive();
 
         if (starter != null) {
             plugin.getLogger().info("Tournament " + tournament.getId() + " started by " + starter.getName());
@@ -313,6 +417,13 @@ public class TournamentManager {
         Integer taskId = endTaskIds.remove(tournament.getId().toLowerCase());
         if (taskId != null) {
             Bukkit.getScheduler().cancelTask(taskId);
+        }
+
+        // 히스토리 저장
+        try {
+            storage.saveHistory(tournament, ranked);
+        } catch (Exception e) {
+            plugin.getLogger().warning("Failed to save tournament history: " + e.getMessage());
         }
 
         if (!isShutdown) {
@@ -353,6 +464,8 @@ public class TournamentManager {
         }
 
         tournament.getEntries().clear();
+        tournament.getRegisteredPlayers().clear();
+        saveActive();
     }
 
     private List<TournamentEntry> getSortedEntries(Tournament tournament) {
