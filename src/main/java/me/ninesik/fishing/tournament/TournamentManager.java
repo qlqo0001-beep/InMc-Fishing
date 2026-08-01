@@ -35,6 +35,7 @@ public class TournamentManager {
 
     private final InMcFishing plugin;
     private final TournamentStorage storage;
+    private final TournamentHudManager hudManager;
     private final Map<String, Tournament> tournaments = new ConcurrentHashMap<>();
     private final Set<String> startedToday = ConcurrentHashMap.newKeySet();
     private final Map<String, Integer> endTaskIds = new ConcurrentHashMap<>();
@@ -44,6 +45,7 @@ public class TournamentManager {
     public TournamentManager(InMcFishing plugin) {
         this.plugin = plugin;
         this.storage = new TournamentStorage(plugin.getDataFolder());
+        this.hudManager = new TournamentHudManager(plugin, this);
     }
 
     public void load() {
@@ -164,6 +166,7 @@ public class TournamentManager {
         if (schedulerTaskId != -1) return;
         schedulerTaskId = Bukkit.getScheduler().runTaskTimer(plugin, this::checkSchedules, SCHEDULER_INTERVAL_TICKS, SCHEDULER_INTERVAL_TICKS).getTaskId();
         autosaveTaskId = Bukkit.getScheduler().runTaskTimer(plugin, this::saveActive, AUTOSAVE_INTERVAL_TICKS, AUTOSAVE_INTERVAL_TICKS).getTaskId();
+        hudManager.start();
     }
 
     public void shutdown() {
@@ -175,6 +178,7 @@ public class TournamentManager {
             Bukkit.getScheduler().cancelTask(autosaveTaskId);
             autosaveTaskId = -1;
         }
+        hudManager.stop();
         for (int taskId : endTaskIds.values()) {
             Bukkit.getScheduler().cancelTask(taskId);
         }
@@ -398,6 +402,7 @@ public class TournamentManager {
         endTaskIds.put(tournament.getId().toLowerCase(), taskId);
 
         saveActive();
+        hudManager.start();
 
         if (starter != null) {
             plugin.getLogger().info("Tournament " + tournament.getId() + " started by " + starter.getName());
@@ -466,6 +471,10 @@ public class TournamentManager {
         tournament.getEntries().clear();
         tournament.getRegisteredPlayers().clear();
         saveActive();
+
+        if (getRunningTournaments().isEmpty()) {
+            hudManager.stop();
+        }
     }
 
     private List<TournamentEntry> getSortedEntries(Tournament tournament) {
