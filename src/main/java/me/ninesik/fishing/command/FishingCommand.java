@@ -10,6 +10,7 @@ import me.ninesik.fishing.registry.GradeRegistry;
 import me.ninesik.fishing.registry.RodRegistry;
 import me.ninesik.fishing.service.FishingService;
 import me.ninesik.fishing.reward.RollEngine;
+import me.ninesik.fishing.model.Fish;
 import me.ninesik.fishing.service.RewardService;
 import me.ninesik.fishing.session.FishingSessionManager;
 import me.ninesik.fishing.tournament.Tournament;
@@ -25,6 +26,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.logging.Logger;
+import org.bukkit.inventory.ItemStack;
 
 /**
  * /fishing 명령어 — reload, debug, simulate, info 서브커맨드.
@@ -80,6 +82,7 @@ public class FishingCommand implements CommandExecutor, TabCompleter {
             case "collection", "col", "도감" -> handleCollection(sender);
             case "rank", "ranking", "랭킹" -> handleRank(sender);
             case "tournament", "tournaments", "대회" -> handleTournament(sender, args);
+            case "give" -> handleGive(sender, args);
             default -> sender.sendMessage("§e[InMc-Fishing] §7알 수 없는 명령어: " + args[0]);
         }
         return true;
@@ -90,7 +93,7 @@ public class FishingCommand implements CommandExecutor, TabCompleter {
                                       @NotNull String alias, @NotNull String[] args) {
         if (args.length == 1) {
             List<String> subs = new ArrayList<>();
-            for (String sub : new String[]{"reload", "debug", "simulate", "info", "collection", "rank", "tournament"}) {
+            for (String sub : new String[]{"reload", "debug", "simulate", "info", "collection", "rank", "tournament", "give"}) {
                 if (sub.startsWith(args[0].toLowerCase())) {
                     subs.add(sub);
                 }
@@ -100,6 +103,10 @@ public class FishingCommand implements CommandExecutor, TabCompleter {
 
         if (args.length >= 2 && args[0].equalsIgnoreCase("tournament")) {
             return completeTournament(args);
+        }
+
+        if (args.length >= 2 && args[0].equalsIgnoreCase("give")) {
+            return completeGive(args);
         }
 
         if (args.length == 2 && args[0].equalsIgnoreCase("simulate")) {
@@ -335,6 +342,47 @@ public class FishingCommand implements CommandExecutor, TabCompleter {
         sender.sendMessage("§6==========================");
     }
 
+    private void handleGive(CommandSender sender, String[] args) {
+        if (!sender.hasPermission("infishing.admin")) {
+            sender.sendMessage("§c권한이 없습니다.");
+            return;
+        }
+        if (args.length < 4 || !"net".equalsIgnoreCase(args[1])) {
+            sender.sendMessage("§c사용법: /fishing give net <플레이어> <물고기ID> [개수]");
+            return;
+        }
+
+        Player target = plugin.getServer().getPlayerExact(args[2]);
+        if (target == null) {
+            sender.sendMessage("§c플레이어를 찾을 수 없습니다: " + args[2]);
+            return;
+        }
+
+        Fish fish = fishRegistry.getById(args[3]);
+        if (fish == null) {
+            sender.sendMessage("§c존재하지 않는 물고기 ID입니다: " + args[3]);
+            return;
+        }
+
+        int amount = 1;
+        if (args.length >= 5) {
+            try {
+                amount = Integer.parseInt(args[4]);
+                if (amount < 1) amount = 1;
+            } catch (NumberFormatException e) {
+                sender.sendMessage("§c개수는 숫자여야 합니다.");
+                return;
+            }
+        }
+
+        me.ninesik.fishing.net.NetManager netManager = new me.ninesik.fishing.net.NetManager(
+                collectionManager, fishRegistry, rewardService);
+        ItemStack net = netManager.createNet(fish, amount);
+        target.getInventory().addItem(net);
+        sender.sendMessage("§a" + target.getName() + "에게 " + fish.getId() + " 어망 " + amount + "개를 지급했습니다.");
+        logger.info(sender.getName() + " gave " + amount + " net of " + fish.getId() + " to " + target.getName());
+    }
+
     private List<String> completeTournament(String[] args) {
         if (args.length == 2) {
             List<String> subs = new ArrayList<>();
@@ -350,6 +398,25 @@ public class FishingCommand implements CommandExecutor, TabCompleter {
             for (Tournament tournament : tournamentManager.getTournaments()) {
                 if (tournament.getId().toLowerCase().startsWith(args[2].toLowerCase())) {
                     ids.add(tournament.getId());
+                }
+            }
+            return ids;
+        }
+        return List.of();
+    }
+
+    private List<String> completeGive(String[] args) {
+        if (args.length == 2) {
+            return java.util.stream.Stream.of("net").filter(s -> s.startsWith(args[1].toLowerCase())).toList();
+        }
+        if (args.length == 3) {
+            return List.of();
+        }
+        if (args.length == 4 && "net".equalsIgnoreCase(args[1])) {
+            List<String> ids = new ArrayList<>();
+            for (Fish fish : fishRegistry.getAll().values()) {
+                if (fish.getId().toLowerCase().startsWith(args[3].toLowerCase())) {
+                    ids.add(fish.getId());
                 }
             }
             return ids;

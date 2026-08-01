@@ -85,6 +85,13 @@ public final class InMcFishing extends JavaPlugin {
                 collectionManager.getRewardService().getRareTrophyLore()
         );
 
+        // 어망 시스템 초기화
+        me.ninesik.fishing.net.NetItem.initialize(this);
+        me.ninesik.fishing.net.NetManager netManager = new me.ninesik.fishing.net.NetManager(
+                collectionManager, registryManager.getFishRegistry(), fishingService.getRewardService());
+        getServer().getPluginManager().registerEvents(
+                new me.ninesik.fishing.net.NetListener(this, netManager), this);
+
         rankingManager = new RankingManager(this, collectionManager);
         rankingManager.load();
         collectionManager.setRankingManager(rankingManager);
