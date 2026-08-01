@@ -8,17 +8,23 @@ public class Grade {
     private final int inputCount;
     private final double timeSeconds;
     private final String nextGradeId;
+    private final String color; // 등급 표시용 색상 코드 (예: &f, &a)
 
-    private Grade(String id, int weight, int inputCount, double timeSeconds, String nextGradeId) {
+    private Grade(String id, int weight, int inputCount, double timeSeconds, String nextGradeId, String color) {
         this.id = id;
         this.weight = weight;
         this.inputCount = inputCount;
         this.timeSeconds = timeSeconds;
         this.nextGradeId = nextGradeId;
+        this.color = color;
     }
 
     public static Grade create(String id, int weight, int inputCount, double timeSeconds, String nextGradeId) {
-        return new Grade(id, weight, inputCount, timeSeconds, nextGradeId);
+        return create(id, weight, inputCount, timeSeconds, nextGradeId, "&f");
+    }
+
+    public static Grade create(String id, int weight, int inputCount, double timeSeconds, String nextGradeId, String color) {
+        return new Grade(id, weight, inputCount, timeSeconds, nextGradeId, color != null ? color : "&f");
     }
 
     public String getId() { return id; }
@@ -26,6 +32,7 @@ public class Grade {
     public int getInputCount() { return inputCount; }
     public double getTimeSeconds() { return timeSeconds; }
     public String getNextGradeId() { return nextGradeId; }
+    public String getColor() { return color; }
 
     @Override
     public boolean equals(Object o) {

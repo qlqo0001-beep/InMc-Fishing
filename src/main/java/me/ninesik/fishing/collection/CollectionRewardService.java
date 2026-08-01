@@ -55,6 +55,22 @@ public class CollectionRewardService {
         this.pendingTimeoutSeconds = rewardConfig.getLong("settings.reward-pending-timeout", 0);
     }
 
+    public double getTrophyThreshold() {
+        return rewardConfig.getDouble("trophies.trophy-threshold", 1.5);
+    }
+
+    public double getRareTrophyThreshold() {
+        return rewardConfig.getDouble("trophies.rare-trophy-threshold", 0.9);
+    }
+
+    public String getTrophyLore() {
+        return rewardConfig.getString("trophies.display-lore.trophy", "&e🏆 트로피");
+    }
+
+    public String getRareTrophyLore() {
+        return rewardConfig.getString("trophies.display-lore.rare-trophy", "&c🏆 레어 트로피");
+    }
+
     public void processRewards(Player player, CollectionEntry entry) {
         if (!autoClaim) {
             return; // 플레이어가 수동으로 전체수령 버튼을 눌러야 함

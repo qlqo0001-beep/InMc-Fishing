@@ -76,6 +76,15 @@ public final class InMcFishing extends JavaPlugin {
 
         // 도감 시스템 초기화
         collectionManager = new CollectionManager(this, registryManager.getFishRegistry(), fishingService.getRewardService());
+
+        // RewardService에 트로피 Lore 설정 동기화 (collectionRewardService와 동일한 값 사용)
+        fishingService.getRewardService().setTrophyConfig(
+                collectionManager.getRewardService().getTrophyThreshold(),
+                collectionManager.getRewardService().getRareTrophyThreshold(),
+                collectionManager.getRewardService().getTrophyLore(),
+                collectionManager.getRewardService().getRareTrophyLore()
+        );
+
         rankingManager = new RankingManager(this, collectionManager);
         rankingManager.load();
         collectionManager.setRankingManager(rankingManager);

@@ -12,6 +12,7 @@
 #   time-seconds:         미니게임 제한 시간 (초, 소수점 가능)
 #   next-grade:           대어(Big Fish) 당첨 시 승급될 등급
 #                         S등급은 다음 등급이 없으므로 이 필드를 생략합니다
+#   color:                등급 표시용 색상 코드 (예: &f 흰색, &a 초록)
 #
 # 사용 예시:
 #   weight를 높이면 → 해당 등급이 더 자주 나옴
@@ -26,6 +27,7 @@ grades:
     input-count: 3   # 3번 클릭해야 성공
     time-seconds: 5.0 # 5초 안에 클릭 완료
     next-grade: "e"  # 대어 당첨 시 E등급으로 승급
+    color: "&f"      # 흰색
 
   E:
     id: "e"
@@ -33,6 +35,7 @@ grades:
     input-count: 4
     time-seconds: 4.5
     next-grade: "d"
+    color: "&a"      # 초록
 
   D:
     id: "d"
@@ -40,6 +43,7 @@ grades:
     input-count: 5
     time-seconds: 4.0
     next-grade: "c"
+    color: "&b"      # 파랑
 
   C:
     id: "c"
@@ -47,6 +51,7 @@ grades:
     input-count: 6
     time-seconds: 3.8
     next-grade: "b"
+    color: "&d"      # 별
 
   B:
     id: "b"
@@ -54,6 +59,7 @@ grades:
     input-count: 7
     time-seconds: 3.5
     next-grade: "a"
+    color: "&e"      # 금
 
   A:
     id: "a"
@@ -61,6 +67,7 @@ grades:
     input-count: 8
     time-seconds: 3.2
     next-grade: "s"
+    color: "&c"      # 빨강
 
   S:
     # S등급 — 가장 높은 등급, 가장 드물게 나옴
@@ -70,3 +77,4 @@ grades:
     input-count: 9   # 9번 클릭해야 성공 (가장 어려움)
     time-seconds: 3.0 # 3초 안에 클릭 완료 (가장 짧음)
     # next-grade: 생략 (S등급은 대어 승급 없음)
+    color: "&4"      # 어두운 빨강

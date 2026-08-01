@@ -29,11 +29,28 @@ public class RewardService {
     private final ConfigManager configManager;
     private final Logger logger;
 
+    private double trophyThreshold = 1.5;
+    private double rareTrophyThreshold = 0.9;
+    private String trophyLore = "&e🏆 트로피";
+    private String rareTrophyLore = "&c🏆 레어 트로피";
+
     public RewardService(JavaPlugin plugin, DependencyManager dependencyManager, ConfigManager configManager) {
         this.plugin = plugin;
         this.dependencyManager = dependencyManager;
         this.configManager = configManager;
         this.logger = plugin.getLogger();
+    }
+
+    /**
+     * 트로피 Lore 표시에 사용할 임계값과 텍스트를 설정한다.
+     * CollectionRewardService와 동일한 collections.yml 값을 공유하기 위해 사용.
+     */
+    public void setTrophyConfig(double trophyThreshold, double rareTrophyThreshold,
+                                String trophyLore, String rareTrophyLore) {
+        this.trophyThreshold = trophyThreshold;
+        this.rareTrophyThreshold = rareTrophyThreshold;
+        if (trophyLore != null) this.trophyLore = trophyLore;
+        if (rareTrophyLore != null) this.rareTrophyLore = rareTrophyLore;
     }
 
     /**
@@ -145,7 +162,7 @@ public class RewardService {
      * 3. MMOItems/ItemStack 자체 display name (이미 메타에 있음)
      * 4. Texts.humanize(Fish.id) — SNAKE_CASE → Title Case
      */
-    private String resolveDisplayName(Fish fish, ItemStack item) {
+    public String resolveDisplayName(Fish fish, ItemStack item) {
         // 1. vanilla-name이 설정되어 있으면 최우선
         if (fish.getVanillaName() != null && !fish.getVanillaName().isEmpty()) {
             return fish.getVanillaName();
@@ -163,6 +180,30 @@ public class RewardService {
 
         // 최종 fallback: fish.getId()를 humanize
         return Texts.humanize(fish.getId());
+    }
+
+    /**
+     * 등급 접두사를 결합한 표시명을 반환한다. 예: "[F] 생대구"
+     */
+    public String formatDisplayNameWithGrade(Fish fish, String displayName) {
+        Grade grade = fish.getGrade();
+        String gradeColor = grade != null ? grade.getColor() : "&f";
+        String gradeId = grade != null ? grade.getId().toUpperCase() : "?";
+        return Texts.colorize(gradeColor + "[" + gradeId + "] " + "&f" + displayName);
+    }
+
+    /**
+     * size 기반으로 트로피 등급을 판정한다.
+     */
+    private TrophyType evaluateTrophyType(Fish fish, double size) {
+        if (!fish.hasSize() || size <= 0) return TrophyType.NONE;
+        if (size >= fish.getMaxSize() * rareTrophyThreshold) return TrophyType.RARE;
+        if (size >= fish.getAvgSize() * trophyThreshold) return TrophyType.NORMAL;
+        return TrophyType.NONE;
+    }
+
+    private enum TrophyType {
+        NONE, NORMAL, RARE
     }
 
     public ItemStack createItemStack(Fish fish, int amount) {
@@ -186,12 +227,11 @@ public class RewardService {
             ItemStack item = new ItemStack(material, amount);
             org.bukkit.inventory.meta.ItemMeta meta = item.getItemMeta();
             if (meta != null) {
-                String displayName = fish.getVanillaName();
-                if (displayName != null && !displayName.isEmpty()) {
-                    meta.setDisplayName(Texts.colorize(displayName));
-                }
+                // 표시명: [F] 생대구 형식
+                String baseName = resolveDisplayName(fish, item);
+                meta.setDisplayName(formatDisplayNameWithGrade(fish, baseName));
 
-                // 기존 vanilla-lore + 사이즈 정보 추가
+                // 기존 vanilla-lore + 사이즈 정보 + 트로피 정보 추가
                 List<String> lore = new java.util.ArrayList<>();
                 if (fish.getVanillaLore() != null && !fish.getVanillaLore().isEmpty()) {
                     lore.addAll(fish.getVanillaLore().stream()
@@ -199,6 +239,7 @@ public class RewardService {
                             .toList());
                 }
                 appendSizeLore(fish, lore, size);
+                appendTrophyLore(fish, lore, size);
                 if (!lore.isEmpty()) {
                     meta.setLore(lore);
                 }
@@ -229,9 +270,26 @@ public class RewardService {
             ItemStack result = base.clone();
             result.setAmount(amount);
 
-            // MMOItems Lore에 {size} 플레이스홀더 적용
-            if (fish.hasSize()) {
-                result = applySizePlaceholder(result, size);
+            org.bukkit.inventory.meta.ItemMeta meta = result.getItemMeta();
+            if (meta != null) {
+                // 표시명: [F] 생대구 형식
+                String baseName = resolveDisplayName(fish, result);
+                meta.setDisplayName(formatDisplayNameWithGrade(fish, baseName));
+
+                // Lore에 {size} 플레이스홀더 + 트로피 정보 적용
+                List<String> lore = meta.hasLore() ? meta.getLore() : new java.util.ArrayList<>();
+                if (lore == null) lore = new java.util.ArrayList<>();
+                if (fish.hasSize()) {
+                    lore = lore.stream()
+                            .map(line -> line.replace("{size}", String.format("%.1f", size)))
+                            .collect(java.util.stream.Collectors.toList());
+                }
+                appendTrophyLore(fish, lore, size);
+                if (!lore.isEmpty()) {
+                    meta.setLore(lore);
+                }
+
+                result.setItemMeta(meta);
             }
             return result;
         }
@@ -278,6 +336,19 @@ public class RewardService {
     private void appendSizeLore(Fish fish, List<String> lore, double size) {
         if (!fish.hasSize()) return;
         lore.add("§7사이즈: §f" + String.format("%.1f", size) + "cm");
+    }
+
+    /**
+     * Lore에 트로피 정보를 추가한다.
+     * 사이즈가 없는 아이템은 추가하지 않는다.
+     */
+    private void appendTrophyLore(Fish fish, List<String> lore, double size) {
+        TrophyType trophyType = evaluateTrophyType(fish, size);
+        if (trophyType == TrophyType.RARE) {
+            lore.add(Texts.colorize(rareTrophyLore));
+        } else if (trophyType == TrophyType.NORMAL) {
+            lore.add(Texts.colorize(trophyLore));
+        }
     }
 
     /**

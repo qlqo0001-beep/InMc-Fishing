@@ -30,10 +30,11 @@ public class GradeLoader {
                 if (nextGradeId != null) {
                     nextGradeId = nextGradeId.toLowerCase();
                 }
+                String color = gradeSection.getString("color", "&f");
 
                 // DECISION-NEEDED: id와 nextGradeId를 소문자로 통일. grades.yml의 키는 대문자(F~S)지만
                 // GradeRegistry.getById() 조회 시 대소문자를 구분하지 않도록 하기 위해 소문자로 정규화.
-                Grade grade = Grade.create(key.toLowerCase(), weight, inputCount, timeSeconds, nextGradeId);
+                Grade grade = Grade.create(key.toLowerCase(), weight, inputCount, timeSeconds, nextGradeId, color);
                 gradeMap.put(key.toLowerCase(), grade);
             } catch (Exception e) {
                 errors.add("등급 '" + key + "' 로드 중 오류: " + e.getMessage());

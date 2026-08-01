@@ -142,7 +142,11 @@ public class CollectionGui extends AbstractGui {
             statusColor = ChatColor.GRAY;
         }
 
-        String displayName = statusColor + statusPrefix + ChatColor.WHITE + fish.getId();
+        // 패치: 물고기 id 대신 디스플레이 네임 + 등급 접두사 표시
+        String baseName = rewardService.resolveDisplayName(fish, base);
+        String gradedName = rewardService.formatDisplayNameWithGrade(fish, baseName);
+        String stripped = org.bukkit.ChatColor.stripColor(gradedName);
+        String displayName = statusColor + statusPrefix + ChatColor.WHITE + stripped;
         meta.setDisplayName(displayName);
 
         List<String> lore = new ArrayList<>();

@@ -278,10 +278,30 @@ public class CollectionManager {
         return false;
     }
 
+    /**
+     * 실제 인벤토리 아이템과 예상 물고기가 동일한지 확인한다.
+     * 사이즈 Lore는 등급/아이템 식별과 무관하므로 비교에서 제외한다.
+     */
     private boolean isSameFishItem(ItemStack actual, ItemStack expected, Fish fish) {
-        if (!actual.isSimilar(expected)) return false;
+        if (actual == null || expected == null) return false;
+        if (actual.getType() != expected.getType()) return false;
 
-        // MMOItems인 경우 더 정확한 식별 필요
+        org.bukkit.inventory.meta.ItemMeta actualMeta = actual.getItemMeta();
+        org.bukkit.inventory.meta.ItemMeta expectedMeta = expected.getItemMeta();
+
+        // displayName 비교 (색상 코드 제거 후)
+        String actualName = actualMeta != null && actualMeta.hasDisplayName()
+                ? org.bukkit.ChatColor.stripColor(actualMeta.getDisplayName()) : "";
+        String expectedName = expectedMeta != null && expectedMeta.hasDisplayName()
+                ? org.bukkit.ChatColor.stripColor(expectedMeta.getDisplayName()) : "";
+        if (!actualName.equals(expectedName)) return false;
+
+        // CustomModelData 비교
+        int actualCmd = actualMeta != null && actualMeta.hasCustomModelData() ? actualMeta.getCustomModelData() : 0;
+        int expectedCmd = expectedMeta != null && expectedMeta.hasCustomModelData() ? expectedMeta.getCustomModelData() : 0;
+        if (actualCmd != expectedCmd) return false;
+
+        // MMOItems인 경우 더 정확한 식별
         String useType = fish.getUseType() != null ? fish.getUseType().toLowerCase() : "vanilla";
         if ("mmoitems".equals(useType)) {
             return plugin.getDependencyManager().getMMOItems().isMMOItem(actual)
