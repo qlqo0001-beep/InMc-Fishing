@@ -63,6 +63,16 @@ public class CollectionStorage {
                         .largestSize(config.getDouble(path + ".largest-size", 0.0))
                         .rewardsClaimed(parseRewardsClaimed(config.getConfigurationSection(path + ".rewards-claimed")))
                         .build();
+                // 등록된 슬롯별 사이즈 목록 로드
+                if (config.isList(path + ".registered-sizes")) {
+                    List<Double> sizes = new ArrayList<>();
+                    for (Object obj : config.getList(path + ".registered-sizes", List.of())) {
+                        if (obj instanceof Number n) {
+                            sizes.add(n.doubleValue());
+                        }
+                    }
+                    entry.setRegisteredSizes(sizes);
+                }
                 data.getEntries().put(fishId.toLowerCase(), entry);
             }
         }
@@ -117,6 +127,10 @@ public class CollectionStorage {
             }
             if (entry.getLargestSize() > 0) {
                 config.set(path + ".largest-size", entry.getLargestSize());
+            }
+            // 등록된 슬롯별 사이즈 목록 저장
+            if (!entry.getRegisteredSizes().isEmpty()) {
+                config.set(path + ".registered-sizes", new ArrayList<>(entry.getRegisteredSizes()));
             }
             for (Map.Entry<String, Boolean> reward : entry.getRewardsClaimed().entrySet()) {
                 config.set(path + ".rewards-claimed." + reward.getKey(), reward.getValue());

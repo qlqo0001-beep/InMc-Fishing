@@ -153,10 +153,12 @@ public class CollectionManager {
         if (entry == null || entry.getStatus() != Status.ACTIVE) return false;
         if (entry.getRegisteredSlots() >= entry.getMaxSlots()) return false;
 
-        // 인벤토리에서 물고기 아이템 1개 소모
-        if (!consumeOneFishItem(player, fish)) return false;
+        // 인벤토리에서 물고기 아이템 1개 소모 (사이즈 추출)
+        double size = consumeOneFishItem(player, fish);
+        if (size < 0) return false;
 
-        entry.incrementRegisteredSlots();
+        // 사이즈 저장 (사이즈 없는 물고기는 0.0)
+        entry.registerFish(size);
         collectionRewardService.processRewards(player, entry);
         collectionRewardService.processGradeRewards(player, data);
         if (rankingManager != null) {
@@ -166,7 +168,7 @@ public class CollectionManager {
     }
 
     /**
-     * 등록된 물고기 1개를 해제한다. 아이템 반환은 GUI/명령어에서 별도 처리.
+     * 등록된 물고기 1개를 해제하고 저장된 사이즈의 물고기 아이템을 반환한다.
      * @return 해제 성공 여부
      */
     public boolean unregisterFish(Player player, String fishId) {
@@ -178,7 +180,22 @@ public class CollectionManager {
         CollectionEntry entry = data.getEntry(fishId);
         if (entry == null || entry.getRegisteredSlots() <= 0) return false;
 
-        entry.decrementRegisteredSlots();
+        // 저장된 사이즈로 물고기 아이템 생성 (랜덤 아님)
+        double size = entry.unregisterFish();
+        Fish fish = fishRegistry.getById(fishId);
+        if (fish != null) {
+            ItemStack item = rewardService.createItemStack(fish, 1, size);
+            if (item != null) {
+                Map<Integer, ItemStack> remaining = player.getInventory().addItem(item);
+                if (!remaining.isEmpty()) {
+                    // 인벤토리 부족 — 바닥에 드롭
+                    for (ItemStack drop : remaining.values()) {
+                        player.getWorld().dropItemNaturally(player.getLocation(), drop);
+                    }
+                }
+            }
+        }
+
         if (rankingManager != null) {
             rankingManager.queueUpdate(player.getUniqueId());
         }
@@ -252,30 +269,56 @@ public class CollectionManager {
     }
 
     /**
-     * 인벤토리에서 해당 물고기 아이템 1개를 찾아 제거한다.
+     * 인벤토리에서 해당 물고기 아이템 1개를 찾아 제거하고 사이즈를 반환한다.
      * MMOItems 아이템은 MMOItemsHook으로 식별, 바닐라는 Material + displayName으로 매칭.
+     * @return 소모된 물고기의 사이즈 (cm), 사이즈 없으면 0.0, 실패하면 -1
      */
-    private boolean consumeOneFishItem(Player player, Fish fish) {
+    private double consumeOneFishItem(Player player, Fish fish) {
         PlayerInventory inventory = player.getInventory();
         ItemStack expected = rewardService.createItemStack(fish, 1);
         if (expected == null || expected.getType().isAir()) {
-            return false;
+            return -1;
         }
 
         for (int i = 0; i < inventory.getSize(); i++) {
             ItemStack item = inventory.getItem(i);
             if (item == null || item.getType().isAir()) continue;
             if (isSameFishItem(item, expected, fish)) {
+                double size = extractSizeFromLore(item);
                 int amount = item.getAmount();
                 if (amount > 1) {
                     item.setAmount(amount - 1);
                 } else {
                     inventory.setItem(i, new ItemStack(Material.AIR));
                 }
-                return true;
+                return size;
             }
         }
-        return false;
+        return -1;
+    }
+
+    /**
+     * 아이템 Lore에서 사이즈 정보를 추출한다.
+     * 형식: "§7사이즈: §f45.2cm"
+     * @return 사이즈 (cm), 없으면 0.0
+     */
+    private double extractSizeFromLore(ItemStack item) {
+        if (item == null || !item.hasItemMeta()) return 0.0;
+        org.bukkit.inventory.meta.ItemMeta meta = item.getItemMeta();
+        if (meta == null || !meta.hasLore()) return 0.0;
+
+        for (String line : meta.getLore()) {
+            String stripped = org.bukkit.ChatColor.stripColor(line);
+            if (stripped != null && stripped.startsWith("사이즈: ")) {
+                String sizeStr = stripped.substring("사이즈: ".length()).replace("cm", "").trim();
+                try {
+                    return Double.parseDouble(sizeStr);
+                } catch (NumberFormatException e) {
+                    return 0.0;
+                }
+            }
+        }
+        return 0.0;
     }
 
     /**

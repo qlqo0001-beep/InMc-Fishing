@@ -6,6 +6,7 @@ import me.ninesik.fishing.event.FishCatchEvent;
 import me.ninesik.fishing.model.Fish;
 import me.ninesik.fishing.model.Grade;
 import me.ninesik.fishing.model.RewardEntry;
+import me.ninesik.fishing.net.NetManager;
 import me.ninesik.fishing.util.InventoryUtil;
 import me.ninesik.fishing.util.Sounds;
 import me.ninesik.fishing.util.Texts;
@@ -34,6 +35,9 @@ public class RewardService {
     private String trophyLore = "&e🏆 트로피";
     private String rareTrophyLore = "&c🏆 레어 트로피";
 
+    /** 어망 시스템 (선택적 — null이면 어망 저장 없이 기존 인벤토리 지급) */
+    private NetManager netManager;
+
     public RewardService(JavaPlugin plugin, DependencyManager dependencyManager, ConfigManager configManager) {
         this.plugin = plugin;
         this.dependencyManager = dependencyManager;
@@ -54,6 +58,13 @@ public class RewardService {
     }
 
     /**
+     * 어망 시스템을 연결한다. (InMcFishing.onEnable에서 호출)
+     */
+    public void setNetManager(NetManager netManager) {
+        this.netManager = netManager;
+    }
+
+    /**
      * 미니게임 성공 시 호출. 아이템 지급 + 메시지 + 사운드 + commands.
      *
      * @return 아이템 지급에 성공(또는 overflow 드롭)했으면 true, 인벤 부족으로 거부되면 false
@@ -65,6 +76,46 @@ public class RewardService {
 
         Fish fish = reward.getFish();
         int amount = reward.getAmount();
+
+        // 어망 시스템이 연결되어 있으면 우선 어망에 저장한다.
+        // 어망이 꽉 차면 기존 인벤토리 지급으로 폴백한다.
+        if (netManager != null && netManager.addFish(player, reward)) {
+            // 표시명 (메시지용, 색상 포함)
+            ItemStack tempItem = createItemStack(fish, 1, reward.getSize());
+            String itemDisplay = resolveDisplayName(fish, tempItem);
+            itemDisplay = Texts.colorize(itemDisplay);
+
+            // 대어 메시지
+            if (reward.isBigFish()) {
+                String bigFishMsg = configManager.formatMessage("big-fish", placeholders(player, reward, itemDisplay));
+                if (!bigFishMsg.isEmpty()) {
+                    player.sendMessage(bigFishMsg);
+                }
+                Sounds.play(player, configManager.getSound("big-fish"));
+            }
+
+            // 성공/더블 메시지
+            boolean effectiveDouble = reward.isDouble() && fish.isDoubleEnabled();
+            String catchKey = effectiveDouble ? "caught-double" : "caught";
+            String catchMsg = configManager.formatMessage(catchKey, placeholders(player, reward, itemDisplay));
+            if (!catchMsg.isEmpty()) {
+                player.sendMessage(catchMsg);
+            }
+
+            // 사운드
+            Sounds.play(player, configManager.getSound("success"));
+            if (effectiveDouble) {
+                Sounds.play(player, configManager.getSound("double"));
+            }
+
+            // Fish.commands 콘솔 실행
+            runCommands(player, reward, itemDisplay);
+
+            // 이벤트 발행 — 도감/랭킹/대회 등이 수신
+            Bukkit.getPluginManager().callEvent(new FishCatchEvent(player, fish, reward));
+
+            return true;
+        }
 
         ItemStack item = createItemStack(fish, amount, reward.getSize());
         if (item == null) {

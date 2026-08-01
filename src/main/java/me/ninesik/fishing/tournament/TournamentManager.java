@@ -229,10 +229,49 @@ public class TournamentManager {
             player.sendMessage(ChatColor.RED + "존재하지 않는 대회입니다.");
             return false;
         }
+
+        // 진행 중인 대회 — 도중 참여 허용
         if (tournament.isRunning()) {
-            player.sendMessage(ChatColor.RED + "이미 시작된 대회입니다. 사전 신청하지 않은 플레이어는 참여할 수 없습니다.");
-            return false;
+            TournamentEntry existing = tournament.getEntries().get(player.getUniqueId());
+            if (existing != null && !existing.hasLeft()) {
+                player.sendMessage(ChatColor.RED + "이미 참가 중인 대회입니다.");
+                return false;
+            }
+            if (tournament.getEntries().size() >= tournament.getMaxPlayers()) {
+                player.sendMessage(ChatColor.RED + "대회 인원이 가득 찼습니다.");
+                return false;
+            }
+
+            // 참가비 처리
+            double fee = tournament.getEntryFee();
+            if (fee > 0) {
+                VaultHook vault = plugin.getDependencyManager().getVault();
+                if (!vault.isAvailable()) {
+                    player.sendMessage(ChatColor.RED + "참가비 처리를 위한 Vault 이코노미가 연결되지 않았습니다.");
+                    return false;
+                }
+                if (!vault.has(player, fee)) {
+                    player.sendMessage(ChatColor.RED + "참가비가 부족합니다. (필요: " + fee + ")");
+                    return false;
+                }
+                if (!vault.withdraw(player, fee)) {
+                    player.sendMessage(ChatColor.RED + "참가비 처리에 실패했습니다.");
+                    return false;
+                }
+            }
+
+            // 즉시 엔트리 생성
+            TournamentEntry entry = tournament.getOrCreateEntry(player.getUniqueId());
+            entry.setPlayerName(player.getName());
+            entry.setLeft(false);
+
+            // HUD 즉시 표시
+            hudManager.refreshPlayer(player);
+
+            player.sendMessage(ChatColor.GREEN + "진행 중인 대회에 참여했습니다: " + ChatColor.stripColor(tournament.getName()));
+            return true;
         }
+
         if (tournament.isRegistered(player.getUniqueId())) {
             player.sendMessage(ChatColor.RED + "이미 사전 신청한 대회입니다.");
             return false;
@@ -295,6 +334,8 @@ public class TournamentManager {
 
         entry.setLeft(true);
         refund(player, tournament);
+        // HUD 제거
+        hudManager.removePlayer(player);
         player.sendMessage(ChatColor.GREEN + "대회에서 퇴장했습니다: " + ChatColor.stripColor(tournament.getName()));
         return true;
     }
@@ -331,18 +372,26 @@ public class TournamentManager {
 
             switch (tournament.getType()) {
                 case GRADE -> {
-                    if (tournament.getTargetGrade() != null
-                            && tournament.getTargetGrade().equalsIgnoreCase(fish.getGrade().getId())) {
-                        // DECISION-NEEDED: GRADE 대회 점수 산정 공식 (현재는 1마리당 1점)
-                        entry.addScore(1);
+                    // grade: all → 모든 등급 대상, 특정 등급 → 해당 등급만 대상
+                    String targetGrade = tournament.getTargetGrade();
+                    boolean matches = targetGrade == null
+                            || "all".equalsIgnoreCase(targetGrade)
+                            || targetGrade.equalsIgnoreCase(fish.getGrade().getId());
+                    if (matches) {
+                        // 점수 = 등급 기본 점수 × 100 + 물고기 weight
+                        int gradeBase = getGradeBaseScore(fish.getGrade().getId());
+                        long gradeScore = (long) (gradeBase * 100) + fish.getWeight();
+                        entry.addScore(gradeScore);
                     }
                 }
                 case SIZE -> {
                     double size = event.getSize();
                     if (size > entry.getBestSize()) {
                         entry.setBestSize(size);
-                        entry.setScore((long) (size * 10)); // 소수점 표현을 위해 10배
                     }
+                    // 점수 = 잡은 모든 물고기 사이즈 합산
+                    entry.addTotalSize(size);
+                    entry.setScore((long) (entry.getTotalSize() * 10)); // 소수점 표현을 위해 10배
                 }
                 case COUNT -> {
                     entry.incrementCatchCount();
@@ -540,6 +589,23 @@ public class TournamentManager {
         }
 
         return false;
+    }
+
+    /**
+     * 등급 순서 기반 기본 점수를 반환한다. (F=1, E=2, D=3, C=4, B=5, A=6, S=7)
+     */
+    private int getGradeBaseScore(String gradeId) {
+        if (gradeId == null) return 0;
+        return switch (gradeId.toUpperCase()) {
+            case "F" -> 1;
+            case "E" -> 2;
+            case "D" -> 3;
+            case "C" -> 4;
+            case "B" -> 5;
+            case "A" -> 6;
+            case "S" -> 7;
+            default -> 0;
+        };
     }
 
     private TournamentType parseType(String value) {

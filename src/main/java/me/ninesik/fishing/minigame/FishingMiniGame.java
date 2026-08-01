@@ -109,14 +109,15 @@ public class FishingMiniGame implements MiniGame {
 
         if (input == expectedInput) {
             int next = currentIndex + 1;
-            session.setCurrentIndex(next);
-            Sounds.play(player, configManager.getSound("control"));
+            if (next < inputSequence.size()) {
+                session.setCurrentIndex(next);
+                Sounds.play(player, configManager.getSound("control"));
 
-            // 틱 갱신을 기다리지 않고 즉시 타이틀 갱신
-            TimeBarMiniGame tb = timeBars.get(player.getUniqueId());
-            if (tb != null) tb.refresh();
-
-            if (next >= inputSequence.size()) {
+                // 틱 갱신을 기다리지 않고 즉시 타이틀 갱신
+                TimeBarMiniGame tb = timeBars.get(player.getUniqueId());
+                if (tb != null) tb.refresh();
+            } else {
+                // 마지막 입력 성공 — 시퀀스 완료, setCurrentIndex 호출 없이 즉시 성공 처리
                 stop(player, GameResult.SUCCESS);
             }
         } else {

@@ -47,6 +47,7 @@ public final class InMcFishing extends JavaPlugin {
     private CollectionManager collectionManager;
     private RankingManager rankingManager;
     private TournamentManager tournamentManager;
+    private me.ninesik.fishing.net.NetManager netManager;
 
     @Override
     public void onEnable() {
@@ -85,12 +86,10 @@ public final class InMcFishing extends JavaPlugin {
                 collectionManager.getRewardService().getRareTrophyLore()
         );
 
-        // 어망 시스템 초기화
-        me.ninesik.fishing.net.NetItem.initialize(this);
-        me.ninesik.fishing.net.NetManager netManager = new me.ninesik.fishing.net.NetManager(
-                collectionManager, registryManager.getFishRegistry(), fishingService.getRewardService());
-        getServer().getPluginManager().registerEvents(
-                new me.ninesik.fishing.net.NetListener(this, netManager), this);
+        // 어망 시스템 초기화 (100칸 보관함)
+        netManager = new me.ninesik.fishing.net.NetManager(
+                this, registryManager.getFishRegistry(), fishingService.getRewardService());
+        fishingService.getRewardService().setNetManager(netManager);
 
         rankingManager = new RankingManager(this, collectionManager);
         rankingManager.load();
@@ -117,6 +116,9 @@ public final class InMcFishing extends JavaPlugin {
 
     @Override
     public void onDisable() {
+        if (netManager != null) {
+            netManager.saveAll();
+        }
         if (collectionManager != null) {
             collectionManager.saveAll();
         }
@@ -221,5 +223,9 @@ public final class InMcFishing extends JavaPlugin {
 
     public TournamentManager getTournamentManager() {
         return tournamentManager;
+    }
+
+    public me.ninesik.fishing.net.NetManager getNetManager() {
+        return netManager;
     }
 }

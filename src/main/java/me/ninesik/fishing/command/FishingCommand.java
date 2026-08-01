@@ -72,7 +72,7 @@ public class FishingCommand implements CommandExecutor, TabCompleter {
     public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command,
                              @NotNull String label, @NotNull String[] args) {
         if (args.length == 0) {
-            sender.sendMessage("§e[InMc-Fishing] §7사용법: /fishing reload|debug|simulate|info|collection|rank|tournament|give|list");
+            sender.sendMessage("§e[InMc-Fishing] §7사용법: /fishing reload|debug|simulate|info|collection|rank|tournament|give|list|net");
             return true;
         }
 
@@ -86,6 +86,7 @@ public class FishingCommand implements CommandExecutor, TabCompleter {
             case "tournament", "tournaments", "대회" -> handleTournament(sender, args);
             case "give" -> handleGive(sender, args);
             case "list" -> handleList(sender, args);
+            case "net", "어망" -> handleNet(sender);
             default -> sender.sendMessage("§e[InMc-Fishing] §7알 수 없는 명령어: " + args[0]);
         }
         return true;
@@ -96,7 +97,7 @@ public class FishingCommand implements CommandExecutor, TabCompleter {
                                       @NotNull String alias, @NotNull String[] args) {
         if (args.length == 1) {
             List<String> subs = new ArrayList<>();
-            for (String sub : new String[]{"reload", "debug", "simulate", "info", "collection", "rank", "tournament", "give", "list"}) {
+            for (String sub : new String[]{"reload", "debug", "simulate", "info", "collection", "rank", "tournament", "give", "list", "net"}) {
                 if (sub.startsWith(args[0].toLowerCase())) {
                     subs.add(sub);
                 }
@@ -259,6 +260,23 @@ public class FishingCommand implements CommandExecutor, TabCompleter {
             sender.sendMessage("§e미니게임 중: §f" + fishingMiniGame.isActive(player));
         }
         sender.sendMessage("§6==========================");
+    }
+
+    private void handleNet(CommandSender sender) {
+        if (!sender.hasPermission("infishing.user")) {
+            sender.sendMessage("§c권한이 없습니다.");
+            return;
+        }
+        if (!(sender instanceof Player player)) {
+            sender.sendMessage("§c플레이어만 사용할 수 있습니다.");
+            return;
+        }
+        me.ninesik.fishing.net.NetManager netManager = plugin.getNetManager();
+        if (netManager == null) {
+            sender.sendMessage("§c어망 시스템이 비활성화되어 있습니다.");
+            return;
+        }
+        netManager.openNetGui(player);
     }
 
     private void handleCollection(CommandSender sender) {
@@ -436,12 +454,32 @@ public class FishingCommand implements CommandExecutor, TabCompleter {
         int amount = parseAmount(sender, args, 4, 1);
         if (amount < 1) return;
 
-        me.ninesik.fishing.net.NetManager netManager = new me.ninesik.fishing.net.NetManager(
-                collectionManager, fishRegistry, rewardService);
-        ItemStack net = netManager.createNet(fish, amount);
-        target.getInventory().addItem(net);
-        sender.sendMessage("§a" + target.getName() + "에게 " + fish.getId() + " 어망 " + amount + "개를 지급했습니다.");
-        logger.info(sender.getName() + " gave " + amount + " net of " + fish.getId() + " to " + target.getName());
+        me.ninesik.fishing.net.NetManager netManager = plugin.getNetManager();
+        if (netManager == null) {
+            sender.sendMessage("§c어망 시스템이 비활성화되어 있습니다.");
+            return;
+        }
+        me.ninesik.fishing.model.RewardEntry reward = me.ninesik.fishing.model.RewardEntry.builder()
+                .fish(fish)
+                .grade(fish.getGrade())
+                .originalGrade(fish.getGrade())
+                .isDouble(false)
+                .isBigFish(false)
+                .size(fish.getAvgSize())
+                .build();
+        boolean success = true;
+        for (int i = 0; i < amount; i++) {
+            if (!netManager.addFish(target, reward)) {
+                success = false;
+                break;
+            }
+        }
+        if (success) {
+            sender.sendMessage("§a" + target.getName() + "의 어망에 " + fish.getId() + " " + amount + "마리를 추가했습니다.");
+            logger.info(sender.getName() + " added " + amount + " " + fish.getId() + " to " + target.getName() + "'s net");
+        } else {
+            sender.sendMessage("§c어망이 꽉 차서 일부만 추가되었습니다.");
+        }
     }
 
     private void giveFish(CommandSender sender, String[] args) {

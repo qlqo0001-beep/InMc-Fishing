@@ -9,10 +9,14 @@
 #   name:              대회 이름 (& 색상코드 사용 가능)
 #   description:       대회 설명 (여러 줄 가능)
 #   type:              대회 종류
-#                      GRADE  - 특정 등급 물고기를 낚아 점수 획득
-#                      SIZE   - 가장 큰 물고기를 낚은 사람이 우승
+#                      GRADE  - 등급 물고기를 낚아 점수 획득
+#                               점수 = 등급 기본 점수(F=1~S=7) x 100 + 물고기 weight
+#                               (등급이 높을수록 항상 우선, 동일 등급 내에서는 weight로 순위 결정)
+#                      SIZE   - 잡은 모든 물고기의 사이즈 합산이 가장 큰 사람이 우승
 #                      COUNT  - 가장 많이 낚은 사람이 우승
-#   grade:             (type: GRADE 전용) 목표 등급 (F/E/D/C/B/A/S)
+#   grade:             (type: GRADE 전용) 목표 등급
+#                      all       = 모든 등급의 물고기가 점수에 포함됨
+#                      F/E/D/C/B/A/S = 해당 등급 물고기만 점수에 포함됨
 #   duration-minutes:  대회 진행 시간 (분)
 #   auto-start:        true = schedule에 따라 자동 시작
 #                      false = 관리자가 수동으로 시작해야 함
@@ -59,8 +63,36 @@ tournaments:
     participation-reward:
       - "give {player} exp 100"
 
+  # --- 전체 등급 낚시 대회 ---
+  # grade: all 예시 — 모든 등급의 물고기가 점수에 포함됨
+  # (등급이 높을수록 우선, 동일 등급이면 weight로 순위 결정)
+  # (수동 시작 — 관리자가 /fishing tournament start로 시작)
+  all_grade_cup:
+    id: "all_grade_cup"
+    name: "&e전체 등급 낚시 대회"
+    description:
+      - "&7모든 등급의 물고기가 점수로 인정됩니다!"
+      - "&7높은 등급을 낚을수록 유리합니다."
+    type: GRADE
+    grade: all
+    duration-minutes: 60
+    auto-start: false
+    min-players: 1
+    max-players: 100
+    entry-fee: 0
+    refund-on-leave: true
+    rewards:
+      1st:
+        - "give {player} diamond 5"
+      2nd:
+        - "give {player} iron_ingot 10"
+      3rd:
+        - "give {player} iron_ingot 5"
+    participation-reward:
+      - "give {player} exp 50"
+
   # --- 최고의 낚시꾼 대회 ---
-  # 가장 큰 물고기를 낚은 플레이어가 우승하는 대회
+  # 잡은 모든 물고기의 사이즈 합산이 가장 큰 플레이어가 우승하는 대회
   # (수동 시작 — 관리자가 /fishing tournament start로 시작)
   size_championship:
     id: "size_championship"

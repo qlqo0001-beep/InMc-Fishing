@@ -51,6 +51,7 @@ public class TournamentStorage {
                 entrySection.set("score", entry.getScore());
                 entrySection.set("catchCount", entry.getCatchCount());
                 entrySection.set("bestSize", entry.getBestSize());
+                entrySection.set("totalSize", entry.getTotalSize());
                 entrySection.set("left", entry.hasLeft());
             }
         }
@@ -105,6 +106,7 @@ public class TournamentStorage {
                         entry.setScore(entrySection.getLong("score", 0));
                         entry.setCatchCount(entrySection.getInt("catchCount", 0));
                         entry.setBestSize(entrySection.getDouble("bestSize", 0));
+                        entry.setTotalSize(entrySection.getDouble("totalSize", 0));
                         entry.setLeft(entrySection.getBoolean("left", false));
                         entries.put(uuid, entry);
                     } catch (IllegalArgumentException ignored) {
@@ -155,6 +157,7 @@ public class TournamentStorage {
             map.put("score", entry.getScore());
             map.put("catchCount", entry.getCatchCount());
             map.put("bestSize", entry.getBestSize());
+            map.put("totalSize", entry.getTotalSize());
             map.put("left", entry.hasLeft());
             ranking.add(map);
         }

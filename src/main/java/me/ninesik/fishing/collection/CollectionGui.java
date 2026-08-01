@@ -204,7 +204,7 @@ public class CollectionGui extends AbstractGui {
             } else if (isRegistered || isDiscovered) {
                 lore.add(ChatColor.YELLOW + "좌클릭: 도감에 등록 (아이템 1개 소모)");
                 if (isRegistered) {
-                    lore.add(ChatColor.RED + "우클릭: 1개 해제");
+                    lore.add(ChatColor.RED + "시프트 우클릭: 1개 해제 (물고기 반환)");
                 }
             }
         }
@@ -308,7 +308,7 @@ public class CollectionGui extends AbstractGui {
             } else {
                 collectionManager.registerFish(player, fish.getId());
             }
-        } else if (event.isRightClick() && isRegistered) {
+        } else if (event.isShiftClick() && event.isRightClick() && isRegistered) {
             collectionManager.unregisterFish(player, fish.getId());
         }
 

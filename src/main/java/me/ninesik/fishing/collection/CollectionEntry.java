@@ -1,7 +1,9 @@
 package me.ninesik.fishing.collection;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -28,6 +30,9 @@ public class CollectionEntry {
     // 세션 19: 사이즈 기록
     private double smallestSize;         // 가장 작게 낚은 사이즈 (0 = 기록 없음)
     private double largestSize;          // 가장 크게 낚은 사이즈
+
+    // 등록된 각 슬롯의 물고기 사이즈 (등록 순서대로 저장, 해제 시 LIFO)
+    private final List<Double> registeredSizes = new ArrayList<>();
 
     private CollectionEntry(Builder b) {
         this.fishId = b.fishId;
@@ -74,6 +79,40 @@ public class CollectionEntry {
     public void decrementRegisteredSlots() {
         if (this.registeredSlots > 0) {
             this.registeredSlots--;
+        }
+    }
+
+    /**
+     * 물고기를 도감에 등록하고 사이즈를 저장한다.
+     * @param size 물고기 사이즈 (cm), 사이즈 없는 물고기는 0.0
+     */
+    public void registerFish(double size) {
+        this.registeredSlots++;
+        registeredSizes.add(size > 0 ? size : 0.0);
+    }
+
+    /**
+     * 도감에서 물고기 1개를 해제하고 저장된 사이즈를 반환한다. (LIFO)
+     * @return 저장된 사이즈 (cm), 없으면 0.0
+     */
+    public double unregisterFish() {
+        if (this.registeredSlots > 0) {
+            this.registeredSlots--;
+        }
+        if (!registeredSizes.isEmpty()) {
+            return registeredSizes.remove(registeredSizes.size() - 1);
+        }
+        return 0.0;
+    }
+
+    public List<Double> getRegisteredSizes() {
+        return java.util.Collections.unmodifiableList(registeredSizes);
+    }
+
+    public void setRegisteredSizes(List<Double> sizes) {
+        registeredSizes.clear();
+        if (sizes != null) {
+            registeredSizes.addAll(sizes);
         }
     }
 
