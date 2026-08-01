@@ -61,6 +61,37 @@ public class CollectionGui extends AbstractGui {
                     List.of(active ? ChatColor.YELLOW + "현재 탭" : ChatColor.GRAY + "클릭하여 이동"));
             setItem(TAB_ROW * 9 + i, item);
         }
+
+        // 전체 진행도 표시 (중앙 슬롯 4는 탭 사이 구분으로 사용)
+        CollectionData data = collectionManager.getCollectionData(player);
+        if (data != null) {
+            double progress = calculateProgress(data);
+            String progressBar = buildProgressBar(progress);
+            ItemStack progressItem = createIcon(Material.BOOK,
+                    ChatColor.GOLD + "도감 진행도: " + String.format("%.1f", progress * 100) + "%",
+                    List.of(
+                            ChatColor.GRAY + progressBar,
+                            ChatColor.WHITE + "발견: " + data.getDiscoveredCount() + "/" + data.getActiveEntryCount(),
+                            ChatColor.WHITE + "완전 등록: " + data.getPerfectCount() + "/" + data.getActiveEntryCount(),
+                            ChatColor.GOLD + "🏆 트로피: " + data.getTrophyCount() + "  🏆 레어: " + data.getRareTrophyCount()
+                    ));
+            setItem(TAB_ROW * 9 + 4, progressItem);
+        }
+    }
+
+    private double calculateProgress(CollectionData data) {
+        long active = data.getActiveEntryCount();
+        if (active == 0) return 0;
+        return (double) data.getTotalRegisteredSlots() / (active * collectionManager.getDefaultMaxSlots());
+    }
+
+    private String buildProgressBar(double progress) {
+        int filled = (int) Math.round(progress * 10);
+        StringBuilder bar = new StringBuilder();
+        for (int i = 0; i < 10; i++) {
+            bar.append(i < filled ? ChatColor.GREEN + "■" : ChatColor.GRAY + "■");
+        }
+        return bar.toString();
     }
 
     private void renderContent() {
@@ -154,6 +185,16 @@ public class CollectionGui extends AbstractGui {
         if (entry != null) {
             lore.add(ChatColor.GRAY + "등록: " + ChatColor.WHITE + entry.getRegisteredSlots() + "/" + entry.getMaxSlots());
             lore.add(ChatColor.GRAY + "총 낚은 횟수: " + ChatColor.WHITE + entry.getTotalCaught());
+            // 진행도 기반 추가 정보 공개
+            if (entry.getLargestSize() > 0) {
+                lore.add(ChatColor.GRAY + "최대 사이즈: " + ChatColor.AQUA + String.format("%.1f", entry.getLargestSize()) + "cm");
+            }
+            if (entry.getSmallestSize() > 0 && entry.getSmallestSize() != entry.getLargestSize()) {
+                lore.add(ChatColor.GRAY + "최소 사이즈: " + ChatColor.AQUA + String.format("%.1f", entry.getSmallestSize()) + "cm");
+            }
+            if (entry.getFirstCaught() != null) {
+                lore.add(ChatColor.GRAY + "최초 발견: " + ChatColor.WHITE + entry.getFirstCaught().toLocalDate());
+            }
         } else {
             lore.add(ChatColor.GRAY + "등록: " + ChatColor.WHITE + "0/" + collectionManager.getDefaultMaxSlots());
         }

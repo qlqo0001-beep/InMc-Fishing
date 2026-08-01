@@ -165,6 +165,54 @@ public class TournamentStorage {
         } catch (IOException e) {
             throw new RuntimeException("Failed to save tournament history: " + tournament.getId(), e);
         }
+
+        // 우승자 집계를 위한 전용 winners.yml 갱신
+        if (!ranked.isEmpty()) {
+            TournamentEntry winner = ranked.get(0);
+            if (!winner.hasLeft()) {
+                addWinner(winner.getPlayerUuid(), winner.getPlayerName(), tournament.getId());
+            }
+        }
+    }
+
+    /**
+     * 대회 우승자를 winners.yml에 누적 저장한다.
+     */
+    public synchronized void addWinner(UUID playerUuid, String playerName, String tournamentId) {
+        File winnersFile = new File(tournamentsDir, "winners.yml");
+        FileConfiguration config = winnersFile.exists() ? YamlConfiguration.loadConfiguration(winnersFile) : new YamlConfiguration();
+        String key = playerUuid.toString();
+        int count = config.getInt("winners." + key + ".count", 0);
+        config.set("winners." + key + ".playerName", playerName);
+        config.set("winners." + key + ".count", count + 1);
+        List<String> history = config.getStringList("winners." + key + ".history");
+        history.add(tournamentId + " @ " + LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME));
+        config.set("winners." + key + ".history", history);
+        try {
+            config.save(winnersFile);
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to save tournament winners", e);
+        }
+    }
+
+    /**
+     * winners.yml에서 모든 우승 횟수를 불러온다.
+     */
+    public synchronized Map<UUID, Integer> loadWinCounts() {
+        Map<UUID, Integer> result = new HashMap<>();
+        File winnersFile = new File(tournamentsDir, "winners.yml");
+        if (!winnersFile.exists()) return result;
+        FileConfiguration config = YamlConfiguration.loadConfiguration(winnersFile);
+        ConfigurationSection section = config.getConfigurationSection("winners");
+        if (section == null) return result;
+        for (String uuidStr : section.getKeys(false)) {
+            try {
+                UUID uuid = UUID.fromString(uuidStr);
+                result.put(uuid, section.getInt(uuidStr + ".count", 0));
+            } catch (IllegalArgumentException ignored) {
+            }
+        }
+        return result;
     }
 
     /**

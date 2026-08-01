@@ -94,6 +94,24 @@ public class CollectionData {
     }
 
     /**
+     * 발견한 물고기 종류 수 (discovered=true)
+     */
+    public long getDiscoveredCount() {
+        return entries.values().stream()
+                .filter(CollectionEntry::isDiscovered)
+                .count();
+    }
+
+    /**
+     * ACTIVE 상태인 항목 수
+     */
+    public long getActiveEntryCount() {
+        return entries.values().stream()
+                .filter(e -> e.getStatus() == CollectionEntry.Status.ACTIVE)
+                .count();
+    }
+
+    /**
      * 세션 19: 획득한 트로피 수 집계
      */
     public int getTrophyCount() {

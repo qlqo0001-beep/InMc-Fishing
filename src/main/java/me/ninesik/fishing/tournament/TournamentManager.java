@@ -364,6 +364,10 @@ public class TournamentManager {
         return tournaments.get(id.toLowerCase());
     }
 
+    public java.util.Map<UUID, Integer> getWinCounts() {
+        return storage.loadWinCounts();
+    }
+
     private boolean beginTournament(Tournament tournament, Player starter) {
         // 자동 시작 시 최소 인원 체크 (사전 신청자 기준)
         if (starter == null && tournament.getRegisteredPlayers().size() < tournament.getMinPlayers()) {

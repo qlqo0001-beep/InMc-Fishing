@@ -27,6 +27,7 @@ import org.jetbrains.annotations.NotNull;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.logging.Logger;
 
 /**
@@ -353,6 +354,7 @@ public class FishingCommand implements CommandExecutor, TabCompleter {
                     sender.sendMessage("§c대회 종료에 실패했습니다. (진행 중이 아니거나 존재하지 않음)");
                 }
             }
+            case "wins" -> handleTournamentWins(sender);
             default -> sender.sendMessage("§e[InMc-Fishing] §7알 수 없는 명령어: " + args[1]);
         }
     }
@@ -366,6 +368,30 @@ public class FishingCommand implements CommandExecutor, TabCompleter {
         for (Tournament tournament : tournamentManager.getTournaments()) {
             String status = tournament.isRunning() ? "§a진행 중" : "§7대기 중";
             sender.sendMessage("§e" + tournament.getId() + " §7(" + status + "§7) — " + tournament.getType());
+        }
+        sender.sendMessage("§6==========================");
+    }
+
+    private void handleTournamentWins(CommandSender sender) {
+        if (!sender.hasPermission("infishing.user")) {
+            sender.sendMessage("§c권한이 없습니다.");
+            return;
+        }
+        Map<UUID, Integer> wins = tournamentManager.getWinCounts();
+        List<Map.Entry<UUID, Integer>> ranked = wins.entrySet().stream()
+                .sorted((a, b) -> Integer.compare(b.getValue(), a.getValue()))
+                .limit(10)
+                .toList();
+
+        sender.sendMessage("§6===== 대회 우승 랭킹 =====");
+        int rank = 1;
+        for (Map.Entry<UUID, Integer> entry : ranked) {
+            String name = me.ninesik.fishing.util.PlayerNameResolver.resolve(plugin, entry.getKey());
+            sender.sendMessage("§e#" + rank + " §f" + name + " §7— 우승 " + entry.getValue() + "회");
+            rank++;
+        }
+        if (ranked.isEmpty()) {
+            sender.sendMessage("§7아직 우승 기록이 없습니다.");
         }
         sender.sendMessage("§6==========================");
     }
@@ -498,7 +524,7 @@ public class FishingCommand implements CommandExecutor, TabCompleter {
     private List<String> completeTournament(String[] args) {
         if (args.length == 2) {
             List<String> subs = new ArrayList<>();
-            for (String sub : new String[]{"list", "join", "leave", "gui", "start", "stop"}) {
+            for (String sub : new String[]{"list", "join", "leave", "gui", "start", "stop", "wins"}) {
                 if (sub.startsWith(args[1].toLowerCase())) {
                     subs.add(sub);
                 }
