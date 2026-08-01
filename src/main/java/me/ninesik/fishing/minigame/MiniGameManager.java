@@ -26,9 +26,12 @@ public class MiniGameManager {
     }
 
     public void stopAllGames() {
-        for (MiniGame game : activeGames.values()) {
-            if (game.isActive(null)) {
-                // TODO: 모든 활성 게임 종료 로직 구현
+        for (Map.Entry<UUID, MiniGame> entry : activeGames.entrySet()) {
+            UUID uuid = entry.getKey();
+            MiniGame game = entry.getValue();
+            Player player = org.bukkit.Bukkit.getPlayer(uuid);
+            if (game.isActive(player)) {
+                game.stop(player, MiniGame.GameResult.CANCEL);
             }
         }
         activeGames.clear();
