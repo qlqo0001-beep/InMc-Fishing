@@ -44,8 +44,10 @@ public final class CommandRunner {
 
         for (String raw : commands) {
             if (raw == null || raw.isBlank()) continue;
-            String command = ChatColor.stripColor(raw);
+            // & 색상 코드는 실제 색상으로 변환하되, 플레이스홀더 치환은 그 이후에 수행
+            String command = ChatColor.translateAlternateColorCodes('&', raw);
             command = Texts.apply(command, merged);
+            command = ChatColor.stripColor(command);
             if (command.startsWith("/")) {
                 command = command.substring(1);
             }

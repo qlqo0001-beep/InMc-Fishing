@@ -4,29 +4,30 @@ import me.ninesik.fishing.InMcFishing;
 import me.ninesik.fishing.collection.CollectionManager;
 import me.ninesik.fishing.config.ConfigManager;
 import me.ninesik.fishing.minigame.FishingMiniGame;
+import me.ninesik.fishing.model.Fish;
 import me.ninesik.fishing.ranking.RankingManager;
 import me.ninesik.fishing.registry.FishRegistry;
 import me.ninesik.fishing.registry.GradeRegistry;
 import me.ninesik.fishing.registry.RodRegistry;
-import me.ninesik.fishing.service.FishingService;
 import me.ninesik.fishing.reward.RollEngine;
-import me.ninesik.fishing.model.Fish;
+import me.ninesik.fishing.service.FishingService;
 import me.ninesik.fishing.service.RewardService;
 import me.ninesik.fishing.session.FishingSessionManager;
 import me.ninesik.fishing.tournament.Tournament;
 import me.ninesik.fishing.tournament.TournamentManager;
+import org.bukkit.ChatColor;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.command.TabCompleter;
 import org.bukkit.entity.Player;
+import org.bukkit.inventory.ItemStack;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.logging.Logger;
-import org.bukkit.inventory.ItemStack;
 
 /**
  * /fishing 명령어 — reload, debug, simulate, info 서브커맨드.
@@ -70,7 +71,7 @@ public class FishingCommand implements CommandExecutor, TabCompleter {
     public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command,
                              @NotNull String label, @NotNull String[] args) {
         if (args.length == 0) {
-            sender.sendMessage("§e[InMc-Fishing] §7사용법: /fishing reload|debug|simulate|info|collection|rank|tournament");
+            sender.sendMessage("§e[InMc-Fishing] §7사용법: /fishing reload|debug|simulate|info|collection|rank|tournament|give|list");
             return true;
         }
 
@@ -83,6 +84,7 @@ public class FishingCommand implements CommandExecutor, TabCompleter {
             case "rank", "ranking", "랭킹" -> handleRank(sender);
             case "tournament", "tournaments", "대회" -> handleTournament(sender, args);
             case "give" -> handleGive(sender, args);
+            case "list" -> handleList(sender, args);
             default -> sender.sendMessage("§e[InMc-Fishing] §7알 수 없는 명령어: " + args[0]);
         }
         return true;
@@ -93,7 +95,7 @@ public class FishingCommand implements CommandExecutor, TabCompleter {
                                       @NotNull String alias, @NotNull String[] args) {
         if (args.length == 1) {
             List<String> subs = new ArrayList<>();
-            for (String sub : new String[]{"reload", "debug", "simulate", "info", "collection", "rank", "tournament", "give"}) {
+            for (String sub : new String[]{"reload", "debug", "simulate", "info", "collection", "rank", "tournament", "give", "list"}) {
                 if (sub.startsWith(args[0].toLowerCase())) {
                     subs.add(sub);
                 }
@@ -107,6 +109,16 @@ public class FishingCommand implements CommandExecutor, TabCompleter {
 
         if (args.length >= 2 && args[0].equalsIgnoreCase("give")) {
             return completeGive(args);
+        }
+
+        if (args.length == 2 && args[0].equalsIgnoreCase("list")) {
+            List<String> grades = new ArrayList<>();
+            for (String id : gradeRegistry.getAll().keySet()) {
+                if (id.toUpperCase().startsWith(args[1].toUpperCase())) {
+                    grades.add(id.toUpperCase());
+                }
+            }
+            return grades;
         }
 
         if (args.length == 2 && args[0].equalsIgnoreCase("simulate")) {
@@ -249,6 +261,10 @@ public class FishingCommand implements CommandExecutor, TabCompleter {
     }
 
     private void handleCollection(CommandSender sender) {
+        if (!sender.hasPermission("infishing.user")) {
+            sender.sendMessage("§c권한이 없습니다.");
+            return;
+        }
         if (!(sender instanceof Player player)) {
             sender.sendMessage("§c플레이어만 사용할 수 있습니다.");
             return;
@@ -261,6 +277,10 @@ public class FishingCommand implements CommandExecutor, TabCompleter {
     }
 
     private void handleRank(CommandSender sender) {
+        if (!sender.hasPermission("infishing.user")) {
+            sender.sendMessage("§c권한이 없습니다.");
+            return;
+        }
         if (!(sender instanceof Player player)) {
             sender.sendMessage("§c플레이어만 사용할 수 있습니다.");
             return;
@@ -273,6 +293,10 @@ public class FishingCommand implements CommandExecutor, TabCompleter {
     }
 
     private void handleTournament(CommandSender sender, String[] args) {
+        if (!sender.hasPermission("infishing.user")) {
+            sender.sendMessage("§c권한이 없습니다.");
+            return;
+        }
         if (!(sender instanceof Player player)) {
             sender.sendMessage("§c플레이어만 사용할 수 있습니다.");
             return;
@@ -334,6 +358,10 @@ public class FishingCommand implements CommandExecutor, TabCompleter {
     }
 
     private void handleTournamentList(CommandSender sender) {
+        if (!sender.hasPermission("infishing.user")) {
+            sender.sendMessage("§c권한이 없습니다.");
+            return;
+        }
         sender.sendMessage("§6===== 낚시 대회 목록 =====");
         for (Tournament tournament : tournamentManager.getTournaments()) {
             String status = tournament.isRunning() ? "§a진행 중" : "§7대기 중";
@@ -347,33 +375,40 @@ public class FishingCommand implements CommandExecutor, TabCompleter {
             sender.sendMessage("§c권한이 없습니다.");
             return;
         }
-        if (args.length < 4 || !"net".equalsIgnoreCase(args[1])) {
-            sender.sendMessage("§c사용법: /fishing give net <플레이어> <물고기ID> [개수]");
+        if (args.length < 2) {
+            sender.sendMessage("§c사용법: /fishing give <net|fish|trophy> <플레이어> <물고기ID> [개수]");
             return;
         }
 
+        String type = args[1].toLowerCase();
+        if ("net".equals(type)) {
+            giveNet(sender, args);
+        } else if ("fish".equals(type)) {
+            giveFish(sender, args);
+        } else if ("trophy".equals(type)) {
+            giveTrophy(sender, args);
+        } else {
+            sender.sendMessage("§c지원하지 않는 종류입니다: net, fish, trophy");
+        }
+    }
+
+    private void giveNet(CommandSender sender, String[] args) {
+        if (args.length < 5) {
+            sender.sendMessage("§c사용법: /fishing give net <플레이어> <물고기ID> [개수]");
+            return;
+        }
         Player target = plugin.getServer().getPlayerExact(args[2]);
         if (target == null) {
             sender.sendMessage("§c플레이어를 찾을 수 없습니다: " + args[2]);
             return;
         }
-
         Fish fish = fishRegistry.getById(args[3]);
         if (fish == null) {
             sender.sendMessage("§c존재하지 않는 물고기 ID입니다: " + args[3]);
             return;
         }
-
-        int amount = 1;
-        if (args.length >= 5) {
-            try {
-                amount = Integer.parseInt(args[4]);
-                if (amount < 1) amount = 1;
-            } catch (NumberFormatException e) {
-                sender.sendMessage("§c개수는 숫자여야 합니다.");
-                return;
-            }
-        }
+        int amount = parseAmount(sender, args, 4, 1);
+        if (amount < 1) return;
 
         me.ninesik.fishing.net.NetManager netManager = new me.ninesik.fishing.net.NetManager(
                 collectionManager, fishRegistry, rewardService);
@@ -381,6 +416,83 @@ public class FishingCommand implements CommandExecutor, TabCompleter {
         target.getInventory().addItem(net);
         sender.sendMessage("§a" + target.getName() + "에게 " + fish.getId() + " 어망 " + amount + "개를 지급했습니다.");
         logger.info(sender.getName() + " gave " + amount + " net of " + fish.getId() + " to " + target.getName());
+    }
+
+    private void giveFish(CommandSender sender, String[] args) {
+        if (args.length < 5) {
+            sender.sendMessage("§c사용법: /fishing give fish <플레이어> <물고기ID> [개수]");
+            return;
+        }
+        Player target = plugin.getServer().getPlayerExact(args[2]);
+        if (target == null) {
+            sender.sendMessage("§c플레이어를 찾을 수 없습니다: " + args[2]);
+            return;
+        }
+        Fish fish = fishRegistry.getById(args[3]);
+        if (fish == null) {
+            sender.sendMessage("§c존재하지 않는 물고기 ID입니다: " + args[3]);
+            return;
+        }
+        int amount = parseAmount(sender, args, 4, 1);
+        if (amount < 1) return;
+
+        ItemStack item = rewardService.createItemStack(fish, amount);
+        target.getInventory().addItem(item);
+        sender.sendMessage("§a" + target.getName() + "에게 " + fish.getId() + " " + amount + "개를 지급했습니다.");
+        logger.info(sender.getName() + " gave " + amount + " " + fish.getId() + " to " + target.getName());
+    }
+
+    private void giveTrophy(CommandSender sender, String[] args) {
+        if (args.length < 5) {
+            sender.sendMessage("§c사용법: /fishing give trophy <플레이어> <물고기ID> [개수]");
+            return;
+        }
+        Player target = plugin.getServer().getPlayerExact(args[2]);
+        if (target == null) {
+            sender.sendMessage("§c플레이어를 찾을 수 없습니다: " + args[2]);
+            return;
+        }
+        Fish fish = fishRegistry.getById(args[3]);
+        if (fish == null || !fish.hasSize()) {
+            sender.sendMessage("§c존재하지 않거나 사이즈 정보가 없는 물고기 ID입니다: " + args[3]);
+            return;
+        }
+        int amount = parseAmount(sender, args, 4, 1);
+        if (amount < 1) return;
+
+        // 트로피용 물고기: max-size 기준으로 생성
+        ItemStack item = rewardService.createItemStack(fish, amount, fish.getMaxSize());
+        target.getInventory().addItem(item);
+        sender.sendMessage("§a" + target.getName() + "에게 " + fish.getId() + " 트로피 " + amount + "개를 지급했습니다.");
+        logger.info(sender.getName() + " gave " + amount + " trophy " + fish.getId() + " to " + target.getName());
+    }
+
+    private int parseAmount(CommandSender sender, String[] args, int index, int defaultValue) {
+        if (args.length <= index) return defaultValue;
+        try {
+            int amount = Integer.parseInt(args[index]);
+            return Math.max(1, amount);
+        } catch (NumberFormatException e) {
+            sender.sendMessage("§c개수는 숫자여야 합니다.");
+            return -1;
+        }
+    }
+
+    private void handleList(CommandSender sender, String[] args) {
+        if (!sender.hasPermission("infishing.user")) {
+            sender.sendMessage("§c권한이 없습니다.");
+            return;
+        }
+        String gradeFilter = args.length >= 2 ? args[1].toLowerCase() : null;
+        sender.sendMessage("§6===== 물고기 목록 =====");
+        for (Fish fish : fishRegistry.getAll().values()) {
+            if (gradeFilter != null && !fish.getGrade().getId().equalsIgnoreCase(gradeFilter)) continue;
+            String gradeColor = fish.getGrade().getColor();
+            sender.sendMessage("§7[" + ChatColor.translateAlternateColorCodes('&', gradeColor)
+                    + fish.getGrade().getId().toUpperCase() + "§7] " + ChatColor.WHITE
+                    + (fish.getVanillaName() != null ? fish.getVanillaName() : fish.getId()));
+        }
+        sender.sendMessage("§6=======================");
     }
 
     private List<String> completeTournament(String[] args) {
@@ -407,12 +519,13 @@ public class FishingCommand implements CommandExecutor, TabCompleter {
 
     private List<String> completeGive(String[] args) {
         if (args.length == 2) {
-            return java.util.stream.Stream.of("net").filter(s -> s.startsWith(args[1].toLowerCase())).toList();
+            return java.util.stream.Stream.of("net", "fish", "trophy")
+                    .filter(s -> s.startsWith(args[1].toLowerCase())).toList();
         }
         if (args.length == 3) {
             return List.of();
         }
-        if (args.length == 4 && "net".equalsIgnoreCase(args[1])) {
+        if (args.length == 4 && ("net".equalsIgnoreCase(args[1]) || "fish".equalsIgnoreCase(args[1]) || "trophy".equalsIgnoreCase(args[1]))) {
             List<String> ids = new ArrayList<>();
             for (Fish fish : fishRegistry.getAll().values()) {
                 if (fish.getId().toLowerCase().startsWith(args[3].toLowerCase())) {

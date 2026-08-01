@@ -11,7 +11,8 @@ softdepend: [MMOItems, PlaceholderAPI, Vault, WorldGuard, ProtocolLib]
 commands:
   fishing:
     description: InMc-Fishing 관리자/유저 명령어
-    usage: /<command> [reload|debug|simulate|info|...]
+    usage: /<command> [reload|debug|simulate|info|collection|rank|tournament|give|list|...]
+    aliases: [if, 낚시]
 
 permissions:
   infishing.user:
