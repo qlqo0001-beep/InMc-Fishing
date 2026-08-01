@@ -180,6 +180,21 @@ public class RankingManager {
         return rankings.get(uuid);
     }
 
+    /**
+     * 해당 플레이어가 사이즈 기록이 있는 물고기 ID 집합을 반환한다.
+     */
+    public Set<String> getCaughtFishIds(UUID playerUuid) {
+        Set<String> result = new HashSet<>();
+        CollectionData data = collectionManager.getCollectionData(playerUuid);
+        if (data == null) return result;
+        for (me.ninesik.fishing.collection.CollectionEntry entry : data.getEntries().values()) {
+            if (entry.getLargestSize() > 0) {
+                result.add(entry.getFishId().toLowerCase());
+            }
+        }
+        return result;
+    }
+
     public void save() {
         storage.save(new ArrayList<>(rankings.values()));
     }
