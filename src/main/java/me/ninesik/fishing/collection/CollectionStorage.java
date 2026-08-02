@@ -61,6 +61,8 @@ public class CollectionStorage {
                         .firstCaught(parseDateTime(config.getString(path + ".first-caught", null)))
                         .smallestSize(config.getDouble(path + ".smallest-size", 0.0))
                         .largestSize(config.getDouble(path + ".largest-size", 0.0))
+                        .trophyCount(config.getInt(path + ".trophy-count", 0))
+                        .rareTrophyCount(config.getInt(path + ".rare-trophy-count", 0))
                         .rewardsClaimed(parseRewardsClaimed(config.getConfigurationSection(path + ".rewards-claimed")))
                         .build();
                 // 등록된 슬롯별 사이즈 목록 로드
@@ -127,6 +129,12 @@ public class CollectionStorage {
             }
             if (entry.getLargestSize() > 0) {
                 config.set(path + ".largest-size", entry.getLargestSize());
+            }
+            if (entry.getTrophyCount() > 0) {
+                config.set(path + ".trophy-count", entry.getTrophyCount());
+            }
+            if (entry.getRareTrophyCount() > 0) {
+                config.set(path + ".rare-trophy-count", entry.getRareTrophyCount());
             }
             // 등록된 슬롯별 사이즈 목록 저장
             if (!entry.getRegisteredSizes().isEmpty()) {

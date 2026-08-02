@@ -3,9 +3,13 @@ package me.ninesik.fishing.collection;
 import me.ninesik.fishing.InMcFishing;
 import me.ninesik.fishing.collection.CollectionEntry.Status;
 import me.ninesik.fishing.model.Fish;
+import me.ninesik.fishing.net.NetData;
+import me.ninesik.fishing.net.NetEntry;
+import me.ninesik.fishing.net.NetManager;
 import me.ninesik.fishing.ranking.RankingManager;
 import me.ninesik.fishing.registry.FishRegistry;
 import me.ninesik.fishing.service.RewardService;
+import me.ninesik.fishing.util.Sounds;
 import org.bukkit.Material;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
@@ -15,6 +19,7 @@ import org.bukkit.inventory.PlayerInventory;
 
 import java.io.File;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -32,6 +37,7 @@ public class CollectionManager {
     private final CollectionRewardService collectionRewardService;
     private FileConfiguration collectionsConfig;
     private RankingManager rankingManager;
+    private NetManager netManager;
 
     // 메모리 캐시: 접속 중인 플레이어의 도감 데이터
     private final Map<UUID, CollectionData> cache = new ConcurrentHashMap<>();
@@ -39,6 +45,11 @@ public class CollectionManager {
     private int defaultMaxSlots;
     private boolean enabled;
     private boolean showInactiveFish;
+    private String registerSound;
+
+    // 도감 정보 해금(Unlock) 설정
+    private String unlockHiddenText;
+    private List<UnlockTier> unlockTiers;
 
     public CollectionManager(InMcFishing plugin, FishRegistry fishRegistry, RewardService rewardService) {
         this.plugin = plugin;
@@ -51,7 +62,59 @@ public class CollectionManager {
         this.enabled = collectionsConfig.getBoolean("settings.enabled", true);
         this.defaultMaxSlots = collectionsConfig.getInt("settings.default-max-slots", 10);
         this.showInactiveFish = collectionsConfig.getBoolean("settings.show-inactive-fish", true);
+        this.registerSound = collectionsConfig.getString("settings.register-sound", "");
+        loadUnlockConfig();
     }
+
+    /**
+     * collections.yml의 unlock 섹션을 로드한다.
+     * 각 단계는 required-registrations(필요 등록 슬롯 수)와 reveal(공개할 정보 목록)로 구성된다.
+     */
+    private void loadUnlockConfig() {
+        this.unlockHiddenText = collectionsConfig.getString("unlock.hidden-text", "???");
+        this.unlockTiers = new java.util.ArrayList<>();
+        if (collectionsConfig.isList("unlock.tiers")) {
+            for (Object obj : collectionsConfig.getList("unlock.tiers", List.of())) {
+                if (!(obj instanceof Map<?, ?> map)) continue;
+                int required = map.get("required-registrations") instanceof Number n
+                        ? n.intValue() : 0;
+                Object revealObj = map.get("reveal");
+                List<String> reveal = new java.util.ArrayList<>();
+                if (revealObj instanceof List<?> list) {
+                    for (Object item : list) {
+                        if (item != null) reveal.add(String.valueOf(item));
+                    }
+                }
+                unlockTiers.add(new UnlockTier(required, reveal));
+            }
+        }
+        // required-registrations 오름차순 정렬
+        unlockTiers.sort(java.util.Comparator.comparingInt(UnlockTier::requiredRegistrations));
+    }
+
+    /**
+     * 특정 등록 슬롯 수에서 공개된 정보 키 목록을 반환한다.
+     * @param registeredSlots 현재 등록 슬롯 수
+     */
+    public java.util.Set<String> getUnlockedInfo(int registeredSlots) {
+        java.util.Set<String> result = new java.util.LinkedHashSet<>();
+        if (unlockTiers == null) return result;
+        for (UnlockTier tier : unlockTiers) {
+            if (registeredSlots >= tier.requiredRegistrations()) {
+                result.addAll(tier.reveal());
+            }
+        }
+        return result;
+    }
+
+    public String getUnlockHiddenText() {
+        return unlockHiddenText != null ? unlockHiddenText : "???";
+    }
+
+    /**
+     * 해금 단계 정보를 담는 레코드.
+     */
+    public record UnlockTier(int requiredRegistrations, List<String> reveal) {}
 
     private FileConfiguration loadCollectionsConfig() {
         File file = new File(plugin.getDataFolder(), "collections.yml");
@@ -153,18 +216,42 @@ public class CollectionManager {
         if (entry == null || entry.getStatus() != Status.ACTIVE) return false;
         if (entry.getRegisteredSlots() >= entry.getMaxSlots()) return false;
 
-        // 인벤토리에서 물고기 아이템 1개 소모 (사이즈 추출)
+        // 인벤토리에서 먼저 소모를 시도하고, 없으면 어망(Net)에서 소모한다.
         double size = consumeOneFishItem(player, fish);
+        if (size < 0) {
+            size = consumeOneFishFromNet(player, fish);
+        }
         if (size < 0) return false;
 
         // 사이즈 저장 (사이즈 없는 물고기는 0.0)
         entry.registerFish(size);
+        Sounds.play(player, registerSound);
         collectionRewardService.processRewards(player, entry);
         collectionRewardService.processGradeRewards(player, data);
+        collectionRewardService.processSlotCompletionReward(player, entry);
         if (rankingManager != null) {
             rankingManager.queueUpdate(player.getUniqueId());
         }
         return true;
+    }
+
+    /**
+     * 인벤토리에 해당 물고기가 없을 때, 어망(Net)에서 동일 물고기 1마리를 찾아 소모한다.
+     * @return 소모된 물고기의 사이즈 (cm), 없으면 -1
+     */
+    private double consumeOneFishFromNet(Player player, Fish fish) {
+        if (netManager == null) return -1;
+        NetData netData = netManager.getNetData(player);
+        if (netData == null) return -1;
+
+        List<NetEntry> entries = netData.getEntries();
+        for (int i = 0; i < entries.size(); i++) {
+            if (entries.get(i).getFishId().equals(fish.getId())) {
+                NetEntry removed = netData.remove(i);
+                return removed != null ? removed.getSize() : 0.0;
+            }
+        }
+        return -1;
     }
 
     /**
@@ -200,6 +287,64 @@ public class CollectionManager {
             rankingManager.queueUpdate(player.getUniqueId());
         }
         return true;
+    }
+
+    /**
+     * Returns the number of matching fish currently held in the player's inventory.
+     */
+    public int getInventoryFishAmount(Player player, Fish fish) {
+        if (player == null || fish == null) return 0;
+        ItemStack expected = rewardService.createItemStack(fish, 1);
+        if (expected == null || expected.getType().isAir()) return 0;
+
+        int amount = 0;
+        PlayerInventory inventory = player.getInventory();
+        for (int i = 0; i < inventory.getSize(); i++) {
+            ItemStack item = inventory.getItem(i);
+            if (item != null && !item.getType().isAir() && isSameFishItem(item, expected, fish)) {
+                amount += item.getAmount();
+            }
+        }
+        return amount;
+    }
+
+    /**
+     * Returns the number of matching fish stored in the player's net.
+     */
+    public int getNetFishAmount(Player player, Fish fish) {
+        if (player == null || fish == null || netManager == null) return 0;
+        NetData netData = netManager.getNetData(player);
+        if (netData == null) return 0;
+
+        return (int) netData.getEntries().stream()
+                .filter(entry -> fish.getId().equalsIgnoreCase(entry.getFishId()))
+                .count();
+    }
+
+    /**
+     * Registers every available fish of a grade, consuming inventory items first and
+     * then net entries. Existing per-fish slot limits still apply.
+     *
+     * @return the number of fish registered
+     */
+    public int registerAllByGrade(Player player, String gradeId) {
+        if (!enabled || player == null || gradeId == null || gradeId.isBlank()) return 0;
+        CollectionData data = cache.get(player.getUniqueId());
+        if (data == null) return 0;
+
+        int registered = 0;
+        for (Fish fish : fishRegistry.getAll().values()) {
+            if (!gradeId.equalsIgnoreCase(fish.getGrade().getId())) continue;
+
+            CollectionEntry entry = data.getEntry(fish.getId());
+            while (entry != null
+                    && entry.getStatus() == Status.ACTIVE
+                    && entry.getRegisteredSlots() < entry.getMaxSlots()
+                    && registerFish(player, fish.getId())) {
+                registered++;
+            }
+        }
+        return registered;
     }
 
     public CollectionData getCollectionData(Player player) {
@@ -251,6 +396,8 @@ public class CollectionManager {
         this.enabled = collectionsConfig.getBoolean("settings.enabled", true);
         this.defaultMaxSlots = collectionsConfig.getInt("settings.default-max-slots", 10);
         this.showInactiveFish = collectionsConfig.getBoolean("settings.show-inactive-fish", true);
+        this.registerSound = collectionsConfig.getString("settings.register-sound", "");
+        loadUnlockConfig();
         this.collectionRewardService.reload();
     }
 
@@ -260,6 +407,10 @@ public class CollectionManager {
 
     public RankingManager getRankingManager() {
         return rankingManager;
+    }
+
+    public void setNetManager(NetManager netManager) {
+        this.netManager = netManager;
     }
 
     public void saveAll() {

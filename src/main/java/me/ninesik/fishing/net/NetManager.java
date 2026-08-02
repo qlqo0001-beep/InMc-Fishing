@@ -138,6 +138,42 @@ public class NetManager {
     }
 
     /**
+     * 인벤토리에 빈자리가 있는 만큼 어망의 물고기를 순서대로 꺼내 지급한다.
+     * (더 이상 넣을 공간이 없으면 중단하고, 그때까지 꺼낸 개수를 반환한다.)
+     * @return 실제로 꺼낸 물고기 개수
+     */
+    public int removeAll(Player player) {
+        NetData data = cache.get(player.getUniqueId());
+        if (data == null || data.size() == 0) return 0;
+
+        int removed = 0;
+        while (data.size() > 0) {
+            NetEntry entry = data.getEntries().get(0);
+            Fish fish = fishRegistry.getById(entry.getFishId());
+            if (fish == null) {
+                // 삭제된 물고기 — 꺼낼 수 없으므로 건너뛰고 어망에서만 제거
+                data.remove(0);
+                continue;
+            }
+
+            ItemStack item = rewardService.createItemStack(fish, 1, entry.getSize());
+            if (item == null) {
+                data.remove(0);
+                continue;
+            }
+
+            if (!me.ninesik.fishing.util.InventoryUtil.canFit(player.getInventory(), item)) {
+                break; // 더 이상 넣을 공간이 없음
+            }
+
+            data.remove(0);
+            player.getInventory().addItem(item);
+            removed++;
+        }
+        return removed;
+    }
+
+    /**
      * 어망 GUI를 연다.
      */
     public void openNetGui(Player player) {

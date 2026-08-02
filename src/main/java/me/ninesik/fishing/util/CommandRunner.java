@@ -47,10 +47,22 @@ public final class CommandRunner {
             // & 색상 코드는 실제 색상으로 변환하되, 플레이스홀더 치환은 그 이후에 수행
             String command = ChatColor.translateAlternateColorCodes('&', raw);
             command = Texts.apply(command, merged);
-            command = ChatColor.stripColor(command);
             if (command.startsWith("/")) {
                 command = command.substring(1);
             }
+
+            // "broadcast <메시지>"는 /broadcast 커맨드에 의존하지 않고
+            // 서버 API(Bukkit.broadcastMessage)로 직접 전체 방송한다.
+            // (서버에 /broadcast 명령어가 없으면 dispatchCommand가 항상 false를 반환해
+            //  아무에게도 표시되지 않는 문제가 있었음 — 색상 코드도 이 경로에서는 보존된다.)
+            if (command.regionMatches(true, 0, "broadcast ", 0, "broadcast ".length())) {
+                String message = command.substring("broadcast ".length());
+                Bukkit.broadcastMessage(message);
+                logger.info(logPrefix + " broadcast sent for " + player.getName() + ": " + ChatColor.stripColor(message));
+                continue;
+            }
+
+            command = ChatColor.stripColor(command);
             try {
                 boolean ok = Bukkit.dispatchCommand(Bukkit.getConsoleSender(), command);
                 if (ok) {

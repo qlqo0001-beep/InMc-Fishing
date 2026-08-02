@@ -24,6 +24,10 @@ public class Fish {
     private final double avgSize;          // 평균 사이즈 (cm)
     private final int customModelData;     // 리소스팩 커스텀 모델 번호
 
+    // 피로도 회복 물약: 이 값이 0보다 크면 피로도 회복 물약으로 취급된다.
+    // 아이템 자체에서 회복량을 설정한다 (config가 아닌 items/*.yml의 fatigue-recovery 필드).
+    private final int fatigueRecovery;
+
     private Fish(Builder b) {
         this.id = b.id;
         this.useType = b.useType;
@@ -40,6 +44,7 @@ public class Fish {
         this.maxSize = b.maxSize;
         this.avgSize = b.avgSize;
         this.customModelData = b.customModelData;
+        this.fatigueRecovery = b.fatigueRecovery;
     }
 
     public String getId() { return id; }
@@ -58,6 +63,14 @@ public class Fish {
     public double getMaxSize() { return maxSize; }
     public double getAvgSize() { return avgSize; }
     public int getCustomModelData() { return customModelData; }
+    public int getFatigueRecovery() { return fatigueRecovery; }
+
+    /**
+     * 피로도 회복 물약인지 여부. fatigue-recovery가 0보다 크면 물약으로 취급한다.
+     */
+    public boolean isFatiguePotion() {
+        return fatigueRecovery > 0;
+    }
 
     /**
      * 사이즈가 유효한지 확인한다. 0이면 사이즈 시스템 대상이 아님(쓰레기/광물).
@@ -84,6 +97,7 @@ public class Fish {
         private double maxSize = 100.0;
         private double avgSize = 55.0;
         private int customModelData = 0;
+        private int fatigueRecovery = 0;
 
         public Builder id(String v) { id = v; return this; }
         public Builder useType(String v) { useType = v; return this; }
@@ -100,6 +114,7 @@ public class Fish {
         public Builder maxSize(double v) { maxSize = v; return this; }
         public Builder avgSize(double v) { avgSize = v; return this; }
         public Builder customModelData(int v) { customModelData = v; return this; }
+        public Builder fatigueRecovery(int v) { fatigueRecovery = v; return this; }
 
         public Fish build() {
             if (id == null || id.isEmpty())

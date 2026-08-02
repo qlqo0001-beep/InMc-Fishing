@@ -57,6 +57,14 @@ public class RewardService {
         if (rareTrophyLore != null) this.rareTrophyLore = rareTrophyLore;
     }
 
+    public double getTrophyThreshold() {
+        return trophyThreshold;
+    }
+
+    public double getRareTrophyThreshold() {
+        return rareTrophyThreshold;
+    }
+
     /**
      * 어망 시스템을 연결한다. (InMcFishing.onEnable에서 호출)
      */
@@ -262,6 +270,91 @@ public class RewardService {
     }
 
     /**
+     * Trophy Fight 시스템(패치예정.md): 사전 판정된 트로피 여부를 포함하여 아이템을 생성한다.
+     * RewardEntry의 isTrophy/isRareTrophy 값을 사용하여 Lore에 트로피 문구를 표시한다.
+     */
+    public ItemStack createItemStack(Fish fish, int amount, double size, boolean isTrophy, boolean isRareTrophy) {
+        String useType = fish.getUseType() != null ? fish.getUseType().toLowerCase() : "vanilla";
+
+        if ("vanilla".equals(useType)) {
+            org.bukkit.Material material = org.bukkit.Material.matchMaterial(fish.getVanillaMaterial());
+            if (material == null) {
+                logger.warning("Unknown vanilla material: " + fish.getVanillaMaterial() + " (fish=" + fish.getId() + ")");
+                return null;
+            }
+
+            ItemStack item = new ItemStack(material, amount);
+            org.bukkit.inventory.meta.ItemMeta meta = item.getItemMeta();
+            if (meta != null) {
+                String baseName = resolveDisplayName(fish, item);
+                meta.setDisplayName(formatDisplayNameWithGrade(fish, baseName));
+
+                List<String> lore = new java.util.ArrayList<>();
+                if (fish.getVanillaLore() != null && !fish.getVanillaLore().isEmpty()) {
+                    lore.addAll(fish.getVanillaLore().stream()
+                            .map(Texts::colorize)
+                            .toList());
+                }
+                appendSizeLore(fish, lore, size);
+                appendTrophyLore(lore, isTrophy, isRareTrophy);
+                if (fish.isFatiguePotion()) {
+                    lore.add("§7피로도 회복: §a+" + fish.getFatigueRecovery());
+                }
+                if (!lore.isEmpty()) {
+                    meta.setLore(lore);
+                }
+
+                if (fish.getCustomModelData() > 0) {
+                    meta.setCustomModelData(fish.getCustomModelData());
+                }
+
+                item.setItemMeta(meta);
+            }
+            return item;
+
+        } else if ("mmoitems".equals(useType)) {
+            if (!dependencyManager.getMMOItems().isAvailable()) {
+                logger.warning("MMOItems not available, cannot create item: "
+                        + fish.getMmoitemsType() + ":" + fish.getMmoitemsId());
+                return null;
+            }
+            ItemStack base = dependencyManager.getMMOItems()
+                    .getMMOItem(fish.getMmoitemsType(), fish.getMmoitemsId());
+            if (base == null) {
+                logger.warning("MMOItems returned null for: "
+                        + fish.getMmoitemsType() + ":" + fish.getMmoitemsId());
+                return null;
+            }
+            ItemStack result = base.clone();
+            result.setAmount(amount);
+
+            org.bukkit.inventory.meta.ItemMeta meta = result.getItemMeta();
+            if (meta != null) {
+                String baseName = resolveDisplayName(fish, result);
+                meta.setDisplayName(formatDisplayNameWithGrade(fish, baseName));
+
+                List<String> lore = meta.hasLore() ? meta.getLore() : new java.util.ArrayList<>();
+                if (lore == null) lore = new java.util.ArrayList<>();
+                if (fish.hasSize()) {
+                    lore = lore.stream()
+                            .map(line -> line.replace("{size}", String.format("%.1f", size)))
+                            .collect(java.util.stream.Collectors.toList());
+                }
+                appendTrophyLore(lore, isTrophy, isRareTrophy);
+                if (!lore.isEmpty()) {
+                    meta.setLore(lore);
+                }
+
+                result.setItemMeta(meta);
+            }
+            return result;
+        }
+
+        logger.warning("Unknown use-type: " + useType + " (fish=" + fish.getId() + ")");
+        return null;
+    }
+
+    /**
      * 세션 18: 사이즈 정보를 포함하여 아이템 생성.
      * @param size 물고기 사이즈(cm), 사이즈 없는 아이템은 0.0
      */
@@ -290,7 +383,13 @@ public class RewardService {
                             .toList());
                 }
                 appendSizeLore(fish, lore, size);
-                appendTrophyLore(fish, lore, size);
+                // 기존 createItemStack(fish, amount, size) 경로: 사전 판정 없이 size 기반 트로피 판정
+                TrophyType trophyType = evaluateTrophyType(fish, size);
+                appendTrophyLore(lore, trophyType == TrophyType.NORMAL, trophyType == TrophyType.RARE);
+                // 피로도 회복 물약: 회복량 Lore 표시
+                if (fish.isFatiguePotion()) {
+                    lore.add("§7피로도 회복: §a+" + fish.getFatigueRecovery());
+                }
                 if (!lore.isEmpty()) {
                     meta.setLore(lore);
                 }
@@ -335,7 +434,8 @@ public class RewardService {
                             .map(line -> line.replace("{size}", String.format("%.1f", size)))
                             .collect(java.util.stream.Collectors.toList());
                 }
-                appendTrophyLore(fish, lore, size);
+                TrophyType trophyType2 = evaluateTrophyType(fish, size);
+                appendTrophyLore(lore, trophyType2 == TrophyType.NORMAL, trophyType2 == TrophyType.RARE);
                 if (!lore.isEmpty()) {
                     meta.setLore(lore);
                 }
@@ -390,14 +490,13 @@ public class RewardService {
     }
 
     /**
-     * Lore에 트로피 정보를 추가한다.
-     * 사이즈가 없는 아이템은 추가하지 않는다.
+     * Lore에 트로피 정보를 추가한다 (사전 판정 결과 사용).
+     * 패치예정.md: 트로피 판정은 RollEngine에서 사전 수행되므로, 여기서는 결과만 표시한다.
      */
-    private void appendTrophyLore(Fish fish, List<String> lore, double size) {
-        TrophyType trophyType = evaluateTrophyType(fish, size);
-        if (trophyType == TrophyType.RARE) {
+    private void appendTrophyLore(List<String> lore, boolean isTrophy, boolean isRareTrophy) {
+        if (isRareTrophy) {
             lore.add(Texts.colorize(rareTrophyLore));
-        } else if (trophyType == TrophyType.NORMAL) {
+        } else if (isTrophy) {
             lore.add(Texts.colorize(trophyLore));
         }
     }

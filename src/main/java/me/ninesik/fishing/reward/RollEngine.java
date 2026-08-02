@@ -33,8 +33,15 @@ public class RollEngine {
     }
 
     public RollResult roll(Player player, Rod rod) {
+        return roll(player, rod, null);
+    }
+
+    public RollResult roll(Player player, Rod rod, java.util.Set<String> allowedGradeIds) {
         // 1. 등급 롤
-        Grade rolledGrade = gradeRoller.rollGrade(player, rod);
+        Grade rolledGrade = gradeRoller.rollGrade(player, rod, allowedGradeIds);
+        if (rolledGrade == null) {
+            return null;
+        }
         
         // 2. 대어 확률 판정 (config + rod 본너스) - 29.3: 대어 판정이 항상 먼저
         boolean isBigFish = false;
@@ -70,7 +77,22 @@ public class RollEngine {
         // 5. 물고기 사이즈 산정 (세션 18)
         double size = calculateSize(rewardFish);
 
-        return new RollResult(rewardFish, finalGrade, rolledGrade, isDouble, isBigFish, size);
+        // 6. 트로피 사전 판정 (패치예정.md: RollEngine이 RewardEntry를 생성하는 시점에 미리 판정)
+        // 단일 임계값 사용: Fight 전용 임계값을 별도로 두지 않고 기존 트로피 임계값을 공유.
+        // 임계값은 RewardService에서 동기화된 값과 동일한 기본값을 사용한다.
+        boolean isTrophy = false;
+        boolean isRareTrophy = false;
+        if (rewardFish.hasSize() && size > 0) {
+            double trophyThreshold = 1.5;  // avgSize × 1.5 이상 → 트로피
+            double rareTrophyThreshold = 0.9;  // maxSize × 0.9 이상 → 레어 트로피
+            if (size >= rewardFish.getMaxSize() * rareTrophyThreshold) {
+                isRareTrophy = true;
+            } else if (size >= rewardFish.getAvgSize() * trophyThreshold) {
+                isTrophy = true;
+            }
+        }
+
+        return new RollResult(rewardFish, finalGrade, rolledGrade, isDouble, isBigFish, size, isTrophy, isRareTrophy);
     }
 
     /**
@@ -195,14 +217,19 @@ public class RollEngine {
         private final boolean isDouble;
         private final boolean isBigFish;
         private final double size;
+        private final boolean isTrophy;
+        private final boolean isRareTrophy;
 
-        public RollResult(Fish fish, Grade grade, Grade originalGrade, boolean isDouble, boolean isBigFish, double size) {
+        public RollResult(Fish fish, Grade grade, Grade originalGrade, boolean isDouble, boolean isBigFish, double size,
+                          boolean isTrophy, boolean isRareTrophy) {
             this.fish = fish;
             this.grade = grade;
             this.originalGrade = originalGrade;
             this.isDouble = isDouble;
             this.isBigFish = isBigFish;
             this.size = size;
+            this.isTrophy = isTrophy;
+            this.isRareTrophy = isRareTrophy;
         }
 
         public Fish getFish() { return fish; }
@@ -211,5 +238,7 @@ public class RollEngine {
         public boolean isDouble() { return isDouble; }
         public boolean isBigFish() { return isBigFish; }
         public double getSize() { return size; }
+        public boolean isTrophy() { return isTrophy; }
+        public boolean isRareTrophy() { return isRareTrophy; }
     }
 }

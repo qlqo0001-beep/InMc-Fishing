@@ -1,6 +1,7 @@
 package me.ninesik.fishing.config;
 
 import me.ninesik.fishing.InMcFishing;
+import me.ninesik.fishing.fight.FightConfig;
 import me.ninesik.fishing.util.Texts;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.FileConfiguration;
@@ -143,8 +144,122 @@ public class ConfigManager {
         return config;
     }
 
+    /**
+     * Trophy Fight 설정을 구조화된 {@link FightConfig} 객체로 반환한다.
+     * 개별 getter가 아닌 객체 자체를 반환하여 이후 유지보수를 용이하게 한다.
+     *
+     * @return FightConfig 객체 (AI/HUD/Sound/Stats/General 카테고리 포함)
+     */
+    public FightConfig getFightConfig() {
+        return new FightConfig(config);
+    }
+
+    // ===================== fatigue (유저 피드백: 자동 낚시 피로도 시스템) =====================
+
+    /** 신규 플레이어의 기본 최대 피로도 (fatigue.default). */
+    public int getFatigueDefaultMax() {
+        return config.getInt("fatigue.default", 1000);
+    }
+
+    /** 낚싯대 보너스를 포함해도 넘을 수 없는 절대 상한 (fatigue.max). */
+    public int getFatigueAbsoluteMax() {
+        return config.getInt("fatigue.max", 20000);
+    }
+
+    /** 자연 회복 1회당 회복량 (fatigue.recovery.amount). */
+    public int getFatigueRecoveryAmount() {
+        return config.getInt("fatigue.recovery.amount", 200);
+    }
+
+    /** 자연 회복 주기(초), 최소 1초 (fatigue.recovery.interval). */
+    public int getFatigueRecoveryIntervalSeconds() {
+        return Math.max(1, config.getInt("fatigue.recovery.interval", 600));
+    }
+
+    /** 자동 낚시 성공 시 등급별 피로도 소모량 (fatigue.consume.<grade>). */
+    public int getFatigueConsume(String gradeId) {
+        if (gradeId == null) return 0;
+        return config.getInt("fatigue.consume." + gradeId.toLowerCase(), 0);
+    }
+
+    /** 피로도가 이 값 이하이면 미니게임이 강제 ON되고 OFF 전환이 잠긴다 (fatigue.auto-minigame-lock-threshold). */
+    public int getFatigueLockThreshold() {
+        return config.getInt("fatigue.auto-minigame-lock-threshold", 0);
+    }
+
+    /** 잠긴 상태에서 이 값 이상 회복되면 다시 OFF 전환이 가능해진다 (fatigue.auto-minigame-unlock-threshold). */
+    public int getFatigueUnlockThreshold() {
+        return config.getInt("fatigue.auto-minigame-unlock-threshold", 100);
+    }
+
+    /** 등급별 회복 물약의 회복량 (fatigue.potions.<grade>.amount). */
+    public int getFatiguePotionAmount(String gradeId) {
+        if (gradeId == null) return 0;
+        return config.getInt("fatigue.potions." + gradeId.toLowerCase() + ".amount", 0);
+    }
+
+    /** 등급별 회복 물약의 표시 이름 (fatigue.potions.<grade>.name), '&' 색상 코드 미변환 원본. */
+    public String getFatiguePotionName(String gradeId) {
+        if (gradeId == null) return "&b피로회복 물약";
+        return config.getString("fatigue.potions." + gradeId.toLowerCase() + ".name", "&b피로회복 물약");
+    }
+
+    /** 등급별 회복 물약의 Lore (fatigue.potions.<grade>.lore), '&' 색상 코드 미변환 원본. */
+    public List<String> getFatiguePotionLore(String gradeId) {
+        if (gradeId == null) return Collections.emptyList();
+        return config.getStringList("fatigue.potions." + gradeId.toLowerCase() + ".lore");
+    }
+
+    /** 등급별 회복 물약의 베이스 Material (fatigue.potions.<grade>.material). */
+    public String getFatiguePotionMaterial(String gradeId) {
+        if (gradeId == null) return "POTION";
+        return config.getString("fatigue.potions." + gradeId.toLowerCase() + ".material", "POTION");
+    }
+
     public List<String> getAllowedWorlds() {
         return config.getStringList("settings.allowed-worlds");
+    }
+
+    public boolean isMinigameOffToggleAllowed() {
+        return config.getBoolean("minigame-off.allow-player-toggle", true);
+    }
+
+    public int getAutoCatchDelaySeconds(String gradeId) {
+        if (gradeId == null) return 5;
+        return Math.max(1, config.getInt("minigame-off.catch-delay-seconds." + gradeId.toLowerCase(), 5));
+    }
+
+    /**
+     * 미니게임 OFF 시 허용 등급 목록. 비어 있으면 모든 등급 허용.
+     */
+    public java.util.Set<String> getMinigameOffAllowedGrades() {
+        java.util.List<String> grades = config.getStringList("minigame-off.allowed-grades");
+        if (grades == null || grades.isEmpty()) {
+            return java.util.Collections.emptySet();
+        }
+        java.util.Set<String> result = new java.util.LinkedHashSet<>();
+        for (String grade : grades) {
+            if (grade != null && !grade.isBlank()) {
+                result.add(grade.toLowerCase());
+            }
+        }
+        return result;
+    }
+
+    public boolean isCastStatusEnabled() {
+        return config.getBoolean("cast-status.enabled", true);
+    }
+
+    public String getCastStatusMessage(String key) {
+        return config.getString("cast-status." + key, "");
+    }
+
+    public int getCastStatusRefreshIntervalTicks() {
+        return Math.max(1, config.getInt("cast-status.refresh-interval-ticks", 20));
+    }
+
+    public String getAutoCatchActionBarFormat() {
+        return config.getString("auto-catch.actionbar-format", "&e{time}s &7후 낚음...");
     }
 
     /**

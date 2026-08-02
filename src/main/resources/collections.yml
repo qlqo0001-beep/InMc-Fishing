@@ -22,6 +22,9 @@ settings:
   # 0이면 무제한 대기, 양수면 해당 시간이 지나면 보상을 포기 처리한다.
   reward-pending-timeout: 0
 
+  # 도감에 물고기를 등록(좌클릭)했을 때 나는 소리
+  register-sound: entity.player.levelup
+
 # ============================================
 # 도감 보상 설정
 # ============================================
@@ -39,11 +42,17 @@ rewards:
     # cod:
     #   5:
     #     - "give {player} exp 50"
-    #   10:
-    #     - "give {player} diamond 1"
-    #     - "broadcast {player}님이 생대구 도감을 퍼펙트 완성했습니다!"
 
-  # 3. 등급 올등록 보상: 해당 등급의 모든 물고기를 1개 이상 등록했을 때 지급
+  # 3. 슬롯 완료(퍼펙트) 보상: 해당 물고기의 최대 슬롯을 전부 채웠을 때 1회 지급
+  # (등록 개수와 무관하게 물고기별로 정확히 1번만 지급되며, 이후 회수 후 다시 채워도 재지급되지 않는다)
+  slot-completion:
+    # 예시:
+    # cod:
+    #   - "give {player} exp 100"
+    #   - "give {player} diamond 1"
+    #   - "broadcast {player}님이 생대구 도감을 퍼펙트 완성했습니다!"
+
+  # 4. 등급 올등록 보상: 해당 등급의 모든 물고기를 1개 이상 등록했을 때 지급
   grade-all-registered:
     F:
       - "give {player} exp 500"
@@ -62,7 +71,7 @@ rewards:
       - "give {player} exp 500000"
       - "broadcast {player}님이 S등급 도감을 올등록했습니다!"
 
-  # 4. 등급 퍼펙트 보상: 해당 등급의 모든 물고기를 최대 슬롯까지 등록했을 때 지급
+  # 5. 등급 퍼펙트 보상: 해당 등급의 모든 물고기를 최대 슬롯까지 등록했을 때 지급
   grade-all-perfect:
     F:
       - "give {player} exp 5000"
@@ -88,12 +97,61 @@ rewards:
       - "give {player} dragon_egg 1"
       - "broadcast {player}님이 S등급 도감을 퍼펙트 완성했습니다!"
 
-  # 5. 전체 완성 보상: 모든 물고기를 퍼펙트로 등록했을 때 지급
+  # 6. 전체 완성 보상: 모든 물고기를 퍼펙트로 등록했을 때 지급
   full-completion:
     - "give {player} exp 10000000"
     - "give {player} nether_star 10"
     - "give {player} dragon_egg 1"
     - "broadcast {player}님이 낚시 도감을 완전히 완성했습니다!"
+
+# ============================================
+# 도감 정보 해금(Unlock) 설정
+# 도감 진행도(등록 슬롯 수)에 따라 정보를 단계적으로 공개합니다.
+# 해금되지 않은 정보는 hidden-text로 표시됩니다.
+# ============================================
+unlock:
+  # 해금되지 않은 정보를 표시할 문자열
+  hidden-text: "???"
+
+  # 해금 단계 설정
+  # 각 단계는 required-registrations(필요 등록 슬롯 수)와
+  # reveal(공개할 정보 목록)로 구성됩니다.
+  # reveal에 사용 가능한 키:
+  #   first-caught      - 내가 처음 잡은 날짜
+  #   largest-size      - 내가 잡은 최대 크기
+  #   smallest-size     - 내가 잡은 최소 크기
+  #   trophy-size       - 최소 Trophy 크기
+  #   rare-trophy-size  - 최소 Rare Trophy 크기
+  #   spawn-chance      - 등장 확률
+  #   total-caught      - 총 낚은 횟수
+  #   inventory-amount  - 인벤토리 보유량
+  #   net-amount        - 어망 보유량
+  #   trophy-count      - 일반 Trophy 획득 횟수
+  #   rare-trophy-count - Rare Trophy 획득 횟수
+  #
+  # 새로운 정보를 추가하려면 reveal 목록에 새 키를 추가하기만 하면 됩니다.
+  # (코드 수정 없이 Config만으로 설정 가능)
+  tiers:
+    # 1마리 등록 시 공개
+    - required-registrations: 1
+      reveal:
+        - first-caught
+        - largest-size
+
+    # 5마리 등록 시 추가 공개
+    - required-registrations: 5
+      reveal:
+        - trophy-size
+
+    # 7마리 등록 시 추가 공개
+    - required-registrations: 7
+      reveal:
+        - rare-trophy-size
+
+    # 10마리 등록 시 추가 공개
+    - required-registrations: 10
+      reveal:
+        - spawn-chance
 
 # ============================================
 # 랭킹(Ranking) 설정
@@ -131,10 +189,10 @@ trophies:
   enabled: true
 
   # 일반 트로피 기준: avg-size × multiplier 이상 낚을 시 획득
-  trophy-threshold: 1.5
+  trophy-threshold: 1.45
 
   # 레어 트로피 기준: max-size × multiplier 이상 낚을 시 획득
-  rare-trophy-threshold: 0.9
+  rare-trophy-threshold: 0.95
 
   # 보상 (물고기별 1회만 지급)
   rewards:

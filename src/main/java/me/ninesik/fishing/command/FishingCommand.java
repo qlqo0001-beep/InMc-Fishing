@@ -3,8 +3,11 @@ package me.ninesik.fishing.command;
 import me.ninesik.fishing.InMcFishing;
 import me.ninesik.fishing.collection.CollectionManager;
 import me.ninesik.fishing.config.ConfigManager;
+import me.ninesik.fishing.fatigue.FatiguePotionItem;
+import me.ninesik.fishing.fatigue.PlayerFatigueManager;
 import me.ninesik.fishing.minigame.FishingMiniGame;
 import me.ninesik.fishing.model.Fish;
+import me.ninesik.fishing.player.PlayerPreferenceManager;
 import me.ninesik.fishing.ranking.RankingManager;
 import me.ninesik.fishing.registry.FishRegistry;
 import me.ninesik.fishing.registry.GradeRegistry;
@@ -49,6 +52,8 @@ public class FishingCommand implements CommandExecutor, TabCompleter {
     private final CollectionManager collectionManager;
     private final RankingManager rankingManager;
     private final TournamentManager tournamentManager;
+    private final PlayerPreferenceManager playerPreferenceManager;
+    private final PlayerFatigueManager fatigueManager;
     private final Logger logger;
 
     public FishingCommand(InMcFishing plugin) {
@@ -65,6 +70,8 @@ public class FishingCommand implements CommandExecutor, TabCompleter {
         this.collectionManager = plugin.getCollectionManager();
         this.rankingManager = plugin.getRankingManager();
         this.tournamentManager = plugin.getTournamentManager();
+        this.playerPreferenceManager = plugin.getPlayerPreferenceManager();
+        this.fatigueManager = fishingService.getFatigueManager();
         this.logger = plugin.getLogger();
     }
 
@@ -72,11 +79,12 @@ public class FishingCommand implements CommandExecutor, TabCompleter {
     public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command,
                              @NotNull String label, @NotNull String[] args) {
         if (args.length == 0) {
-            sender.sendMessage("§e[InMc-Fishing] §7사용법: /fishing reload|debug|simulate|info|collection|rank|tournament|give|list|net");
+            handleHelp(sender);
             return true;
         }
 
         switch (args[0].toLowerCase()) {
+            case "help", "도움말", "?" -> handleHelp(sender);
             case "reload" -> handleReload(sender);
             case "debug" -> handleDebug(sender);
             case "simulate" -> handleSimulate(sender, args);
@@ -85,11 +93,45 @@ public class FishingCommand implements CommandExecutor, TabCompleter {
             case "rank", "ranking", "랭킹" -> handleRank(sender);
             case "tournament", "tournaments", "대회" -> handleTournament(sender, args);
             case "give" -> handleGive(sender, args);
+            case "fatigue", "피로도" -> handleFatigue(sender, args);
             case "list" -> handleList(sender, args);
             case "net", "어망" -> handleNet(sender);
-            default -> sender.sendMessage("§e[InMc-Fishing] §7알 수 없는 명령어: " + args[0]);
+            case "minigame", "game", "미니게임" -> handleMinigame(sender, args);
+            default -> {
+                sender.sendMessage("§e[InMc-Fishing] §7알 수 없는 명령어: " + args[0]);
+                handleHelp(sender);
+            }
         }
         return true;
+    }
+
+    /**
+     * 사용 가능한 명령어와 각 용도를 채팅창에 안내한다.
+     * 관리자 전용 명령어는 infishing.admin 권한이 있을 때만 함께 표시한다.
+     */
+    private void handleHelp(CommandSender sender) {
+        boolean isAdmin = sender.hasPermission("infishing.admin");
+
+        sender.sendMessage("§b§m                                                §r");
+        sender.sendMessage("§b[InMc-Fishing] §f사용 가능한 명령어");
+        sender.sendMessage("§e/fishing collection §7(§e/fishing 도감§7) §f- 도감 GUI를 엽니다. 낚은 물고기를 등록하고 보상을 받을 수 있습니다.");
+        sender.sendMessage("§e/fishing rank §7(§e/fishing 랭킹§7) §f- 랭킹 GUI를 엽니다.");
+        sender.sendMessage("§e/fishing net §7(§e/fishing 어망§7) §f- 어망 GUI를 엽니다. 낚은 물고기를 보관/정렬/꺼낼 수 있습니다.");
+        sender.sendMessage("§e/fishing tournament §7- 대회 목록 확인, 참가/퇴장, 순위 확인 등을 합니다. (하위 명령어: list, join, leave, gui, wins)");
+        sender.sendMessage("§e/fishing list [등급] §7- 등급별 물고기 목록을 확인합니다.");
+        sender.sendMessage("§e/fishing info §7- 플러그인 정보(등급/물고기/낚싯대 개수 등)를 확인합니다.");
+        sender.sendMessage("§e/fishing minigame <on|off> §7- 개인 L/R 클릭 미니게임을 켜거나 끕니다.");
+        sender.sendMessage("§e/fishing fatigue §7- 내 자동 낚시 피로도를 확인합니다.");
+
+        if (isAdmin) {
+            sender.sendMessage("§c§l[관리자 전용]");
+            sender.sendMessage("§e/fishing reload §7- config/도감/대회 등 설정 파일을 다시 불러옵니다. (등급·물고기·낚싯대 Registry는 미포함)");
+            sender.sendMessage("§e/fishing debug §7- 등급/물고기/낚싯대 로드 현황을 확인합니다.");
+            sender.sendMessage("§e/fishing simulate <횟수> [등급] §7- 등급/보상 확률을 대량 시뮬레이션하여 검증합니다.");
+            sender.sendMessage("§e/fishing give <플레이어> <net|fish|trophy|potion> ... §7- 플레이어에게 물고기/트로피/피로회복 물약을 지급합니다.");
+            sender.sendMessage("§e/fishing fatigue <add|set> <플레이어> <수치> §7- 플레이어의 피로도를 증감/설정합니다.");
+        }
+        sender.sendMessage("§b§m                                                §r");
     }
 
     @Override
@@ -97,7 +139,7 @@ public class FishingCommand implements CommandExecutor, TabCompleter {
                                       @NotNull String alias, @NotNull String[] args) {
         if (args.length == 1) {
             List<String> subs = new ArrayList<>();
-            for (String sub : new String[]{"reload", "debug", "simulate", "info", "collection", "rank", "tournament", "give", "list", "net"}) {
+            for (String sub : new String[]{"help", "reload", "debug", "simulate", "info", "collection", "rank", "tournament", "give", "list", "net", "minigame", "fatigue"}) {
                 if (sub.startsWith(args[0].toLowerCase())) {
                     subs.add(sub);
                 }
@@ -111,6 +153,17 @@ public class FishingCommand implements CommandExecutor, TabCompleter {
 
         if (args.length >= 2 && args[0].equalsIgnoreCase("give")) {
             return completeGive(args);
+        }
+
+        if (args.length >= 2 && args[0].equalsIgnoreCase("fatigue")) {
+            return completeFatigue(args);
+        }
+
+        if (args.length == 2 && (args[0].equalsIgnoreCase("minigame")
+                || args[0].equalsIgnoreCase("game"))) {
+            return List.of("on", "off", "toggle", "status").stream()
+                    .filter(value -> value.startsWith(args[1].toLowerCase()))
+                    .toList();
         }
 
         if (args.length == 2 && args[0].equalsIgnoreCase("list")) {
@@ -260,6 +313,121 @@ public class FishingCommand implements CommandExecutor, TabCompleter {
             sender.sendMessage("§e미니게임 중: §f" + fishingMiniGame.isActive(player));
         }
         sender.sendMessage("§6==========================");
+    }
+
+    private void handleMinigame(CommandSender sender, String[] args) {
+        if (!sender.hasPermission("infishing.user")) {
+            sender.sendMessage("§c권한이 없습니다.");
+            return;
+        }
+        if (!(sender instanceof Player player)) {
+            sender.sendMessage("§c플레이어만 사용할 수 있습니다.");
+            return;
+        }
+        if (!configManager.isMinigameOffToggleAllowed()) {
+            player.sendMessage(configManager.formatMessage("minigame-toggle-disabled"));
+            return;
+        }
+
+        String requested = args.length >= 2 ? args[1].toLowerCase() : "status";
+        boolean enabled;
+        switch (requested) {
+            case "on" -> {
+                playerPreferenceManager.setMinigameEnabled(player, true);
+                player.sendMessage(configManager.formatMessage("minigame-on"));
+                return;
+            }
+            case "off" -> {
+                if (fatigueManager != null && fatigueManager.isLocked(player)) {
+                    player.sendMessage(configManager.formatMessage("fatigue-locked"));
+                    return;
+                }
+                playerPreferenceManager.setMinigameEnabled(player, false);
+                player.sendMessage(configManager.formatMessage("minigame-off"));
+                return;
+            }
+            case "toggle" -> {
+                if (fatigueManager != null && fatigueManager.isLocked(player)
+                        && playerPreferenceManager.isMinigameEnabled(player)) {
+                    // 현재 ON → OFF로 넘어가려는 시도인데 피로도로 잠긴 상태
+                    player.sendMessage(configManager.formatMessage("fatigue-locked"));
+                    return;
+                }
+                enabled = playerPreferenceManager.toggleMinigame(player);
+                player.sendMessage(configManager.formatMessage(enabled ? "minigame-on" : "minigame-off"));
+                return;
+            }
+            case "status" -> enabled = playerPreferenceManager.isMinigameEnabled(player);
+            default -> {
+                player.sendMessage("§e사용법: /fishing minigame <on|off|toggle|status>");
+                return;
+            }
+        }
+        player.sendMessage("§e미니게임: " + (enabled ? "§aON" : "§eOFF"));
+    }
+
+    /**
+     * /fishing fatigue — 인자 없으면 본인 피로도 확인, add/set은 관리자 전용.
+     */
+    private void handleFatigue(CommandSender sender, String[] args) {
+        if (fatigueManager == null) {
+            sender.sendMessage("§c피로도 시스템이 초기화되지 않았습니다.");
+            return;
+        }
+
+        if (args.length >= 2 && (args[1].equalsIgnoreCase("add") || args[1].equalsIgnoreCase("set"))) {
+            if (!sender.hasPermission("infishing.admin")) {
+                sender.sendMessage("§c권한이 없습니다.");
+                return;
+            }
+            if (args.length < 4) {
+                sender.sendMessage("§c사용법: /fishing fatigue " + args[1].toLowerCase() + " <플레이어> <수치>");
+                return;
+            }
+            Player target = plugin.getServer().getPlayerExact(args[2]);
+            if (target == null) {
+                sender.sendMessage("§c플레이어를 찾을 수 없습니다: " + args[2]);
+                return;
+            }
+            int amount;
+            try {
+                amount = Integer.parseInt(args[3]);
+            } catch (NumberFormatException e) {
+                sender.sendMessage("§c수치는 정수여야 합니다: " + args[3]);
+                return;
+            }
+            if (args[1].equalsIgnoreCase("add")) {
+                fatigueManager.adminAdd(target, amount);
+            } else {
+                fatigueManager.adminSet(target, amount);
+            }
+            sender.sendMessage("§a" + target.getName() + "의 피로도를 " + fatigueManager.getFatigue(target) + "(으)로 조정했습니다.");
+            logger.info(sender.getName() + " set fatigue of " + target.getName() + " to " + fatigueManager.getFatigue(target));
+            return;
+        }
+
+        // 인자 없음(또는 status): 본인(혹은 지정 플레이어)의 피로도 확인
+        Player target;
+        if (args.length >= 2) {
+            if (!sender.hasPermission("infishing.admin")) {
+                sender.sendMessage("§c권한이 없습니다.");
+                return;
+            }
+            target = plugin.getServer().getPlayerExact(args[1]);
+            if (target == null) {
+                sender.sendMessage("§c플레이어를 찾을 수 없습니다: " + args[1]);
+                return;
+            }
+        } else if (sender instanceof Player player) {
+            target = player;
+        } else {
+            sender.sendMessage("§c플레이어만 사용할 수 있습니다. (콘솔에서는 /fishing fatigue <add|set> <플레이어> <수치>)");
+            return;
+        }
+
+        sender.sendMessage("§e" + target.getName() + "의 피로도: §f" + fatigueManager.getFatigue(target)
+                + " §7/ §f" + fatigueManager.getEffectiveMax(target)
+                + (fatigueManager.isLocked(target) ? " §c(자동 낚시 잠김)" : ""));
     }
 
     private void handleNet(CommandSender sender) {
@@ -420,7 +588,7 @@ public class FishingCommand implements CommandExecutor, TabCompleter {
             return;
         }
         if (args.length < 2) {
-            sender.sendMessage("§c사용법: /fishing give <net|fish|trophy> <플레이어> <물고기ID> [개수]");
+            sender.sendMessage("§c사용법: /fishing give <net|fish|trophy|potion> <플레이어> ...");
             return;
         }
 
@@ -431,9 +599,35 @@ public class FishingCommand implements CommandExecutor, TabCompleter {
             giveFish(sender, args);
         } else if ("trophy".equals(type)) {
             giveTrophy(sender, args);
+        } else if ("potion".equals(type)) {
+            givePotion(sender, args);
         } else {
-            sender.sendMessage("§c지원하지 않는 종류입니다: net, fish, trophy");
+            sender.sendMessage("§c지원하지 않는 종류입니다: net, fish, trophy, potion");
         }
+    }
+
+    private void givePotion(CommandSender sender, String[] args) {
+        if (args.length < 4) {
+            sender.sendMessage("§c사용법: /fishing give potion <플레이어> <등급> [개수]");
+            return;
+        }
+        Player target = plugin.getServer().getPlayerExact(args[2]);
+        if (target == null) {
+            sender.sendMessage("§c플레이어를 찾을 수 없습니다: " + args[2]);
+            return;
+        }
+        String gradeId = args[3].toLowerCase();
+        if (gradeRegistry.getById(gradeId) == null) {
+            sender.sendMessage("§c존재하지 않는 등급입니다: " + args[3]);
+            return;
+        }
+        int amount = parseAmount(sender, args, 4, 1);
+        if (amount < 1) return;
+
+        ItemStack item = FatiguePotionItem.create(plugin, configManager, gradeId, amount);
+        target.getInventory().addItem(item);
+        sender.sendMessage("§a" + target.getName() + "에게 " + gradeId.toUpperCase() + "등급 피로회복 물약 " + amount + "개를 지급했습니다.");
+        logger.info(sender.getName() + " gave " + amount + " " + gradeId + " fatigue potion to " + target.getName());
     }
 
     private void giveNet(CommandSender sender, String[] args) {
@@ -583,7 +777,7 @@ public class FishingCommand implements CommandExecutor, TabCompleter {
 
     private List<String> completeGive(String[] args) {
         if (args.length == 2) {
-            return java.util.stream.Stream.of("net", "fish", "trophy")
+            return java.util.stream.Stream.of("net", "fish", "trophy", "potion")
                     .filter(s -> s.startsWith(args[1].toLowerCase())).toList();
         }
         if (args.length == 3) {
@@ -597,6 +791,32 @@ public class FishingCommand implements CommandExecutor, TabCompleter {
                 }
             }
             return ids;
+        }
+        if (args.length == 4 && "potion".equalsIgnoreCase(args[1])) {
+            List<String> grades = new ArrayList<>();
+            for (String id : gradeRegistry.getAll().keySet()) {
+                if (id.toLowerCase().startsWith(args[3].toLowerCase())) {
+                    grades.add(id.toLowerCase());
+                }
+            }
+            return grades;
+        }
+        return List.of();
+    }
+
+    private List<String> completeFatigue(String[] args) {
+        if (args.length == 2) {
+            return java.util.stream.Stream.of("add", "set")
+                    .filter(s -> s.startsWith(args[1].toLowerCase())).toList();
+        }
+        if (args.length == 3 && (args[1].equalsIgnoreCase("add") || args[1].equalsIgnoreCase("set"))) {
+            List<String> names = new ArrayList<>();
+            for (Player p : plugin.getServer().getOnlinePlayers()) {
+                if (p.getName().toLowerCase().startsWith(args[2].toLowerCase())) {
+                    names.add(p.getName());
+                }
+            }
+            return names;
         }
         return List.of();
     }

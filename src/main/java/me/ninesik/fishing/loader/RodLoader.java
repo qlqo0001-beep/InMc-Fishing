@@ -57,6 +57,18 @@ public class RodLoader {
 
                 List<String> vanillaLore = rodSection.getStringList("vanilla-lore");
 
+                // 유저 피드백(피로도 시스템): options.max-fatigue / options.fatigue-recovery.
+                // 둘 다 없으면 0(보너스 없음)으로 취급한다.
+                ConfigurationSection optionsSection = rodSection.getConfigurationSection("options");
+                int maxFatigueBonus = optionsSection != null ? optionsSection.getInt("max-fatigue", 0) : 0;
+                int fatigueRecoveryBonus = optionsSection != null ? optionsSection.getInt("fatigue-recovery", 0) : 0;
+
+                // Trophy Fight 시스템(패치예정.md): options.reel-power / options.line-strength / options.reel-durability.
+                // Phase 1에서는 파싱만 수행하고 계산에 사용하지 않는다.
+                double reelPower = optionsSection != null ? optionsSection.getDouble("reel-power", 0.0) : 0.0;
+                double lineStrength = optionsSection != null ? optionsSection.getDouble("line-strength", 0.0) : 0.0;
+                double reelDurability = optionsSection != null ? optionsSection.getDouble("reel-durability", 0.0) : 0.0;
+
                 Rod rod = Rod.builder()
                         .id(id)
                         .useType(rodSection.getString("use-type", "vanilla"))
@@ -68,6 +80,11 @@ public class RodLoader {
                         .bonus(bonus)
                         .doubleChanceBonus(rodSection.getDouble("double-chance-bonus", 0.0))
                         .bigFishChanceBonus(rodSection.getDouble("big-fish-chance-bonus", 0.0))
+                        .maxFatigueBonus(maxFatigueBonus)
+                        .fatigueRecoveryBonus(fatigueRecoveryBonus)
+                        .reelPower(reelPower)
+                        .lineStrength(lineStrength)
+                        .reelDurability(reelDurability)
                         .build();
 
                 rodMap.put(id, rod);

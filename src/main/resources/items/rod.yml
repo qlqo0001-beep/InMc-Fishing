@@ -28,6 +28,18 @@
 #     (음수도 가능: -5면 5 감소)
 #   double-chance-bonus:  더블 보너스 확률 추가 (%)
 #   big-fish-chance-bonus: 대어 확률 추가 (%)
+#
+#   options:              피로도 시스템 및 Trophy Fight 관련 낚싯대 옵션 (없으면 보너스 없음, 모두 선택 사항)
+#     max-fatigue:        이 낚싯대를 손에 들고 있는 동안 최대 피로도를 이 값만큼 늘려준다
+#                         (config.yml fatigue.max 절대 상한은 넘지 못함)
+#     fatigue-recovery:   이 낚싯대를 손에 들고 있는 동안 자연 회복 1회당 고정 수치를 추가로 회복시켜준다
+#                         (퍼센트가 아닌 고정값. 예: 기본 회복 200 + 이 값 50 = 250)
+#     reel-power:         Trophy Fight에서 릴이 물고기 체력(Stamina)을 소모시키는 효율
+#                         (높을수록 물고기를 빠르게 지치게 만듦)
+#     line-strength:      Trophy Fight에서 낚싯줄이 버틸 수 있는 최대 장력(Tension)
+#                         (높을수록 강한 돌진에도 줄이 끊어지지 않음)
+#     reel-durability:    Trophy Fight에서 릴의 내구도
+#                         (높을수록 릴 상태(Reel State)가 느리게 감소함)
 # ============================================================
 rods:
   # --- MMOItems 낚싯대 예시 ---
@@ -94,3 +106,9 @@ rods:
       S: 3      # S등급 확률 +3%
     double-chance-bonus: 2.0   # 더블 확률 +2%
     big-fish-chance-bonus: 1.0  # 대어 확률 +1%
+    options:
+      max-fatigue: 500        # 이 낚싯대를 들고 있으면 최대 피로도 +500
+      fatigue-recovery: 50    # 이 낚싯대를 들고 있으면 자연 회복량 +50 (고정 수치)
+      reel-power: 10.0        # Trophy Fight: Stamina 소모 효율 +10
+      line-strength: 20.0     # Trophy Fight: 최대 장력 +20
+      reel-durability: 15.0   # Trophy Fight: 릴 내구도 +15

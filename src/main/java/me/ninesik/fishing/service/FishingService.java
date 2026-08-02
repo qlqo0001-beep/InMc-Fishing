@@ -2,9 +2,11 @@ package me.ninesik.fishing.service;
 
 import me.ninesik.fishing.config.ConfigManager;
 import me.ninesik.fishing.dependency.DependencyManager;
+import me.ninesik.fishing.fatigue.PlayerFatigueManager;
 import me.ninesik.fishing.listener.FishingListener;
 import me.ninesik.fishing.minigame.FishingMiniGame;
 import me.ninesik.fishing.minigame.MiniGameManager;
+import me.ninesik.fishing.player.PlayerPreferenceManager;
 import me.ninesik.fishing.registry.FishRegistry;
 import me.ninesik.fishing.registry.GradeRegistry;
 import me.ninesik.fishing.registry.RodRegistry;
@@ -24,12 +26,15 @@ public class FishingService {
     private final MiniGameManager miniGameManager;
     private final RollEngine rollEngine;
     private final RewardService rewardService;
+    private final PlayerPreferenceManager playerPreferenceManager;
+    private final PlayerFatigueManager fatigueManager;
     private FishingMiniGame fishingMiniGame;
     private FishingListener fishingListener;
 
     public FishingService(JavaPlugin plugin, DependencyManager dependencyManager,
                           RodRegistry rodRegistry, GradeRegistry gradeRegistry,
-                          FishRegistry fishRegistry) {
+                          FishRegistry fishRegistry,
+                          PlayerPreferenceManager playerPreferenceManager) {
         this.plugin = plugin;
         this.dependencyManager = dependencyManager;
         this.rodRegistry = rodRegistry;
@@ -46,6 +51,16 @@ public class FishingService {
                 configManager
         );
         this.rewardService = new RewardService(plugin, dependencyManager, configManager);
+        this.playerPreferenceManager = playerPreferenceManager;
+        // 유저 피드백(피로도 시스템): configManager가 막 생성된 시점에 바로 만들어야
+        // rodRegistry/dependencyManager/playerPreferenceManager를 모두 갖춘 상태로 생성할 수 있다.
+        this.fatigueManager = new PlayerFatigueManager(
+                (me.ninesik.fishing.InMcFishing) plugin,
+                configManager,
+                rodRegistry,
+                dependencyManager,
+                playerPreferenceManager
+        );
     }
 
     public void initialize() {
@@ -55,18 +70,23 @@ public class FishingService {
                 sessionManager,
                 rewardService,
                 configManager,
-                gradeRegistry
+                gradeRegistry,
+                fatigueManager
         );
 
         this.fishingListener = new FishingListener(
+                (me.ninesik.fishing.InMcFishing) plugin,
                 dependencyManager,
                 rodRegistry,
+                fishRegistry,
                 sessionManager,
                 miniGameManager,
                 rollEngine,
                 configManager,
                 fishingMiniGame,
-                rewardService
+                rewardService,
+                playerPreferenceManager,
+                fatigueManager
         );
         plugin.getServer().getPluginManager().registerEvents(fishingListener, plugin);
     }
@@ -101,6 +121,10 @@ public class FishingService {
 
         sessionManager.closeAllSessions();
         miniGameManager.stopAllGames();
+
+        if (fatigueManager != null) {
+            fatigueManager.shutdown();
+        }
     }
 
     public DependencyManager getDependencyManager() {
@@ -129,5 +153,9 @@ public class FishingService {
 
     public FishingMiniGame getFishingMiniGame() {
         return fishingMiniGame;
+    }
+
+    public PlayerFatigueManager getFatigueManager() {
+        return fatigueManager;
     }
 }

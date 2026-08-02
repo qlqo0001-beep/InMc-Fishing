@@ -3,6 +3,7 @@ package me.ninesik.fishing;
 import me.ninesik.fishing.collection.CollectionListener;
 import me.ninesik.fishing.collection.CollectionManager;
 import me.ninesik.fishing.dependency.DependencyManager;
+import me.ninesik.fishing.fight.TrophyFightManager;
 import me.ninesik.fishing.gui.GuiListener;
 import me.ninesik.fishing.ranking.RankingManager;
 import me.ninesik.fishing.tournament.TournamentListener;
@@ -13,6 +14,8 @@ import me.ninesik.fishing.loader.RodLoader;
 import me.ninesik.fishing.model.Fish;
 import me.ninesik.fishing.model.Grade;
 import me.ninesik.fishing.model.Rod;
+import me.ninesik.fishing.player.PlayerPreferenceListener;
+import me.ninesik.fishing.player.PlayerPreferenceManager;
 import me.ninesik.fishing.registry.RegistryManager;
 import me.ninesik.fishing.service.FishingService;
 import me.ninesik.fishing.validator.ValidationReport;
@@ -48,6 +51,8 @@ public final class InMcFishing extends JavaPlugin {
     private RankingManager rankingManager;
     private TournamentManager tournamentManager;
     private me.ninesik.fishing.net.NetManager netManager;
+    private PlayerPreferenceManager playerPreferenceManager;
+    private TrophyFightManager trophyFightManager;
 
     @Override
     public void onEnable() {
@@ -57,6 +62,12 @@ public final class InMcFishing extends JavaPlugin {
 
         dependencyManager = new DependencyManager(this);
         dependencyManager.initialize();
+
+        playerPreferenceManager = new PlayerPreferenceManager(this);
+        getServer().getPluginManager().registerEvents(
+                new PlayerPreferenceListener(playerPreferenceManager), this);
+        // /reload 등으로 이미 접속해 있던 플레이어도 개인 설정을 적용한다.
+        getServer().getOnlinePlayers().forEach(playerPreferenceManager::loadPlayer);
 
         registryManager = new RegistryManager();
         if (!loadRegistries()) {
@@ -70,10 +81,22 @@ public final class InMcFishing extends JavaPlugin {
                 dependencyManager,
                 registryManager.getRodRegistry(),
                 registryManager.getGradeRegistry(),
-                registryManager.getFishRegistry()
+                registryManager.getFishRegistry(),
+                playerPreferenceManager
         );
         fishingService.initialize();
         fishingService.load();
+
+        // 유저 피드백(피로도 시스템): fishingService.initialize() 이후에야 fatigueManager가
+        // 완전히 구성된다 (FishingService 생성자에서 만들어짐). 접속/퇴장 리스너 등록,
+        // 이미 접속 중인 플레이어(리로드 케이스) 로드, 회복 스케줄러 시작, 물약 리스너 등록을 진행한다.
+        me.ninesik.fishing.fatigue.PlayerFatigueManager fatigueManager = fishingService.getFatigueManager();
+        getServer().getPluginManager().registerEvents(
+                new me.ninesik.fishing.fatigue.FatigueListener(fatigueManager), this);
+        getServer().getPluginManager().registerEvents(
+                new me.ninesik.fishing.fatigue.FatiguePotionListener(this, fatigueManager, fishingService.getConfigManager()), this);
+        getServer().getOnlinePlayers().forEach(fatigueManager::loadPlayer);
+        fatigueManager.startScheduler();
 
         // 도감 시스템 초기화
         collectionManager = new CollectionManager(this, registryManager.getFishRegistry(), fishingService.getRewardService());
@@ -90,6 +113,9 @@ public final class InMcFishing extends JavaPlugin {
         netManager = new me.ninesik.fishing.net.NetManager(
                 this, registryManager.getFishRegistry(), fishingService.getRewardService());
         fishingService.getRewardService().setNetManager(netManager);
+        collectionManager.setNetManager(netManager);
+        getServer().getPluginManager().registerEvents(
+                new me.ninesik.fishing.net.NetListener(netManager), this);
 
         rankingManager = new RankingManager(this, collectionManager);
         rankingManager.load();
@@ -106,6 +132,12 @@ public final class InMcFishing extends JavaPlugin {
         getServer().getPluginManager().registerEvents(
                 new TournamentListener(tournamentManager), this);
 
+        // Trophy Fight 시스템 초기화 (Phase 4: 세션 관리자 + Tick 스케줄러 + FishingMiniGame 주입)
+        trophyFightManager = new TrophyFightManager(this);
+        trophyFightManager.startScheduler();
+        // FishingMiniGame에 TrophyFightManager 주입 (트로피 물고기 Fight 진입 분기)
+        fishingService.getFishingMiniGame().setTrophyFightManager(trophyFightManager);
+
         // 명령어 등록 (fishingService 초기화 후 — NPE 방지)
         me.ninesik.fishing.command.FishingCommand cmd = new me.ninesik.fishing.command.FishingCommand(this);
         getCommand("fishing").setExecutor(cmd);
@@ -116,6 +148,9 @@ public final class InMcFishing extends JavaPlugin {
 
     @Override
     public void onDisable() {
+        if (playerPreferenceManager != null) {
+            playerPreferenceManager.saveAll();
+        }
         if (netManager != null) {
             netManager.saveAll();
         }
@@ -127,6 +162,9 @@ public final class InMcFishing extends JavaPlugin {
         }
         if (tournamentManager != null) {
             tournamentManager.shutdown();
+        }
+        if (trophyFightManager != null) {
+            trophyFightManager.shutdown();
         }
         if (fishingService != null) {
             fishingService.shutdown();
@@ -227,5 +265,13 @@ public final class InMcFishing extends JavaPlugin {
 
     public me.ninesik.fishing.net.NetManager getNetManager() {
         return netManager;
+    }
+
+    public PlayerPreferenceManager getPlayerPreferenceManager() {
+        return playerPreferenceManager;
+    }
+
+    public TrophyFightManager getTrophyFightManager() {
+        return trophyFightManager;
     }
 }

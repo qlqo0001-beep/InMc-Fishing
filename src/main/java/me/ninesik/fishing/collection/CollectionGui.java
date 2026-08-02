@@ -26,6 +26,8 @@ public class CollectionGui extends AbstractGui {
     private static final int TAB_ROW = 0;
     private static final int CONTENT_START = 9;
     private static final int CONTENT_END = 44; // 6줄에서 마지막 줄 전까지
+    private static final int PROGRESS_SLOT = 47;
+    private static final int REGISTER_ALL_SLOT = 51;
 
     private final CollectionManager collectionManager;
     private final RewardService rewardService;
@@ -62,21 +64,6 @@ public class CollectionGui extends AbstractGui {
             setItem(TAB_ROW * 9 + i, item);
         }
 
-        // 전체 진행도 표시 (중앙 슬롯 4는 탭 사이 구분으로 사용)
-        CollectionData data = collectionManager.getCollectionData(player);
-        if (data != null) {
-            double progress = calculateProgress(data);
-            String progressBar = buildProgressBar(progress);
-            ItemStack progressItem = createIcon(Material.BOOK,
-                    ChatColor.GOLD + "도감 진행도: " + String.format("%.1f", progress * 100) + "%",
-                    List.of(
-                            ChatColor.GRAY + progressBar,
-                            ChatColor.WHITE + "발견: " + data.getDiscoveredCount() + "/" + data.getActiveEntryCount(),
-                            ChatColor.WHITE + "완전 등록: " + data.getPerfectCount() + "/" + data.getActiveEntryCount(),
-                            ChatColor.GOLD + "🏆 트로피: " + data.getTrophyCount() + "  🏆 레어: " + data.getRareTrophyCount()
-                    ));
-            setItem(TAB_ROW * 9 + 4, progressItem);
-        }
     }
 
     private double calculateProgress(CollectionData data) {
@@ -128,6 +115,29 @@ public class CollectionGui extends AbstractGui {
                 ? List.of(ChatColor.WHITE + "대기 중인 보상: " + pendingCount + "개")
                 : List.of(ChatColor.GRAY + "대기 중인 보상이 없습니다.");
         setItem(49, createIcon(Material.CHEST, ChatColor.GOLD + "전체수령", claimLore));
+
+        if (data != null) {
+            double progress = calculateProgress(data);
+            setItem(PROGRESS_SLOT, createIcon(Material.BOOK,
+                    ChatColor.GOLD + "도감 진행도: " + String.format("%.1f", progress * 100) + "%",
+                    List.of(
+                            ChatColor.GRAY + buildProgressBar(progress),
+                            ChatColor.WHITE + "발견: " + data.getDiscoveredCount() + "/" + data.getActiveEntryCount(),
+                            ChatColor.WHITE + "완전 등록: " + data.getPerfectCount() + "/" + data.getActiveEntryCount()
+                    )));
+        }
+
+        if (isGradeTab()) {
+            setItem(REGISTER_ALL_SLOT, createIcon(Material.HOPPER, ChatColor.AQUA + currentTab + "등급 모두 등록",
+                    List.of(
+                            ChatColor.GRAY + "인벤토리와 어망의 물고기를 등록합니다.",
+                            ChatColor.GRAY + "물고기별 최대 슬롯까지 채워집니다.",
+                            ChatColor.YELLOW + "클릭: " + currentTab + "등급 일괄 등록"
+                    )));
+        } else {
+            setItem(REGISTER_ALL_SLOT, createIcon(Material.PAPER, ChatColor.GRAY + "등급 일괄 등록",
+                    List.of(ChatColor.GRAY + "등급 탭을 선택하면 사용할 수 있습니다.")));
+        }
 
         // 다음 페이지
         List<Fish> fishes = getFilteredFishList();
@@ -183,29 +193,72 @@ public class CollectionGui extends AbstractGui {
         List<String> lore = new ArrayList<>();
         lore.add(ChatColor.GRAY + "등급: " + ChatColor.WHITE + fish.getGrade().getId().toUpperCase());
         if (entry != null) {
+            // 해금된 정보 키 목록 (등록 슬롯 수 기반)
+            java.util.Set<String> unlocked = collectionManager.getUnlockedInfo(entry.getRegisteredSlots());
+            String hidden = collectionManager.getUnlockHiddenText();
+            boolean isAdmin = player.hasPermission("infishing.admin");
+
             lore.add(ChatColor.GRAY + "등록: " + ChatColor.WHITE + entry.getRegisteredSlots() + "/" + entry.getMaxSlots());
+            lore.add(ChatColor.GRAY + "인벤토리 보유: " + ChatColor.WHITE
+                    + collectionManager.getInventoryFishAmount(player, fish) + "마리");
+            lore.add(ChatColor.GRAY + "어망 보유: " + ChatColor.WHITE
+                    + collectionManager.getNetFishAmount(player, fish) + "마리");
             lore.add(ChatColor.GRAY + "총 낚은 횟수: " + ChatColor.WHITE + entry.getTotalCaught());
-            // 진행도 기반 추가 정보 공개
-            if (entry.getLargestSize() > 0) {
-                lore.add(ChatColor.GRAY + "최대 사이즈: " + ChatColor.AQUA + String.format("%.1f", entry.getLargestSize()) + "cm");
+
+            // 트로피 획득 횟수 (독립 관리)
+            lore.add(ChatColor.GOLD + "🏆 일반 트로피 획득: " + ChatColor.YELLOW + entry.getTrophyCount() + "회");
+            lore.add(ChatColor.GOLD + "🏆 레어 트로피 획득: " + ChatColor.RED + entry.getRareTrophyCount() + "회");
+
+            // 설정값 기반 정보 — 해금 시스템 적용
+            if (fish.hasSize()) {
+                lore.add(ChatColor.DARK_GRAY + "─────────");
+                // 설정 크기는 어드민만 보이게
+                if (isAdmin) {
+                    lore.add(ChatColor.GRAY + "설정된 최소 크기: " + ChatColor.WHITE + String.format("%.1f", fish.getMinSize()) + "cm");
+                    lore.add(ChatColor.GRAY + "설정된 최대 크기: " + ChatColor.WHITE + String.format("%.1f", fish.getMaxSize()) + "cm");
+                }
+                // 트로피 최소 크기 — 해금 시 공개
+                if (unlocked.contains("trophy-size")) {
+                    double trophySize = fish.getAvgSize() * rewardService.getTrophyThreshold();
+                    lore.add(ChatColor.GOLD + "🏆 트로피 최소 크기: " + ChatColor.YELLOW + String.format("%.1f", trophySize) + "cm");
+                } else {
+                    lore.add(ChatColor.GRAY + "🏆 트로피 최소 크기: " + ChatColor.WHITE + hidden);
+                }
+                // 레어 트로피 최소 크기 — 해금 시 공개
+                if (unlocked.contains("rare-trophy-size")) {
+                    double rareTrophySize = fish.getMaxSize() * rewardService.getRareTrophyThreshold();
+                    lore.add(ChatColor.GOLD + "🏆 레어 트로피 최소 크기: " + ChatColor.RED + String.format("%.1f", rareTrophySize) + "cm");
+                } else {
+                    lore.add(ChatColor.GRAY + "🏆 레어 트로피 최소 크기: " + ChatColor.WHITE + hidden);
+                }
+                // 등장 확률 — 해금 시 공개
+                if (unlocked.contains("spawn-chance")) {
+                    lore.add(ChatColor.GRAY + "등장 확률: " + ChatColor.WHITE + fish.getWeight() + "%");
+                } else {
+                    lore.add(ChatColor.GRAY + "등장 확률: " + ChatColor.WHITE + hidden);
+                }
+                lore.add(ChatColor.DARK_GRAY + "─────────");
             }
-            if (entry.getSmallestSize() > 0 && entry.getSmallestSize() != entry.getLargestSize()) {
-                lore.add(ChatColor.GRAY + "최소 사이즈: " + ChatColor.AQUA + String.format("%.1f", entry.getSmallestSize()) + "cm");
+
+            // 진행도 기반 추가 정보 공개 (내가 직접 낚은 기록) — 해금 시스템 적용
+            if (unlocked.contains("largest-size") && entry.getLargestSize() > 0) {
+                lore.add(ChatColor.GRAY + "내가 낚은 최대 사이즈: " + ChatColor.AQUA + String.format("%.1f", entry.getLargestSize()) + "cm");
             }
-            if (entry.getFirstCaught() != null) {
+            if (unlocked.contains("smallest-size") && entry.getSmallestSize() > 0 && entry.getSmallestSize() != entry.getLargestSize()) {
+                lore.add(ChatColor.GRAY + "내가 낚은 최소 사이즈: " + ChatColor.AQUA + String.format("%.1f", entry.getSmallestSize()) + "cm");
+            }
+            if (unlocked.contains("first-caught") && entry.getFirstCaught() != null) {
                 lore.add(ChatColor.GRAY + "최초 발견: " + ChatColor.WHITE + entry.getFirstCaught().toLocalDate());
             }
         } else {
             lore.add(ChatColor.GRAY + "등록: " + ChatColor.WHITE + "0/" + collectionManager.getDefaultMaxSlots());
         }
         if (!isInactive && entry != null) {
-            if (isPerfect) {
-                lore.add(ChatColor.GREEN + "좌클릭: 등록 해제");
-            } else if (isRegistered || isDiscovered) {
+            if (isRegistered || isDiscovered) {
                 lore.add(ChatColor.YELLOW + "좌클릭: 도감에 등록 (아이템 1개 소모)");
-                if (isRegistered) {
-                    lore.add(ChatColor.RED + "시프트 우클릭: 1개 해제 (물고기 반환)");
-                }
+            }
+            if (isRegistered) {
+                lore.add(ChatColor.RED + "시프트 우클릭: 1개 회수 (물고기 반환)");
             }
         }
         meta.setLore(lore);
@@ -218,6 +271,15 @@ public class CollectionGui extends AbstractGui {
                 unknownMeta.setDisplayName(ChatColor.GRAY + "???");
                 unknownMeta.setLore(List.of(ChatColor.GRAY + "아직 발견하지 못한 물고기입니다."));
                 base.setItemMeta(unknownMeta);
+            }
+        } else if (isPerfect) {
+            // 퍼펙트 달성 물고기는 초록색 스테인글라스 유리판으로 표기
+            base.setType(Material.GREEN_STAINED_GLASS_PANE);
+            ItemMeta perfectMeta = base.getItemMeta();
+            if (perfectMeta != null) {
+                perfectMeta.setDisplayName(displayName);
+                perfectMeta.setLore(lore);
+                base.setItemMeta(perfectMeta);
             }
         }
 
@@ -271,6 +333,14 @@ public class CollectionGui extends AbstractGui {
             if (slot == 45 && page > 0) {
                 page--;
                 refresh();
+            } else if (slot == REGISTER_ALL_SLOT && isGradeTab()) {
+                int registered = collectionManager.registerAllByGrade(player, currentTab);
+                if (registered > 0) {
+                    player.sendMessage(ChatColor.GREEN + currentTab + "등급 물고기 " + registered + "마리를 도감에 등록했습니다.");
+                } else {
+                    player.sendMessage(ChatColor.YELLOW + "등록할 수 있는 " + currentTab + "등급 물고기가 없습니다.");
+                }
+                refresh();
             } else if (slot == 49) {
                 collectionManager.getRewardService().claimAllPending(player);
                 refresh();
@@ -299,17 +369,12 @@ public class CollectionGui extends AbstractGui {
             return; // 미발견 물고기 클릭 무시
         }
 
-        if (event.isLeftClick()) {
-            if (isRegistered && entry != null && entry.isPerfect()) {
-                // 퍼펙트 상태에서 좌클릭: 전체 해제
-                while (entry.getRegisteredSlots() > 0) {
-                    collectionManager.unregisterFish(player, fish.getId());
-                }
-            } else {
-                collectionManager.registerFish(player, fish.getId());
-            }
-        } else if (event.isShiftClick() && event.isRightClick() && isRegistered) {
+        if (event.isShiftClick() && event.isRightClick() && isRegistered) {
+            // 회수(해제)는 퍼펙트 여부와 무관하게 항상 시프트+우클릭으로 1개씩 처리
             collectionManager.unregisterFish(player, fish.getId());
+        } else if (event.isLeftClick()) {
+            // 좌클릭은 항상 등록 시도 (슬롯이 가득 찬 경우 registerFish()가 false를 반환하며 아무 일도 일어나지 않음)
+            collectionManager.registerFish(player, fish.getId());
         }
 
         refresh();
@@ -324,5 +389,12 @@ public class CollectionGui extends AbstractGui {
             item.setItemMeta(meta);
         }
         return item;
+    }
+
+    private boolean isGradeTab() {
+        return switch (currentTab) {
+            case "F", "E", "D", "C", "B", "A", "S" -> true;
+            default -> false;
+        };
     }
 }

@@ -1,6 +1,8 @@
 package me.ninesik.fishing.minigame;
 
 import me.ninesik.fishing.config.ConfigManager;
+import me.ninesik.fishing.fatigue.PlayerFatigueManager;
+import me.ninesik.fishing.fight.TrophyFightManager;
 import me.ninesik.fishing.model.Grade;
 import me.ninesik.fishing.model.RewardEntry;
 import me.ninesik.fishing.registry.GradeRegistry;
@@ -8,9 +10,11 @@ import me.ninesik.fishing.service.RewardService;
 import me.ninesik.fishing.session.FishingSession;
 import me.ninesik.fishing.session.FishingSessionManager;
 import me.ninesik.fishing.util.Sounds;
+import me.ninesik.fishing.util.Texts;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
+import org.bukkit.scheduler.BukkitTask;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -30,24 +34,58 @@ public class FishingMiniGame implements MiniGame {
     private final RewardService rewardService;
     private final ConfigManager configManager;
     private final GradeRegistry gradeRegistry;
+    private final PlayerFatigueManager fatigueManager;
+    private TrophyFightManager trophyFightManager;
 
     /** 플레이어별 활성 보상 (start 시 저장, stop 시 소비) */
     private final Map<UUID, RewardEntry> pendingRewards = new ConcurrentHashMap<>();
     /** 플레이어별 시간바 */
     private final Map<UUID, TimeBarMiniGame> timeBars = new ConcurrentHashMap<>();
+    /** 미니게임 OFF 자동 낚시 태스크 */
+    private final Map<UUID, BukkitTask> autoCatchTasks = new ConcurrentHashMap<>();
+    /** 자동 낚시 모드 여부 */
+    private final Map<UUID, Boolean> autoCatchMode = new ConcurrentHashMap<>();
+
+    /**
+     * 미니게임이 종료될 때(성공/실패/타임아웃/취소) 알림을 받을 콜백. FishingListener가
+     * 자신을 등록해, 종료 후 "찌를 물에 던지고 대기 중" 액션바를 이어서 표시할 수 있게 한다.
+     * (CANCEL은 퇴장/사망/월드이동 등으로 리스너 쪽에서 이미 정리한 경우이므로 콜백에서 걸러낸다.)
+     */
+    private GameEndListener gameEndListener;
+
+    /** 미니게임 종료 알림 콜백. */
+    @FunctionalInterface
+    public interface GameEndListener {
+        void onGameEnd(Player player, GameResult result, boolean wasAutoCatch);
+    }
+
+    public void setGameEndListener(GameEndListener listener) {
+        this.gameEndListener = listener;
+    }
+
+    /**
+     * Trophy Fight 시스템(패치예정.md): TrophyFightManager를 설정한다.
+     * FishingService 생성 시점에는 TrophyFightManager가 아직 없으므로,
+     * InMcFishing.onEnable()에서 생성 후 이 setter로 주입한다.
+     */
+    public void setTrophyFightManager(TrophyFightManager trophyFightManager) {
+        this.trophyFightManager = trophyFightManager;
+    }
 
     public FishingMiniGame(JavaPlugin plugin,
                            MiniGameManager gameManager,
                            FishingSessionManager sessionManager,
                            RewardService rewardService,
                            ConfigManager configManager,
-                           GradeRegistry gradeRegistry) {
+                           GradeRegistry gradeRegistry,
+                           PlayerFatigueManager fatigueManager) {
         this.plugin = plugin;
         this.gameManager = gameManager;
         this.sessionManager = sessionManager;
         this.rewardService = rewardService;
         this.configManager = configManager;
         this.gradeRegistry = gradeRegistry;
+        this.fatigueManager = fatigueManager;
     }
 
     @Override
@@ -79,12 +117,67 @@ public class FishingMiniGame implements MiniGame {
         timeBars.put(uuid, timeBar);
         timeBar.start();
 
-        // 시작 사운드
-        Sounds.play(player, configManager.getSound("control"));
+        // 입질(시작) 사운드 — 클릭 사운드(control)와는 별도로 config.yml의 sounds.bite 사용
+        Sounds.play(player, configManager.getSound("bite"));
+    }
+
+    /**
+     * 미니게임 OFF 모드: 입질 후 등급별 대기 시간이 지나면 자동으로 보상을 지급한다.
+     */
+    public void startAutoCatch(Player player, Grade grade, RewardEntry reward, int delaySeconds) {
+        if (gameManager.hasActiveGame(player)) {
+            return;
+        }
+
+        UUID uuid = player.getUniqueId();
+        pendingRewards.put(uuid, reward);
+        autoCatchMode.put(uuid, true);
+        gameManager.registerGame(player, this);
+
+        int safeDelay = Math.max(1, delaySeconds);
+        updateAutoCatchActionBar(player, grade, reward, safeDelay);
+
+        final int[] remaining = { safeDelay };
+        BukkitTask task = Bukkit.getScheduler().runTaskTimer(plugin, () -> {
+            if (!gameManager.hasActiveGame(player)) {
+                BukkitTask active = autoCatchTasks.remove(uuid);
+                if (active != null) active.cancel();
+                return;
+            }
+            remaining[0]--;
+            if (remaining[0] <= 0) {
+                stop(player, GameResult.SUCCESS);
+                return;
+            }
+            updateAutoCatchActionBar(player, grade, reward, remaining[0]);
+        }, 20L, 20L);
+        autoCatchTasks.put(uuid, task);
+
+        Sounds.play(player, configManager.getSound("bite"));
+    }
+
+    private void updateAutoCatchActionBar(Player player, Grade grade, RewardEntry reward, int secondsLeft) {
+        String fishName = reward.getFish() != null
+                ? rewardService.resolveDisplayName(reward.getFish(), null)
+                : "";
+        String fatigueStr = fatigueManager != null
+                ? String.valueOf(fatigueManager.getFatigue(player))
+                : "?";
+        String format = configManager.getAutoCatchActionBarFormat();
+        String message = Texts.apply(format, Map.of(
+                "time", String.valueOf(secondsLeft),
+                "grade", grade.getId().toUpperCase(),
+                "fish", fishName,
+                "fatigue", fatigueStr
+        ));
+        Texts.sendActionBar(player, message);
     }
 
     @Override
     public void handleInput(Player player, InputType input) {
+        if (player != null && Boolean.TRUE.equals(autoCatchMode.get(player.getUniqueId()))) {
+            return;
+        }
         if (!gameManager.hasActiveGame(player)) {
             return;
         }
@@ -137,7 +230,13 @@ public class FishingMiniGame implements MiniGame {
             return;
         }
 
-        // 시간바 정지
+        boolean wasAutoCatch = Boolean.TRUE.equals(autoCatchMode.remove(uuid));
+        BukkitTask autoTask = autoCatchTasks.remove(uuid);
+        if (autoTask != null) {
+            autoTask.cancel();
+        }
+
+        // 시간bar 정지
         TimeBarMiniGame timeBar = timeBars.remove(uuid);
         if (timeBar != null) {
             timeBar.stop();
@@ -162,18 +261,36 @@ public class FishingMiniGame implements MiniGame {
             return;
         }
 
-        // 결과 타이틀 표시 (timeBar를 직접 전달 — 이미 remove된 후이므로 맵에서 조회 불가)
-        showResultTitle(player, result, session, timeBar);
+        // 결과 타이틀 표시 (자동 낚시 모드는 액션바만 사용)
+        if (!wasAutoCatch) {
+            showResultTitle(player, result, session, timeBar);
+        }
 
         // 결과 처리 (메인 스레드 — 리스너/스케줄러 콜백이므로 이미 메인)
         switch (result) {
             case SUCCESS -> {
                 if (reward != null) {
-                    rewardService.giveReward(player, reward);
+                    // Trophy Fight 시스템(패치예정.md): 트로피/레어 트로피 물고기는
+                    // 일반 미니게임 성공 후 추가 Fight를 진행해야 최종 획득한다.
+                    if (trophyFightManager != null
+                            && (reward.isTrophy() || reward.isRareTrophy())
+                            && reward.getFish() != null
+                            && reward.getGrade() != null) {
+                        trophyFightManager.startFight(player, reward.getFish(), reward.getGrade());
+                    } else {
+                        rewardService.giveReward(player, reward);
+                    }
+                }
+                // 유저 피드백(피로도 시스템): 자동 낚시(미니게임 OFF) 성공에만 피로도를 소모한다.
+                // 일반 미니게임 낚시는 피로도와 무관하다.
+                if (wasAutoCatch && reward != null && reward.getGrade() != null && fatigueManager != null) {
+                    fatigueManager.consume(player, reward.getGrade().getId());
                 }
             }
             case FAIL, TIMEOUT -> {
-                rewardService.handleFail(player);
+                if (!wasAutoCatch) {
+                    rewardService.handleFail(player);
+                }
             }
             case CANCEL -> {
                 // 퇴장/월드이동 등 — 메시지 없이 정리만
@@ -181,6 +298,10 @@ public class FishingMiniGame implements MiniGame {
         }
 
         sessionManager.removeSession(player);
+
+        if (gameEndListener != null) {
+            gameEndListener.onGameEnd(player, result, wasAutoCatch);
+        }
     }
 
     @Override
@@ -249,8 +370,13 @@ public class FishingMiniGame implements MiniGame {
                 pendingRewards.remove(uuid);
                 TimeBarMiniGame tb = timeBars.remove(uuid);
                 if (tb != null) tb.stop();
+                BukkitTask autoTask = autoCatchTasks.remove(uuid);
+                if (autoTask != null) autoTask.cancel();
+                autoCatchMode.remove(uuid);
             }
         }
         timeBars.clear();
+        autoCatchTasks.clear();
+        autoCatchMode.clear();
     }
 }

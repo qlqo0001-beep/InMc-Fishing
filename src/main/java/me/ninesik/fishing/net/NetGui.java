@@ -77,12 +77,12 @@ public class NetGui extends AbstractGui {
 
         // 정렬 토글
         String sortName = switch (sortMode) {
-            case TYPE -> "종류";
+            case TYPE -> "이름순";
             case SIZE -> "사이즈";
             case GRADE -> "등급";
         };
         setItem(49, createIcon(Material.HOPPER, ChatColor.GOLD + "정렬: " + sortName,
-                List.of(ChatColor.GRAY + "클릭하여 변경 (종류 → 사이즈 → 등급)")));
+                List.of(ChatColor.GRAY + "클릭하여 변경 (이름순 → 사이즈 → 등급)")));
 
         // 다음 페이지
         NetData data = netManager.getNetData(player);
@@ -97,6 +97,13 @@ public class NetGui extends AbstractGui {
                     ChatColor.GOLD + "어망 사용량: " + data.size() + "/" + data.getMaxSize(),
                     List.of(ChatColor.GRAY + "물고기 클릭 시 인벤토리로 꺼냅니다.")));
         }
+
+        // 전체 꺼내기 (인벤토리 빈자리만큼)
+        setItem(51, createIcon(Material.HOPPER_MINECART, ChatColor.AQUA + "전체 꺼내기",
+                List.of(
+                        ChatColor.GRAY + "인벤토리에 빈자리가 있는 만큼",
+                        ChatColor.GRAY + "어망의 물고기를 순서대로 꺼냅니다."
+                )));
     }
 
     private ItemStack buildFishIcon(NetEntry entry) {
@@ -155,6 +162,15 @@ public class NetGui extends AbstractGui {
                     case SIZE -> NetData.SortMode.GRADE;
                     case GRADE -> NetData.SortMode.TYPE;
                 };
+                page = 0;
+                refresh();
+            } else if (slot == 51) {
+                int count = netManager.removeAll(player);
+                if (count > 0) {
+                    player.sendMessage(ChatColor.GREEN + "어망에서 물고기 " + count + "마리를 꺼냈습니다.");
+                } else {
+                    player.sendMessage(ChatColor.RED + "꺼낼 수 있는 물고기가 없거나 인벤토리에 빈자리가 없습니다.");
+                }
                 page = 0;
                 refresh();
             } else if (slot == 53) {

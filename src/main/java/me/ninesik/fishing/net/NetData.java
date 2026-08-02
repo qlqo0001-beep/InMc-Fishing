@@ -13,9 +13,9 @@ import java.util.UUID;
 public class NetData {
 
     public enum SortMode {
-        TYPE,      // 종류 (fishId 기준)
+        TYPE,      // 이름순 (fishId 기준 오름차순)
         SIZE,      // 사이즈 (내림차순)
-        GRADE      // 등급 (등급 순)
+        GRADE      // 등급 순 (F→S)
     }
 
     private static final int DEFAULT_MAX_SIZE = 100;
@@ -79,7 +79,26 @@ public class NetData {
         switch (mode) {
             case TYPE -> entries.sort(Comparator.comparing(NetEntry::getFishId));
             case SIZE -> entries.sort(Comparator.comparingDouble(NetEntry::getSize).reversed());
-            case GRADE -> entries.sort(Comparator.comparing(NetEntry::getGradeId));
+            // gradeId 문자열을 그대로 비교하면 "a,b,c,d,e,f,s" 순으로 정렬되어
+            // 실제 등급 순서(F<E<D<C<B<A<S)와 어긋나므로 등급 순위로 비교한다.
+            case GRADE -> entries.sort(Comparator.comparingInt(e -> gradeRank(e.getGradeId())));
         }
+    }
+
+    /**
+     * 등급 ID를 F(0)~S(6) 순위로 변환한다. 알 수 없는 등급은 가장 낮은 순위로 취급한다.
+     */
+    private static int gradeRank(String gradeId) {
+        if (gradeId == null) return -1;
+        return switch (gradeId.toLowerCase()) {
+            case "f" -> 0;
+            case "e" -> 1;
+            case "d" -> 2;
+            case "c" -> 3;
+            case "b" -> 4;
+            case "a" -> 5;
+            case "s" -> 6;
+            default -> -1;
+        };
     }
 }

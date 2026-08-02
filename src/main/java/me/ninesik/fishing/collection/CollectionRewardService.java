@@ -122,6 +122,13 @@ public class CollectionRewardService {
 
     private boolean claimTrophy(Player player, CollectionEntry entry, String type,
                                  List<String> commands, Fish fish, double size) {
+        // 트로피 획득 횟수 증가 (일반/레어 독립 관리)
+        if ("rare".equals(type)) {
+            entry.incrementRareTrophyCount();
+        } else {
+            entry.incrementTrophyCount();
+        }
+
         if (commands.isEmpty()) {
             entry.markRewardClaimed("trophy-" + type);
             return true;
@@ -136,6 +143,33 @@ public class CollectionRewardService {
             return true;
         }
         return false;
+    }
+
+    /**
+     * 특정 물고기의 슬롯이 전부 채워졌을 때(퍼펙트) 1회 보상을 지급한다.
+     * registerFish()에서 등록 직후 호출한다. 물고기별 rewardsClaimed 플래그로
+     * 영구 추적되므로, 이후 회수(unregisterFish)로 슬롯이 줄었다가 다시 채워도
+     * 중복 지급되지 않는다.
+     */
+    public void processSlotCompletionReward(Player player, CollectionEntry entry) {
+        if (!autoClaim) return;
+        if (entry.isSlotCompletionRewardClaimed()) return;
+        if (!entry.isPerfect()) return;
+
+        List<String> commands = getStringList("rewards.slot-completion." + entry.getFishId());
+        if (commands.isEmpty()) {
+            entry.markRewardClaimed("slot-completion");
+            return;
+        }
+
+        if (claimNow(player, commands)) {
+            entry.markRewardClaimed("slot-completion");
+        } else {
+            addPendingReward(dataOf(player), "slot-completion-" + entry.getFishId(), commands);
+            // 대기 중에도 재지급을 막기 위해 즉시 클레임 처리한다 (isClaimed()가 pending도 체크하지만,
+            // pending 항목이 나중에 지급된 뒤에는 claimed 플래그가 없어 재조건 충족 시 다시 큐잉될 수 있으므로 명시적으로 표시)
+            entry.markRewardClaimed("slot-completion");
+        }
     }
 
     private void processFirstRegisterReward(Player player, CollectionEntry entry) {

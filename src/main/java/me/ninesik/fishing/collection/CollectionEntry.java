@@ -34,6 +34,10 @@ public class CollectionEntry {
     // 등록된 각 슬롯의 물고기 사이즈 (등록 순서대로 저장, 해제 시 LIFO)
     private final List<Double> registeredSizes = new ArrayList<>();
 
+    // 트로피 획득 횟수 (일반/레어 독립 관리)
+    private int trophyCount;
+    private int rareTrophyCount;
+
     private CollectionEntry(Builder b) {
         this.fishId = b.fishId;
         this.gradeId = b.gradeId;
@@ -48,6 +52,8 @@ public class CollectionEntry {
                 : new HashMap<>();
         this.smallestSize = b.smallestSize;
         this.largestSize = b.largestSize;
+        this.trophyCount = b.trophyCount;
+        this.rareTrophyCount = b.rareTrophyCount;
     }
 
     public String getFishId() { return fishId; }
@@ -61,6 +67,8 @@ public class CollectionEntry {
     public Map<String, Boolean> getRewardsClaimed() { return rewardsClaimed; }
     public double getSmallestSize() { return smallestSize; }
     public double getLargestSize() { return largestSize; }
+    public int getTrophyCount() { return trophyCount; }
+    public int getRareTrophyCount() { return rareTrophyCount; }
 
     public void setStatus(Status status) { this.status = status; }
     public void setDiscovered(boolean discovered) { this.discovered = discovered; }
@@ -71,6 +79,22 @@ public class CollectionEntry {
     public void setGradeId(String gradeId) { /* gradeId는 final이 아닌 경우에만 사용 */ }
     public void setSmallestSize(double smallestSize) { this.smallestSize = smallestSize; }
     public void setLargestSize(double largestSize) { this.largestSize = largestSize; }
+    public void setTrophyCount(int trophyCount) { this.trophyCount = trophyCount; }
+    public void setRareTrophyCount(int rareTrophyCount) { this.rareTrophyCount = rareTrophyCount; }
+
+    /**
+     * 일반 트로피 획득 횟수를 증가시킨다.
+     */
+    public void incrementTrophyCount() {
+        this.trophyCount++;
+    }
+
+    /**
+     * 레어 트로피 획득 횟수를 증가시킨다.
+     */
+    public void incrementRareTrophyCount() {
+        this.rareTrophyCount++;
+    }
 
     public void incrementRegisteredSlots() {
         this.registeredSlots++;
@@ -142,6 +166,14 @@ public class CollectionEntry {
         return rewardsClaimed.getOrDefault("first-register", false);
     }
 
+    /**
+     * 이 물고기의 슬롯 완료(퍼펙트) 보상을 이미 받았는지 여부.
+     * 회수(unregisterFish) 후 다시 채워도 이 플래그는 유지되므로 재지급되지 않는다.
+     */
+    public boolean isSlotCompletionRewardClaimed() {
+        return rewardsClaimed.getOrDefault("slot-completion", false);
+    }
+
     public boolean isMilestoneRewardClaimed(int milestone) {
         return rewardsClaimed.getOrDefault("milestone-" + milestone, false);
     }
@@ -168,6 +200,8 @@ public class CollectionEntry {
         private Map<String, Boolean> rewardsClaimed;
         private double smallestSize = 0.0;
         private double largestSize = 0.0;
+        private int trophyCount = 0;
+        private int rareTrophyCount = 0;
 
         public Builder fishId(String v) { fishId = v; return this; }
         public Builder gradeId(String v) { gradeId = v; return this; }
@@ -180,6 +214,8 @@ public class CollectionEntry {
         public Builder rewardsClaimed(Map<String, Boolean> v) { rewardsClaimed = v; return this; }
         public Builder smallestSize(double v) { smallestSize = v; return this; }
         public Builder largestSize(double v) { largestSize = v; return this; }
+        public Builder trophyCount(int v) { trophyCount = v; return this; }
+        public Builder rareTrophyCount(int v) { rareTrophyCount = v; return this; }
 
         public CollectionEntry build() {
             if (fishId == null || fishId.isEmpty())

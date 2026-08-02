@@ -68,6 +68,10 @@ public class FishLoader {
                     double avgSize = itemSection.getDouble("avg-size", 0.0);
                     if (avgSize <= 0) avgSize = (minSize + maxSize) / 2.0;
 
+                    // 피로도 회복 물약: fatigue-recovery가 0보다 크면 물약으로 취급된다.
+                    // 아이템 자체에서 회복량을 설정한다 (config가 아닌 items/*.yml의 fatigue-recovery 필드).
+                    int fatigueRecovery = itemSection.getInt("fatigue-recovery", 0);
+
                     Fish fish = Fish.builder()
                             .id(id)
                             .useType(useType)
@@ -84,6 +88,7 @@ public class FishLoader {
                             .maxSize(maxSize)
                             .avgSize(avgSize)
                             .customModelData(itemSection.getInt("custom-model-data", 0))
+                            .fatigueRecovery(fatigueRecovery)
                             .build();
 
                     fishMap.put(id, fish);

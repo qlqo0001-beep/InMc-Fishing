@@ -53,4 +53,25 @@ public final class Texts {
         }
         return result;
     }
+
+    /**
+     * 플레이어 액션바에 메시지를 표시한다.
+     */
+    public static void sendActionBar(org.bukkit.entity.Player player, String message) {
+        if (player == null || message == null || message.isEmpty()) {
+            return;
+        }
+        String colored = colorize(message);
+        try {
+            net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer legacy =
+                    net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer.legacySection();
+            player.sendActionBar(legacy.deserialize(colored));
+        } catch (Throwable t) {
+            try {
+                player.spigot().sendMessage(net.md_5.bungee.api.ChatMessageType.ACTION_BAR,
+                        net.md_5.bungee.api.chat.TextComponent.fromLegacyText(colored));
+            } catch (Throwable ignored) {
+            }
+        }
+    }
 }
