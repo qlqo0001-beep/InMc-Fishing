@@ -1,0 +1,159 @@
+# ============================================================
+#  B등급 아이템 목록
+#  상위 등급, 전설급 물고기가 낚입니다.
+# ============================================================
+grade-settings:
+  input-count: 7
+  time-seconds: 3.5
+  weight: 4
+
+items:
+  megalodon:
+    id: "megalodon"
+    use-type: vanilla
+    vanilla-material: COD
+    vanilla-name: "&5메갈로돈"
+    vanilla-lore:
+      - "&7고대의 거대 상어 메갈로돈입니다."
+    min-size: 500.0
+    max-size: 2000.0
+    avg-size: 1200.0
+    custom-model-data: 5001
+    weight: 20
+    double-enabled: false
+    commands: []
+
+  kraken_tentacle:
+    id: "kraken_tentacle"
+    use-type: vanilla
+    vanilla-material: SALMON
+    vanilla-name: "&5크라켄 촉수"
+    vanilla-lore:
+      - "&7크라켄의 거대한 촉수입니다."
+    min-size: 300.0
+    max-size: 1500.0
+    avg-size: 800.0
+    custom-model-data: 5002
+    weight: 16
+    double-enabled: false
+    commands: []
+
+  leviathan:
+    id: "leviathan"
+    use-type: vanilla
+    vanilla-material: COD
+    vanilla-name: "&5리바이어던"
+    vanilla-lore:
+      - "&7심해의 괴수 리바이어던입니다."
+    min-size: 400.0
+    max-size: 1800.0
+    avg-size: 1000.0
+    custom-model-data: 5003
+    weight: 14
+    double-enabled: false
+    commands: []
+
+  ghost_whale:
+    id: "ghost_whale"
+    use-type: vanilla
+    vanilla-material: COD
+    vanilla-name: "&5유령 고래"
+    vanilla-lore:
+      - "&7투명하게 빛나는 유령 고래입니다."
+    min-size: 300.0
+    max-size: 1200.0
+    avg-size: 700.0
+    custom-model-data: 5004
+    weight: 12
+    double-enabled: false
+    commands: []
+
+  dragon_fish:
+    id: "dragon_fish"
+    use-type: vanilla
+    vanilla-material: TROPICAL_FISH
+    vanilla-name: "&5용어"
+    vanilla-lore:
+      - "&7용의 피를 이은 물고기입니다."
+    min-size: 50.0
+    max-size: 200.0
+    avg-size: 100.0
+    custom-model-data: 5005
+    weight: 10
+    double-enabled: false
+    commands: []
+
+  abyssal_shark:
+    id: "abyssal_shark"
+    use-type: vanilla
+    vanilla-material: COD
+    vanilla-name: "&5심해 상어"
+    vanilla-lore:
+      - "&7심해의 끝에서 온 상어입니다."
+    min-size: 200.0
+    max-size: 800.0
+    avg-size: 450.0
+    custom-model-data: 5006
+    weight: 8
+    double-enabled: false
+    commands: []
+
+  titan_grouper:
+    id: "titan_grouper"
+    use-type: vanilla
+    vanilla-material: COD
+    vanilla-name: "&5타이탄 다금바리"
+    vanilla-lore:
+      - "&7산만큼 큰 다금바리입니다."
+    min-size: 100.0
+    max-size: 500.0
+    avg-size: 250.0
+    custom-model-data: 5007
+    weight: 6
+    double-enabled: false
+    commands: []
+
+  void_eel:
+    id: "void_eel"
+    use-type: vanilla
+    vanilla-material: SALMON
+    vanilla-name: "&5공허 장어"
+    vanilla-lore:
+      - "&7공허에서 떠돌아다니는 장어입니다."
+    min-size: 100.0
+    max-size: 600.0
+    avg-size: 300.0
+    custom-model-data: 5008
+    weight: 5
+    double-enabled: false
+    commands: []
+
+  ancient_sturgeon:
+    id: "ancient_sturgeon"
+    use-type: vanilla
+    vanilla-material: COD
+    vanilla-name: "&5고대 철갑상어"
+    vanilla-lore:
+      - "&7천 년을 산 철갑상어입니다."
+    min-size: 200.0
+    max-size: 700.0
+    avg-size: 400.0
+    custom-model-data: 5009
+    weight: 3
+    double-enabled: false
+    commands: []
+
+  ruby_koi:
+    id: "ruby_koi"
+    use-type: vanilla
+    vanilla-material: TROPICAL_FISH
+    vanilla-name: "&5루비 비단잉어"
+    vanilla-lore:
+      - "&7루비처럼 붉게 빛나는 비단잉어입니다."
+    min-size: 30.0
+    max-size: 80.0
+    avg-size: 50.0
+    custom-model-data: 5010
+    weight: 1
+    double-enabled: false
+    commands: []

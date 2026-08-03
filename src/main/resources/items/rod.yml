@@ -1,0 +1,280 @@
+# ============================================================
+#  낚싯대(Rod) 설정 파일
+#  플러그인에서 인식하는 낚싯대의 종류와 보너스 설정
+# ============================================================
+#
+# 각 낚싯대는 고유 ID로 식별됩니다. 모든 낚싯대는 바닐라(vanilla) 타입이며,
+# 이름(vanilla-name)이 정확히 일치하는 FISHING_ROD를 들고 있으면 해당 설정이 적용됩니다.
+# (& 색상코드는 자동 변환됩니다: &a = 초록)
+#
+# [use-type 종류]
+#   vanilla   - 바닐라 FISHING_ROD에 커스텀 이름/로어를 붙여 사용 (기본)
+#
+# [속성 설명]
+#   id:                   낚싯대 식별자 (내부용)
+#   use-type:             vanilla
+#   vanilla-material:     아이템 종류 (보통 FISHING_ROD)
+#   vanilla-name:         아이템에 표시될 이름 (& 색상코드 사용 가능) — 낚싯대 인식 기준
+#   vanilla-lore:         아이템 설명 (& 색상코드 사용 가능, 여러 줄 가능)
+#
+#   bonus:                등급별 추가 가중치 (음수 = 감소)
+#     F: 5    → F등급이 나올 확률에 +5 추가
+#     E: 2    → E등급이 나올 확률에 +2 추가
+#   double-chance-bonus:  더블 보너스 확률 추가 (%)
+#   big-fish-chance-bonus: 대어 확률 추가 (%)
+#
+#   options:              낚싯대 옵션 (없으면 0/보너스 없음, 모두 선택 사항)
+#     max-fatigue:        이 낚싯대를 들고 있는 동안 최대 피로도를 이 값만큼 늘려준다
+#                         (기본 최대 피로도 + 이 값, config 절대 상한은 넘지 못함)
+#     fatigue-recovery:   이 낚싯대를 들고 있는 동안 자연 회복 1회당 고정값을 추가로 회복
+#                         (기본 회복 200 + 이 값 50 = 250)
+#     reel-power:         트로피 파이트: 기본(30) + 이 값 으로 릴 파워가 결정된다 (추가값).
+#                         높을수록 물고기 체력(Stamina)을 빠르게 지치게 만듦
+#     line-strength:      트로피 파이트: 기본(100) + 이 값 으로 낚싯줄 최대 장력(Tension)이 결정 (추가값)
+#     reel-durability:    트로피 파이트: 기본(30) + 이 값 으로 릴 내구도가 결정 (추가값).
+#                         높을수록 릴 상태(Reel State)가 느리게 감소
+#
+# 밸런스 기준: 기본(보너스 0) 낚싯대로 D등급은 어려움, E등급은 노력하면 가능, F는 쉬움.
+# 아래 10종은 1번(≈기본) → 10번(최상위) 순으로 상위 등급 확률·Fight 성능·피로도가 강해지는 사다리.
+# ============================================================
+rods:
+
+  # 1. 낡은 나무 낚싯대 — 가장 기본 (기본 낚싯대와 거의 동일, D등급 어려움)
+  weathered_rod:
+    id: "weathered_rod"
+    use-type: vanilla
+    vanilla-material: FISHING_ROD
+    vanilla-name: "&7낡은 나무 낚싯대"
+    vanilla-lore:
+      - "&7오래돼서 금이 간 낚싯대입니다."
+    bonus:
+      F: 2
+      E: 1
+      D: 0
+      C: 0
+      B: 0
+      A: 0
+      S: 0
+    double-chance-bonus: 0.0
+    big-fish-chance-bonus: 0.0
+
+  # 2. 평범한 낚싯대
+  basic_rod:
+    id: "basic_rod"
+    use-type: vanilla
+    vanilla-material: FISHING_ROD
+    vanilla-name: "&7평범한 낚싯대"
+    vanilla-lore:
+      - "&7누구나 쉽게 구할 수 있는 낚싯대입니다."
+    bonus:
+      F: 1
+      E: 2
+      D: 1
+      C: 0
+      B: 0
+      A: 0
+      S: 0
+    double-chance-bonus: 0.0
+    big-fish-chance-bonus: 0.0
+    options:
+      reel-power: 5.0
+      line-strength: 10.0
+      reel-durability: 5.0
+
+  # 3. 대나무 낚싯대
+  bamboo_rod:
+    id: "bamboo_rod"
+    use-type: vanilla
+    vanilla-material: FISHING_ROD
+    vanilla-name: "&a대나무 낚싯대"
+    vanilla-lore:
+      - "&7가볍고 튼튼한 대나무로 만든 낚싯대입니다."
+    bonus:
+      F: -1
+      E: 2
+      D: 2
+      C: 1
+      B: 0
+      A: 0
+      S: 0
+    double-chance-bonus: 0.3
+    big-fish-chance-bonus: 0.0
+    options:
+      reel-power: 10.0
+      line-strength: 20.0
+      reel-durability: 10.0
+
+  # 4. 철 낚싯대
+  iron_rod:
+    id: "iron_rod"
+    use-type: vanilla
+    vanilla-material: FISHING_ROD
+    vanilla-name: "&f철 낚싯대"
+    vanilla-lore:
+      - "&7단단한 철로 제작된 낚싯대입니다."
+    bonus:
+      F: -3
+      E: 2
+      D: 2
+      C: 1
+      B: 1
+      A: 0
+      S: 0
+    double-chance-bonus: 0.5
+    big-fish-chance-bonus: 0.3
+    options:
+      reel-power: 15.0
+      line-strength: 30.0
+      reel-durability: 15.0
+      max-fatigue: 100
+
+  # 5. 금 낚싯대
+  gold_rod:
+    id: "gold_rod"
+    use-type: vanilla
+    vanilla-material: FISHING_ROD
+    vanilla-name: "&6금 낚싯대"
+    vanilla-lore:
+      - "&7금으로 만든 화려한 낚싯대입니다."
+    bonus:
+      F: -5
+      E: 1
+      D: 3
+      C: 2
+      B: 1
+      A: 1
+      S: 0
+    double-chance-bonus: 0.8
+    big-fish-chance-bonus: 0.5
+    options:
+      reel-power: 20.0
+      line-strength: 40.0
+      reel-durability: 20.0
+      max-fatigue: 200
+      fatigue-recovery: 20
+
+  # 6. 흑요석 낚싯대
+  obsidian_rod:
+    id: "obsidian_rod"
+    use-type: vanilla
+    vanilla-material: FISHING_ROD
+    vanilla-name: "&1흑요석 낚싯대"
+    vanilla-lore:
+      - "&7흑요석으로 단단하게 만든 낚싯대입니다."
+    bonus:
+      F: -7
+      E: -1
+      D: 3
+      C: 2
+      B: 2
+      A: 1
+      S: 1
+    double-chance-bonus: 1.0
+    big-fish-chance-bonus: 0.7
+    options:
+      reel-power: 25.0
+      line-strength: 50.0
+      reel-durability: 25.0
+      max-fatigue: 300
+      fatigue-recovery: 40
+
+  # 7. 고급 낚싯대
+  advanced_rod:
+    id: "advanced_rod"
+    use-type: vanilla
+    vanilla-material: FISHING_ROD
+    vanilla-name: "&a고급 낚싯대"
+    vanilla-lore:
+      - "&7고급 낚싯대입니다."
+    bonus:
+      F: -10
+      E: -3
+      D: 4
+      C: 3
+      B: 2
+      A: 2
+      S: 1
+    double-chance-bonus: 1.2
+    big-fish-chance-bonus: 0.8
+    options:
+      reel-power: 30.0
+      line-strength: 60.0
+      reel-durability: 30.0
+      max-fatigue: 400
+      fatigue-recovery: 60
+
+  # 8. 마스터 낚싯대
+  master_rod:
+    id: "master_rod"
+    use-type: vanilla
+    vanilla-material: FISHING_ROD
+    vanilla-name: "&6마스터 낚싯대"
+    vanilla-lore:
+      - "&7최고급 낚싯대입니다."
+      - "&7희귀한 물고기를 낚을 확률이 높습니다."
+    bonus:
+      F: -13
+      E: -5
+      D: 4
+      C: 4
+      B: 3
+      A: 2
+      S: 2
+    double-chance-bonus: 1.5
+    big-fish-chance-bonus: 1.0
+    options:
+      reel-power: 40.0
+      line-strength: 70.0
+      reel-durability: 40.0
+      max-fatigue: 500
+      fatigue-recovery: 80
+
+  # 9. 신화 낚싯대
+  mythic_rod:
+    id: "mythic_rod"
+    use-type: vanilla
+    vanilla-material: FISHING_ROD
+    vanilla-name: "&d신화 낚싯대"
+    vanilla-lore:
+      - "&7전설 속에서만 존재한다는 낚싯대입니다."
+    bonus:
+      F: -16
+      E: -7
+      D: 5
+      C: 4
+      B: 4
+      A: 3
+      S: 3
+    double-chance-bonus: 1.8
+    big-fish-chance-bonus: 1.2
+    options:
+      reel-power: 50.0
+      line-strength: 80.0
+      reel-durability: 50.0
+      max-fatigue: 600
+      fatigue-recovery: 100
+
+  # 10. 전설 낚싯대 — 최상위
+  legendary_rod:
+    id: "legendary_rod"
+    use-type: vanilla
+    vanilla-material: FISHING_ROD
+    vanilla-name: "&c전설 낚싯대"
+    vanilla-lore:
+      - "&7모든 어부의 꿈, 전설의 낚싯대입니다."
+    bonus:
+      F: -20
+      E: -9
+      D: 6
+      C: 5
+      B: 5
+      A: 4
+      S: 4
+    double-chance-bonus: 2.5
+    big-fish-chance-bonus: 1.5
+    options:
+      reel-power: 60.0
+      line-strength: 100.0
+      reel-durability: 60.0
+      max-fatigue: 800
+      fatigue-recovery: 150

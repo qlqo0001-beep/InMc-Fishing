@@ -1,0 +1,168 @@
+# ============================================================
+#  F등급 아이템 목록
+#  가장 낮은 등급으로, 가장 자주 낚입니다.
+#  구성: 기본 물고기 7종 + 쓰레기/광물 3종
+#
+# [새로운 속성]
+#   min-size:       최소 사이즈 (cm). 0이면 사이즈 없음(쓰레기/광물)
+#   max-size:       최대 사이즈 (cm)
+#   avg-size:       평균 사이즈 (cm). 미지정 시 (min+max)/2
+#   custom-model-data: 리소스팩 커스텀 모델 번호
+# ============================================================
+grade-settings:
+  input-count: 3
+  time-seconds: 5.0
+  weight: 45
+
+items:
+  cod:
+    id: "cod"
+    use-type: vanilla
+    vanilla-material: COD
+    vanilla-name: "&3생대구"
+    vanilla-lore:
+      - "&7신선한 생대구입니다."
+    min-size: 10.0
+    max-size: 80.0
+    avg-size: 35.0
+    custom-model-data: 1001
+    weight: 20
+    double-enabled: true
+    commands: []
+
+  salmon:
+    id: "salmon"
+    use-type: vanilla
+    vanilla-material: SALMON
+    vanilla-name: "&3연어"
+    vanilla-lore:
+      - "&7신선한 연어입니다."
+    min-size: 20.0
+    max-size: 100.0
+    avg-size: 50.0
+    custom-model-data: 1002
+    weight: 18
+    double-enabled: true
+    commands: []
+
+  tropical_fish:
+    id: "tropical_fish"
+    use-type: vanilla
+    vanilla-material: TROPICAL_FISH
+    vanilla-name: "&3엽대어"
+    vanilla-lore:
+      - "&7알록달록한 엽대어입니다."
+    min-size: 5.0
+    max-size: 25.0
+    avg-size: 12.0
+    custom-model-data: 1003
+    weight: 14
+    double-enabled: true
+    commands: []
+
+  mackerel:
+    id: "mackerel"
+    use-type: vanilla
+    vanilla-material: COD
+    vanilla-name: "&3고등어"
+    vanilla-lore:
+      - "&7은빛 고등어입니다."
+    min-size: 15.0
+    max-size: 60.0
+    avg-size: 30.0
+    custom-model-data: 1004
+    weight: 12
+    double-enabled: true
+    commands: []
+
+  carp:
+    id: "carp"
+    use-type: vanilla
+    vanilla-material: COD
+    vanilla-name: "&3잉어"
+    vanilla-lore:
+      - "&7잉어입니다."
+    min-size: 20.0
+    max-size: 90.0
+    avg-size: 45.0
+    custom-model-data: 1005
+    weight: 10
+    double-enabled: true
+    commands: []
+
+  catfish:
+    id: "catfish"
+    use-type: vanilla
+    vanilla-material: COD
+    vanilla-name: "&3메기"
+    vanilla-lore:
+      - "&7수염이 달린 메기입니다."
+    min-size: 15.0
+    max-size: 120.0
+    avg-size: 50.0
+    custom-model-data: 1006
+    weight: 8
+    double-enabled: true
+    commands: []
+
+  bass:
+    id: "bass"
+    use-type: vanilla
+    vanilla-material: COD
+    vanilla-name: "&3배스"
+    vanilla-lore:
+      - "&7민물의 왕 배스입니다."
+    min-size: 20.0
+    max-size: 70.0
+    avg-size: 40.0
+    custom-model-data: 1007
+    weight: 5
+    double-enabled: true
+    commands: []
+
+  # 쓰레기/광물 (사이즈 시스템 대상 아님)
+  old_boot:
+    id: "old_boot"
+    use-type: vanilla
+    vanilla-material: LEATHER_BOOTS
+    vanilla-name: "&8낡은 장화"
+    vanilla-lore:
+      - "&7누군가 잃어버린 것 같습니다."
+      - "&7도감에 등록할 수 있습니다."
+    min-size: 0.0
+    max-size: 0.0
+    avg-size: 0.0
+    custom-model-data: 1008
+    weight: 4
+    double-enabled: false
+    commands: []
+
+  coal:
+    id: "coal"
+    use-type: vanilla
+    vanilla-material: COAL
+    vanilla-name: "&8석탄"
+    vanilla-lore:
+      - "&7바닥에서 툭 떨어진 석탄입니다."
+    min-size: 0.0
+    max-size: 0.0
+    avg-size: 0.0
+    custom-model-data: 1009
+    weight: 3
+    double-enabled: false
+    commands: []
+
+  bone:
+    id: "bone"
+    use-type: vanilla
+    vanilla-material: BONE
+    vanilla-name: "&8뼈"
+    vanilla-lore:
+      - "&7누군가의 뼈 조각입니다."
+    min-size: 0.0
+    max-size: 0.0
+    avg-size: 0.0
+    custom-model-data: 1010
+    weight: 1
+    double-enabled: false
+    commands: []

@@ -1,0 +1,25 @@
+name: InMc-Fishing
+version: '1.0.0'
+main: me.ninesik.fishing.InMcFishing
+description: Java 25 / Paper 26.2 기반 낚시 플러그인 (등급별 미니게임, 도감, 대회)
+author: NineSik
+api-version: '1.21'
+aliases: [IF]
+
+softdepend: [MMOItems, PlaceholderAPI, Vault, WorldGuard, ProtocolLib]
+
+commands:
+  fishing:
+    description: InMc-Fishing 관리자/유저 명령어
+    usage: /<command> [reload|debug|simulate|info|collection|rank|tournament|give|list|...]
+    aliases: [if, 낚시]
+
+permissions:
+  infishing.user:
+    description: InMc-Fishing 일반 유저 명령어 권한
+    default: true
+  infishing.admin:
+    description: InMc-Fishing 관리자 명령어 권한
+    default: op
+    children:
+      infishing.user: true

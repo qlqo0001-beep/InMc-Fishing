@@ -1,0 +1,159 @@
+# ============================================================
+#  E등급 아이템 목록
+#  F등급보다 한 단계 높은 등급, 중형 물고기가 낚입니다.
+# ============================================================
+grade-settings:
+  input-count: 4
+  time-seconds: 4.5
+  weight: 25
+
+items:
+  pufferfish:
+    id: "pufferfish"
+    use-type: vanilla
+    vanilla-material: PUFFERFISH
+    vanilla-name: "&b복어"
+    vanilla-lore:
+      - "&7독이 있는 복어입니다."
+    min-size: 10.0
+    max-size: 40.0
+    avg-size: 20.0
+    custom-model-data: 2001
+    weight: 20
+    double-enabled: true
+    commands: []
+
+  cod_rare:
+    id: "cod_rare"
+    use-type: vanilla
+    vanilla-material: COD
+    vanilla-name: "&b큰 생대구"
+    vanilla-lore:
+      - "&7평소보다 큰 생대구입니다."
+    min-size: 40.0
+    max-size: 120.0
+    avg-size: 70.0
+    custom-model-data: 2002
+    weight: 16
+    double-enabled: true
+    commands: []
+
+  salmon_rare:
+    id: "salmon_rare"
+    use-type: vanilla
+    vanilla-material: SALMON
+    vanilla-name: "&b큰 연어"
+    vanilla-lore:
+      - "&7평소보다 큰 연어입니다."
+    min-size: 50.0
+    max-size: 130.0
+    avg-size: 80.0
+    custom-model-data: 2003
+    weight: 14
+    double-enabled: true
+    commands: []
+
+  bluefish:
+    id: "bluefish"
+    use-type: vanilla
+    vanilla-material: COD
+    vanilla-name: "&b방어"
+    vanilla-lore:
+      - "&7은빛 방어입니다."
+    min-size: 30.0
+    max-size: 100.0
+    avg-size: 60.0
+    custom-model-data: 2004
+    weight: 12
+    double-enabled: true
+    commands: []
+
+  halibut:
+    id: "halibut"
+    use-type: vanilla
+    vanilla-material: COD
+    vanilla-name: "&b넙치"
+    vanilla-lore:
+      - "&7넓은 몸의 넙치입니다."
+    min-size: 25.0
+    max-size: 90.0
+    avg-size: 50.0
+    custom-model-data: 2005
+    weight: 10
+    double-enabled: true
+    commands: []
+
+  squid:
+    id: "squid"
+    use-type: vanilla
+    vanilla-material: COD
+    vanilla-name: "&b오징어"
+    vanilla-lore:
+      - "&7촉수가 살아 움직입니다."
+    min-size: 15.0
+    max-size: 50.0
+    avg-size: 30.0
+    custom-model-data: 2006
+    weight: 8
+    double-enabled: true
+    commands: []
+
+  octopus:
+    id: "octopus"
+    use-type: vanilla
+    vanilla-material: COD
+    vanilla-name: "&b문어"
+    vanilla-lore:
+      - "&7똑똑한 문어입니다."
+    min-size: 20.0
+    max-size: 80.0
+    avg-size: 40.0
+    custom-model-data: 2007
+    weight: 6
+    double-enabled: true
+    commands: []
+
+  sea_bream:
+    id: "sea_bream"
+    use-type: vanilla
+    vanilla-material: COD
+    vanilla-name: "&b도미"
+    vanilla-lore:
+      - "&7붉은 등빛의 도미입니다."
+    min-size: 20.0
+    max-size: 70.0
+    avg-size: 40.0
+    custom-model-data: 2008
+    weight: 5
+    double-enabled: true
+    commands: []
+
+  yellowtail:
+    id: "yellowtail"
+    use-type: vanilla
+    vanilla-material: SALMON
+    vanilla-name: "&b부레"
+    vanilla-lore:
+      - "&7노란 꼬리의 부레입니다."
+    min-size: 40.0
+    max-size: 120.0
+    avg-size: 70.0
+    custom-model-data: 2009
+    weight: 3
+    double-enabled: true
+    commands: []
+
+  phantom_eel:
+    id: "phantom_eel"
+    use-type: vanilla
+    vanilla-material: SALMON
+    vanilla-name: "&b유령 장어"
+    vanilla-lore:
+      - "&7희미하게 빛나는 장어입니다."
+    min-size: 50.0
+    max-size: 200.0
+    avg-size: 100.0
+    custom-model-data: 2010
+    weight: 1
+    double-enabled: true
+    commands: []

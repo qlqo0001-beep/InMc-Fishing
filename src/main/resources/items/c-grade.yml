@@ -1,0 +1,159 @@
+# ============================================================
+#  C등급 아이템 목록
+#  중상위 등급, 희귀한 물고기가 낚입니다.
+# ============================================================
+grade-settings:
+  input-count: 6
+  time-seconds: 3.8
+  weight: 8
+
+items:
+  whale_small:
+    id: "whale_small"
+    use-type: vanilla
+    vanilla-material: COD
+    vanilla-name: "&a작은 고래"
+    vanilla-lore:
+      - "&7고래의 새끼입니다."
+    min-size: 200.0
+    max-size: 800.0
+    avg-size: 450.0
+    custom-model-data: 4001
+    weight: 18
+    double-enabled: true
+    commands: []
+
+  giant_squid:
+    id: "giant_squid"
+    use-type: vanilla
+    vanilla-material: COD
+    vanilla-name: "&a거대 오징어"
+    vanilla-lore:
+      - "&7심해의 거대 오징어입니다."
+    min-size: 100.0
+    max-size: 500.0
+    avg-size: 250.0
+    custom-model-data: 4002
+    weight: 16
+    double-enabled: true
+    commands: []
+
+  manta_ray:
+    id: "manta_ray"
+    use-type: vanilla
+    vanilla-material: COD
+    vanilla-name: "&a만타가오리"
+    vanilla-lore:
+      - "&7우아하게 헤엄치는 만타가오리입니다."
+    min-size: 100.0
+    max-size: 400.0
+    avg-size: 200.0
+    custom-model-data: 4003
+    weight: 14
+    double-enabled: true
+    commands: []
+
+  electric_eel:
+    id: "electric_eel"
+    use-type: vanilla
+    vanilla-material: SALMON
+    vanilla-name: "&a전기뱀장어"
+    vanilla-lore:
+      - "&7전기를 낿는 장어입니다."
+    min-size: 50.0
+    max-size: 200.0
+    avg-size: 120.0
+    custom-model-data: 4004
+    weight: 12
+    double-enabled: true
+    commands: []
+
+  piranha_king:
+    id: "piranha_king"
+    use-type: vanilla
+    vanilla-material: TROPICAL_FISH
+    vanilla-name: "&a피라니아 왕"
+    vanilla-lore:
+      - "&7모든 피라니아를 다스리는 왕입니다."
+    min-size: 15.0
+    max-size: 40.0
+    avg-size: 25.0
+    custom-model-data: 4005
+    weight: 10
+    double-enabled: true
+    commands: []
+
+  anglerfish:
+    id: "anglerfish"
+    use-type: vanilla
+    vanilla-material: COD
+    vanilla-name: "&a아귀"
+    vanilla-lore:
+      - "&7등불을 든 심해의 아귀입니다."
+    min-size: 20.0
+    max-size: 100.0
+    avg-size: 50.0
+    custom-model-data: 4006
+    weight: 8
+    double-enabled: true
+    commands: []
+
+  coelacanth:
+    id: "coelacanth"
+    use-type: vanilla
+    vanilla-material: COD
+    vanilla-name: "&a실러캔스"
+    vanilla-lore:
+      - "&7살아있는 화석 실러캔스입니다."
+    min-size: 80.0
+    max-size: 200.0
+    avg-size: 130.0
+    custom-model-data: 4007
+    weight: 6
+    double-enabled: true
+    commands: []
+
+  oarfish:
+    id: "oarfish"
+    use-type: vanilla
+    vanilla-material: SALMON
+    vanilla-name: "&a산갈치"
+    vanilla-lore:
+      - "&7용궁의 사신이라 불리는 산갈치입니다."
+    min-size: 200.0
+    max-size: 800.0
+    avg-size: 400.0
+    custom-model-data: 4008
+    weight: 5
+    double-enabled: true
+    commands: []
+
+  sunfish:
+    id: "sunfish"
+    use-type: vanilla
+    vanilla-material: COD
+    vanilla-name: "&a개복치"
+    vanilla-lore:
+      - "&7둥근 몸의 개복치입니다."
+    min-size: 100.0
+    max-size: 350.0
+    avg-size: 200.0
+    custom-model-data: 4009
+    weight: 3
+    double-enabled: true
+    commands: []
+
+  jade_koi:
+    id: "jade_koi"
+    use-type: vanilla
+    vanilla-material: TROPICAL_FISH
+    vanilla-name: "&a비취 비단잉어"
+    vanilla-lore:
+      - "&7비취처럼 푸른 비단잉어입니다."
+    min-size: 25.0
+    max-size: 70.0
+    avg-size: 40.0
+    custom-model-data: 4010
+    weight: 1
+    double-enabled: true
+    commands: []

@@ -1,0 +1,136 @@
+# ============================================================
+#  낚시 대회(Tournament) 설정 파일
+#  낚시 대회의 종류, 일정, 보상 등을 설정합니다.
+# ============================================================
+#
+# 각 대회는 다음 속성을 가집니다:
+#
+#   id:                대회 식별자 (내부용, 중복 불가)
+#   name:              대회 이름 (& 색상코드 사용 가능)
+#   description:       대회 설명 (여러 줄 가능)
+#   type:              대회 종류
+#                      GRADE  - 등급 물고기를 낚아 점수 획득
+#                               점수 = 등급 기본 점수(F=1~S=7) x 100 + 물고기 weight
+#                               (등급이 높을수록 항상 우선, 동일 등급 내에서는 weight로 순위 결정)
+#                      SIZE   - 잡은 모든 물고기의 사이즈 합산이 가장 큰 사람이 우승
+#                      COUNT  - 가장 많이 낚은 사람이 우승
+#   grade:             (type: GRADE 전용) 목표 등급
+#                      all       = 모든 등급의 물고기가 점수에 포함됨
+#                      F/E/D/C/B/A/S = 해당 등급 물고기만 점수에 포함됨
+#   duration-minutes:  대회 진행 시간 (분)
+#   auto-start:        true = schedule에 따라 자동 시작
+#                      false = 관리자가 수동으로 시작해야 함
+#   schedule:          자동 시작 일정 (WEEKLY, DAILY 등)
+#   schedule-day:      (schedule: WEEKLY) 요일 (MONDAY~SUNDAY)
+#   schedule-time:     시작 시간 (HH:MM 형식, 24시간제)
+#   min-players:       최소 참여 인원 (이보다 적으면 대회 취소)
+#   max-players:       최대 참여 인원
+#   entry-fee:         참가비 (0 = 무료)
+#   refund-on-leave:   true = 중도 퇴장 시 참가비 환불
+#   rewards:           순위별 보상 (1st, 2nd, 3rd)
+#                      각 보상은 콘솔 명령어 목록입니다
+#                      {player} - 플레이어 이름으로 자동 치환
+#   participation-reward: 참가상 (모든 참여자에게 지급)
+# ============================================================
+tournaments:
+  # --- 주간 S등급 대회 ---
+  # 매주 일요일 저녁 8시에 자동으로 열리는 S등급 낚시 대회
+  weekly_grade_s:
+    id: "weekly_grade_s"
+    name: "&c주간 S등급 대회"
+    description:
+      - "&7S등급 물고기를 낚아 점수를 획득하세요!"
+    type: GRADE
+    grade: S
+    duration-minutes: 60
+    auto-start: true
+    schedule: "WEEKLY"
+    schedule-day: "SUNDAY"
+    schedule-time: "20:00"
+    min-players: 1
+    max-players: 100
+    entry-fee: 0
+    refund-on-leave: true
+    rewards:
+      1st:
+        - "give {player} diamond 10"
+        - "give {player} nether_star 1"
+        - "broadcast {player}님이 주간 S등급 대회에서 1위를 차지했습니다!"
+      2nd:
+        - "give {player} diamond 5"
+      3rd:
+        - "give {player} diamond 3"
+    participation-reward:
+      - "give {player} exp 100"
+
+  # --- 전체 등급 낚시 대회 ---
+  # grade: all 예시 — 모든 등급의 물고기가 점수에 포함됨
+  # (등급이 높을수록 우선, 동일 등급이면 weight로 순위 결정)
+  # (수동 시작 — 관리자가 /fishing tournament start로 시작)
+  all_grade_cup:
+    id: "all_grade_cup"
+    name: "&e전체 등급 낚시 대회"
+    description:
+      - "&7모든 등급의 물고기가 점수로 인정됩니다!"
+      - "&7높은 등급을 낚을수록 유리합니다."
+    type: GRADE
+    grade: all
+    duration-minutes: 60
+    auto-start: false
+    min-players: 1
+    max-players: 100
+    entry-fee: 0
+    refund-on-leave: true
+    rewards:
+      1st:
+        - "give {player} diamond 5"
+      2nd:
+        - "give {player} iron_ingot 10"
+      3rd:
+        - "give {player} iron_ingot 5"
+    participation-reward:
+      - "give {player} exp 50"
+
+  # --- 최고의 낚시꾼 대회 ---
+  # 잡은 모든 물고기의 사이즈 합산이 가장 큰 플레이어가 우승하는 대회
+  # (수동 시작 — 관리자가 /fishing tournament start로 시작)
+  size_championship:
+    id: "size_championship"
+    name: "&b최고의 낚시꾼 대회"
+    description:
+      - "&7가장 큰 물고기를 낚아라!"
+    type: SIZE
+    duration-minutes: 120
+    auto-start: false
+    min-players: 2
+    max-players: 50
+    entry-fee: 0
+    refund-on-leave: true
+    rewards:
+      1st:
+        - "give {player} cod 10"
+        - "give {player} name_tag 1"
+        - "broadcast {player}님이 최고의 낚시꾼 대회에서 1위를 차지했습니다!"
+
+  # --- 주말 낚시 광란 ---
+  # 매주 토요일 자정에 자동 시작, 48시간 동안 진행
+  # 가장 많이 낚은 플레이어가 우승
+  weekend_frenzy:
+    id: "weekend_frenzy"
+    name: "&a주말 낚시 광란"
+    description:
+      - "&7주말 동안 가장 많이 낚아라!"
+    type: COUNT
+    duration-minutes: 2880
+    auto-start: true
+    schedule: "WEEKLY"
+    schedule-day: "SATURDAY"
+    schedule-time: "00:00"
+    min-players: 1
+    max-players: 200
+    entry-fee: 0
+    refund-on-leave: true
+    rewards:
+      1st:
+        - "give {player} cod 100"
+        - "give {player} beacon 1"

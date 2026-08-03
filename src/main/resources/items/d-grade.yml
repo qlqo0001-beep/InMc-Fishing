@@ -1,0 +1,159 @@
+# ============================================================
+#  D등급 아이템 목록
+#  중간 등급, 대형/특수 물고기가 낚입니다.
+# ============================================================
+grade-settings:
+  input-count: 5
+  time-seconds: 4.0
+  weight: 15
+
+items:
+  swordfish:
+    id: "swordfish"
+    use-type: vanilla
+    vanilla-material: COD
+    vanilla-name: "&9황새치"
+    vanilla-lore:
+      - "&7긴 코를 가진 황새치입니다."
+    min-size: 80.0
+    max-size: 300.0
+    avg-size: 180.0
+    custom-model-data: 3001
+    weight: 18
+    double-enabled: true
+    commands: []
+
+  tuna:
+    id: "tuna"
+    use-type: vanilla
+    vanilla-material: COD
+    vanilla-name: "&9참치"
+    vanilla-lore:
+      - "&7빠른 참치입니다."
+    min-size: 60.0
+    max-size: 250.0
+    avg-size: 150.0
+    custom-model-data: 3002
+    weight: 16
+    double-enabled: true
+    commands: []
+
+  shark_small:
+    id: "shark_small"
+    use-type: vanilla
+    vanilla-material: COD
+    vanilla-name: "&9작은 상어"
+    vanilla-lore:
+      - "&7아직 어린 상어입니다."
+    min-size: 50.0
+    max-size: 200.0
+    avg-size: 120.0
+    custom-model-data: 3003
+    weight: 14
+    double-enabled: true
+    commands: []
+
+  sturgeon:
+    id: "sturgeon"
+    use-type: vanilla
+    vanilla-material: COD
+    vanilla-name: "&9철갑상어"
+    vanilla-lore:
+      - "&7고대의 물고기 철갑상어입니다."
+    min-size: 60.0
+    max-size: 300.0
+    avg-size: 150.0
+    custom-model-data: 3004
+    weight: 12
+    double-enabled: true
+    commands: []
+
+  giant_catfish:
+    id: "giant_catfish"
+    use-type: vanilla
+    vanilla-material: COD
+    vanilla-name: "&9거대 메기"
+    vanilla-lore:
+      - "&7전설처럼 큰 메기입니다."
+    min-size: 50.0
+    max-size: 250.0
+    avg-size: 130.0
+    custom-model-data: 3005
+    weight: 10
+    double-enabled: true
+    commands: []
+
+  marlin:
+    id: "marlin"
+    use-type: vanilla
+    vanilla-material: COD
+    vanilla-name: "&9청새치"
+    vanilla-lore:
+      - "&7바다의 검사 청새치입니다."
+    min-size: 100.0
+    max-size: 400.0
+    avg-size: 250.0
+    custom-model-data: 3006
+    weight: 8
+    double-enabled: true
+    commands: []
+
+  grouper:
+    id: "grouper"
+    use-type: vanilla
+    vanilla-material: COD
+    vanilla-name: "&9다금바리"
+    vanilla-lore:
+      - "&7거대한 입을 가진 다금바리입니다."
+    min-size: 30.0
+    max-size: 120.0
+    avg-size: 70.0
+    custom-model-data: 3007
+    weight: 6
+    double-enabled: true
+    commands: []
+
+  barracuda:
+    id: "barracuda"
+    use-type: vanilla
+    vanilla-material: SALMON
+    vanilla-name: "&9바라쿠다"
+    vanilla-lore:
+      - "&7날카로운 이빨의 바라쿠다입니다."
+    min-size: 40.0
+    max-size: 180.0
+    avg-size: 100.0
+    custom-model-data: 3008
+    weight: 5
+    double-enabled: true
+    commands: []
+
+  arapaima:
+    id: "arapaima"
+    use-type: vanilla
+    vanilla-material: COD
+    vanilla-name: "&9아라파이마"
+    vanilla-lore:
+      - "&7아마존의 거대한 물고기입니다."
+    min-size: 100.0
+    max-size: 350.0
+    avg-size: 200.0
+    custom-model-data: 3009
+    weight: 3
+    double-enabled: true
+    commands: []
+
+  crystal_koi:
+    id: "crystal_koi"
+    use-type: vanilla
+    vanilla-material: TROPICAL_FISH
+    vanilla-name: "&b수정 비단잉어"
+    vanilla-lore:
+      - "&7수정처럼 투명한 비단잉어입니다."
+    min-size: 20.0
+    max-size: 60.0
+    avg-size: 35.0
+    custom-model-data: 3010
+    weight: 1
+    double-enabled: true
+    commands: []
