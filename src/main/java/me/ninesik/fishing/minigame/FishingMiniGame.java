@@ -323,10 +323,12 @@ public class FishingMiniGame implements MiniGame {
                             && reward.getFish() != null
                             && reward.getGrade() != null
                             && (practice || reward.isTrophy() || reward.isRareTrophy())) {
+                        // 피드백: 트로피 파이트 시작 전 연출(!!!/대물의 기운 → 3-2-1 → START!!)을 거친다.
+                        // 실제 트로피/연습모드 모두 동일한 연출 적용.
                         if (practice) {
-                            trophyFightManager.startFightPractice(player, reward);
+                            trophyFightManager.startFightPracticeWithIntro(player, reward);
                         } else {
-                            trophyFightManager.startFight(player, reward);
+                            trophyFightManager.startFightWithIntro(player, reward);
                         }
                     } else {
                         rewardService.giveReward(player, reward);

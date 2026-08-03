@@ -6,6 +6,7 @@ import me.ninesik.fishing.model.RewardEntry;
 import me.ninesik.fishing.model.Rod;
 import me.ninesik.fishing.service.RewardService;
 import me.ninesik.fishing.util.Sounds;
+import me.ninesik.fishing.util.Texts;
 import org.bukkit.Bukkit;
 import org.bukkit.Particle;
 import org.bukkit.Sound;
@@ -13,10 +14,12 @@ import org.bukkit.entity.Player;
 import org.bukkit.scheduler.BukkitTask;
 
 import java.util.Collection;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Function;
 
 /**
@@ -46,6 +49,12 @@ public class TrophyFightManager {
     private final RewardService rewardService;
     private Function<Player, Rod> rodLookup;
     private final Map<UUID, FightSession> sessions = new ConcurrentHashMap<>();
+    /**
+     * 시작 연출/카운트다운이 진행 중인 플레이어의 예약 태스크 목록.
+     * 퇴장/사망/월드이동 등에서 stopFight()가 호출되면 함께 취소된다.
+     * 카운트다운 중에는 FightSession이 아직 없으므로 이 맵으로 "파이트 준비 중" 여부를 판단한다.
+     */
+    private final Map<UUID, List<BukkitTask>> introTasks = new ConcurrentHashMap<>();
     private final FightCalculator calculator = new FightCalculator();
     private final FightHUD hud = new FightHUD();
     private BukkitTask tickTask;
@@ -101,6 +110,106 @@ public class TrophyFightManager {
     public FightSession startFightPractice(Player player, RewardEntry reward) {
         Rod rod = rodLookup != null ? rodLookup.apply(player) : null;
         return startFight(player, reward, rod, true);
+    }
+
+    /**
+     * 시작 연출/카운트다운 후 실제 Trophy Fight를 시작한다 (피드백 — 연출 타이밍).
+     * 실패/레어 트로피 등 실제 파이트 경로에서 사용한다.
+     *
+     * <p>연출 시퀀스: announce(!!! / 대물의 기운...) → 3 → 2 → 1 → START!! → 시작.
+     * 타이틀/사운드는 메인 스레드에서만 실행하며, 카운트다운 중에는 isInFight()가 true여서
+     * 신규 입질/미니게임 재진입이 차단된다.</p>
+     */
+    public void startFightWithIntro(Player player, RewardEntry reward) {
+        scheduleIntro(player, reward, false);
+    }
+
+    /**
+     * 시작 연출/카운트다운 후 연습모드 Trophy Fight를 시작한다 (피드백).
+     * 연습모드에서도 실제 트로피 파이트와 동일한 연출을 거친다.
+     */
+    public void startFightPracticeWithIntro(Player player, RewardEntry reward) {
+        scheduleIntro(player, reward, true);
+    }
+
+    /**
+     * 시작 연출/카운트다운을 예약한다. 마지막 단계에서 실제 startFight(또는 practice)를 호출한다.
+     * intro.enabled가 false이면 연출 없이 즉시 시작한다.
+     */
+    private void scheduleIntro(Player player, RewardEntry reward, boolean practice) {
+        if (player == null || reward == null) {
+            return;
+        }
+        UUID uuid = player.getUniqueId();
+        if (isInFight(player)) {
+            return; // 이미 파이트 진행/준비 중이면 무시
+        }
+        FightConfig.IntroConfig intro = configManager.getFightConfig().intro();
+        if (!intro.enabled || !player.isOnline()) {
+            // 연출 비활성이면 즉시 시작
+            startInternal(player, reward, practice);
+            return;
+        }
+
+        List<BukkitTask> tasks = new CopyOnWriteArrayList<>();
+        introTasks.put(uuid, tasks);
+        int step = Math.max(1, (int) Math.round(intro.stepSeconds * 20));
+
+        // t=0: 등장 연출
+        scheduleIntroStep(player, tasks, 0, () -> {
+            player.sendTitle(Texts.colorize(intro.announceTitle), Texts.colorize(intro.announceSubtitle), 5, step, 5);
+            Sounds.play(player, intro.announceSound);
+        });
+        // 3 → 2 → 1 (step 마다)
+        String[] numbers = {"3", "2", "1"};
+        for (int i = 0; i < numbers.length; i++) {
+            int delay = step * (i + 1);
+            String label = numbers[i]; // effectively final — 람다 캡처용
+            scheduleIntroStep(player, tasks, delay, () -> {
+                player.sendTitle(Texts.colorize("&6&l" + label), "", 2, Math.max(2, step - 4), 2);
+                Sounds.play(player, intro.countdownSound);
+            });
+        }
+        // START!! 후 실제 파이트 시작
+        int startDelay = step * 4;
+        scheduleIntroStep(player, tasks, startDelay, () -> {
+            player.sendTitle(Texts.colorize(intro.startTitle), "", 3, 12, 5);
+            Sounds.play(player, intro.startSound);
+            introTasks.remove(uuid);
+            startInternal(player, reward, practice);
+        });
+    }
+
+    /** 인트로 예약 태스크를 등록한다. 플레이어가 오프라인이 되면 그 즉시 취소·중단한다. */
+    private void scheduleIntroStep(Player player, List<BukkitTask> tasks, long delayTicks, Runnable action) {
+        BukkitTask task = Bukkit.getScheduler().runTaskLater(plugin, () -> {
+            if (!player.isOnline()) {
+                cancelIntroTasks(player);
+                return;
+            }
+            action.run();
+        }, delayTicks);
+        tasks.add(task);
+    }
+
+    /** 해당 플레이어의 대기 중인 인트로 태스크를 취소한다. */
+    private void cancelIntroTasks(Player player) {
+        List<BukkitTask> tasks = introTasks.remove(player.getUniqueId());
+        if (tasks == null) {
+            return;
+        }
+        for (BukkitTask task : tasks) {
+            task.cancel();
+        }
+    }
+
+    /** 인트로 완료 후 실제 파이트(일반/연습)를 시작한다. */
+    private void startInternal(Player player, RewardEntry reward, boolean practice) {
+        if (practice) {
+            startFightPractice(player, reward);
+        } else {
+            startFight(player, reward);
+        }
     }
 
     private FightSession startFight(Player player, RewardEntry reward, Rod rod, boolean practice) {
@@ -199,6 +308,8 @@ public class TrophyFightManager {
      */
     public Optional<FightSession> stopFight(Player player, FightState endState) {
         UUID uuid = player.getUniqueId();
+        // 퇴장/사망/월드이동 등으로 카운트다운이 중단되면 대기 중인 인트로 태스크도 함께 취소.
+        cancelIntroTasks(player);
         FightSession session = sessions.remove(uuid);
         if (session == null) {
             return Optional.empty();
@@ -252,10 +363,16 @@ public class TrophyFightManager {
     }
 
     /**
-     * 플레이어가 현재 Fight 중인지 확인한다.
+     * 플레이어가 현재 Fight 중이거나, 시작 연출/카운트다운 중인지 확인한다.
+     * 카운트다운 중에는 아직 FightSession이 없으므로 introTasks까지 확인해야
+     * 신규 입질/미니게임 재진입을 막는다.
      */
     public boolean isInFight(Player player) {
-        FightSession session = sessions.get(player.getUniqueId());
+        UUID uuid = player.getUniqueId();
+        if (introTasks.containsKey(uuid)) {
+            return true; // 시작 연출/카운트다운 진행 중
+        }
+        FightSession session = sessions.get(uuid);
         return session != null && !session.isFinished();
     }
 
@@ -522,6 +639,13 @@ public class TrophyFightManager {
             tickTask.cancel();
             tickTask = null;
         }
+        // 플러그인 종료 시 모든 대기 중인 인트로 태스크 취소.
+        for (List<BukkitTask> tasks : introTasks.values()) {
+            for (BukkitTask task : tasks) {
+                task.cancel();
+            }
+        }
+        introTasks.clear();
         for (FightSession session : sessions.values()) {
             if (!session.isFinished()) {
                 session.transitionTo(FightState.CANCELLED);

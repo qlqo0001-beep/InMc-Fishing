@@ -481,6 +481,28 @@ trophy-fight:
     # 힘겨루기 성공
     success: "entity.firework_rocket.twinkle"
 
+  # --- 시작 연출/카운트다운 설정 (피드백) ---
+  # 트로피 파이트 시작 전 짧은 연출과 카운트다운을 표시합니다.
+  # 실제 트로피 파이트와 연습모드 모두에 동일하게 적용됩니다.
+  # 시퀀스: 등장(!!!/대물의 기운...) → 3 → 2 → 1 → START!! → 실제 파이트 시작
+  intro:
+    # 연출 활성화 여부 (false면 연출 없이 즉시 시작)
+    enabled: true
+    # 등장 타이틀(메인) — 첫 화면에 크게 표시
+    announce-title: "&6&l!!!"
+    # 등장 타이틀(서브)
+    announce-subtitle: "&e대물의 기운이 느껴진다..."
+    # 등장 효과음 (낮은 종소리/울림 계열 추천)
+    announce-sound: "block.bell.use"
+    # 카운트다운(3/2/1) 효과음 (짧은 틱)
+    countdown-sound: "block.note_block.hat"
+    # 시작(START!!) 타이틀
+    start-title: "&e&lSTART!!"
+    # 시작 효과음 (강렬한 시작음)
+    start-sound: "entity.player.levelup"
+    # 카운트다운 한 숫자당 표시 시간(초). 기본 1.0 = 3/2/1이 각각 1초 간격.
+    step-seconds: 1.0
+
   # --- 스탯 설정 ---
   # Fight 핵심 스탯 기본값 (Phase 2에서 구체화)
   stats:

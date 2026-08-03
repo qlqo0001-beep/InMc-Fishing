@@ -33,6 +33,7 @@ public class FightConfig {
     private final SoundConfig sound;
     private final StatsConfig stats;
     private final GeneralConfig general;
+    private final IntroConfig intro;
 
     public FightConfig(FileConfiguration config) {
         this.ai = new AiConfig(config);
@@ -40,6 +41,7 @@ public class FightConfig {
         this.sound = new SoundConfig(config);
         this.stats = new StatsConfig(config);
         this.general = new GeneralConfig(config);
+        this.intro = new IntroConfig(config);
     }
 
     public AiConfig ai() {
@@ -60,6 +62,10 @@ public class FightConfig {
 
     public GeneralConfig general() {
         return general;
+    }
+
+    public IntroConfig intro() {
+        return intro;
     }
 
     // ===================== AI =====================
@@ -299,6 +305,44 @@ public class FightConfig {
             this.enabled = config.getBoolean("trophy-fight.enabled", true);
             this.maxTimeSeconds = config.getInt("trophy-fight.max-time-seconds", 120);
             this.particleInterval = config.getInt("trophy-fight.particle-interval", 2);
+        }
+    }
+
+    // ===================== Intro (연출/카운트다운) =====================
+
+    /**
+     * Trophy Fight 시작 전 연출/카운트다운 설정 (피드백).
+     * 실제 트로피 파이트와 연습모드 모두에 동일하게 적용된다.
+     * 시퀀스: announce(!!! / 대물의 기운...) → 3 → 2 → 1 → START!! → 실제 파이트 시작.
+     * 타이틀/사운드는 메인 스레드(sync)에서만 재생한다.
+     */
+    public static class IntroConfig {
+        /** 연출 활성화 여부 */
+        public final boolean enabled;
+        /** 등장 타이틀 (메인) */
+        public final String announceTitle;
+        /** 등장 타이틀 (서브) */
+        public final String announceSubtitle;
+        /** 등장 효과음 */
+        public final String announceSound;
+        /** 카운트다운(3/2/1) 효과음 */
+        public final String countdownSound;
+        /** 시작(START!!) 타이틀 */
+        public final String startTitle;
+        /** 시작 효과음 */
+        public final String startSound;
+        /** 카운트다운 한 숫자당 표시 시간(초). 기본 1.0 */
+        public final double stepSeconds;
+
+        public IntroConfig(FileConfiguration config) {
+            this.enabled = config.getBoolean("trophy-fight.intro.enabled", true);
+            this.announceTitle = config.getString("trophy-fight.intro.announce-title", "&6&l!!!");
+            this.announceSubtitle = config.getString("trophy-fight.intro.announce-subtitle", "&e대물의 기운이 느껴진다...");
+            this.announceSound = config.getString("trophy-fight.intro.announce-sound", "block.bell.use");
+            this.countdownSound = config.getString("trophy-fight.intro.countdown-sound", "block.note_block.hat");
+            this.startTitle = config.getString("trophy-fight.intro.start-title", "&e&lSTART!!");
+            this.startSound = config.getString("trophy-fight.intro.start-sound", "entity.player.levelup");
+            this.stepSeconds = config.getDouble("trophy-fight.intro.step-seconds", 1.0);
         }
     }
 }
