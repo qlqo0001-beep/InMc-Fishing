@@ -210,13 +210,30 @@ public class RewardService {
     }
 
     /**
-     * 미니게임 실패/타임아웃 시 호출.
+     * 미니게임 실패/타임아웃 시 호출. 일반 실패 메시지({@code messages.fail})를 사용한다.
      */
     public void handleFail(Player player) {
+        handleFail(player, "fail");
+    }
+
+    /**
+     * 실패 원인별로 다른 메시지를 보여주기 위한 오버로드 (Trophy Fight 전용).
+     * 피드백: "파이트시, 물고기가 도망가는 원인을 나눴으면 좋겠어."
+     *
+     * @param messageKey {@code messages.<messageKey>} 설정 키 (예: "fail-tension").
+     *                   해당 키가 config.yml에 없거나 빈 문자열이면 일반 "fail" 메시지로
+     *                   대체한다 — 서버 운영자가 config.yml을 갱신하지 않아도 메시지가
+     *                   아예 사라지지 않도록 하는 안전장치다.
+     */
+    public void handleFail(Player player, String messageKey) {
         if (player == null) {
             return;
         }
-        String msg = configManager.formatMessage("fail");
+        String key = (messageKey == null || messageKey.isEmpty()) ? "fail" : messageKey;
+        String msg = configManager.formatMessage(key);
+        if (msg.isEmpty() && !"fail".equals(key)) {
+            msg = configManager.formatMessage("fail");
+        }
         if (!msg.isEmpty()) {
             player.sendMessage(msg);
         }

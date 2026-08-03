@@ -27,6 +27,8 @@ public class NetGui extends AbstractGui {
     private static final int CONTENT_START = 0;
     private static final int CONTENT_END = 44; // 0~44 (45칸)
     private static final int PAGE_SIZE = 45;
+    private static final int BACK_SLOT = 46;      // 메인 GUI로
+    private static final int REGISTER_SLOT = 50; // 도감 일괄 등록
 
     private final NetManager netManager;
     private final RewardService rewardService;
@@ -105,6 +107,19 @@ public class NetGui extends AbstractGui {
                         ChatColor.GRAY + "인벤토리에 빈자리가 있는 만큼",
                         ChatColor.GRAY + "어망의 물고기를 순서대로 꺼냅니다."
                 )));
+
+        // 피드백: 어망에서 도감 일괄 등록 (인벤토리/어망의 물고기를 도감 슬롯에 등록)
+        setItem(REGISTER_SLOT, createIcon(Material.BOOK, ChatColor.GREEN + "도감 일괄 등록",
+                List.of(
+                        ChatColor.GRAY + "어망과 인벤토리의 물고기를",
+                        ChatColor.GRAY + "도감에 일괄 등록합니다.",
+                        ChatColor.YELLOW + "클릭: 도감 일괄 등록"
+                )));
+
+        // 피드백: 각 GUI 창에는 메인 GUI로 돌아오는 버튼을 둔다.
+        setItem(BACK_SLOT, createIcon(Material.OAK_DOOR, ChatColor.GOLD + "메인 GUI로",
+                List.of(ChatColor.GRAY + "낚시 메인메뉴로 돌아갑니다.")));
+
     }
 
     private ItemStack buildFishIcon(NetEntry entry) {
@@ -209,6 +224,23 @@ public class NetGui extends AbstractGui {
             } else if (slot == 53) {
                 page++;
                 refresh();
+            } else if (slot == REGISTER_SLOT) {
+                // 어망/인벤토리 물고기를 도감에 일괄 등록
+                me.ninesik.fishing.collection.CollectionManager col =
+                        me.ninesik.fishing.InMcFishing.getInstance().getCollectionManager();
+                if (col == null || !col.isEnabled()) {
+                    player.sendMessage(ChatColor.RED + "도감 시스템이 비활성화되어 있습니다.");
+                    return;
+                }
+                int registered = col.registerAll(player);
+                if (registered > 0) {
+                    player.sendMessage(ChatColor.GREEN + "도감에 물고기 " + registered + "마리를 등록했습니다.");
+                } else {
+                    player.sendMessage(ChatColor.YELLOW + "등록할 수 있는 물고기가 없습니다.");
+                }
+                refresh();
+            } else if (slot == BACK_SLOT) {
+                me.ninesik.fishing.gui.MainGui.open(player);
             }
             return;
         }

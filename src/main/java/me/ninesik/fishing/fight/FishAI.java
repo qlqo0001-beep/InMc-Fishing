@@ -50,6 +50,15 @@ public class FishAI {
     }
 
     /**
+     * 현재 상태가 끝나기까지 남은 틱 수를 반환한다.
+     * Trophy Fight HUD의 서브타이틀 카운트다운 표시에 쓰인다
+     * (패치예정.md 피드백: "상태 지속 시간을 서브 타이틀에 표기해주면 좋을거같아").
+     */
+    public int getRemainingTicks() {
+        return Math.max(0, stateDurationTicks - elapsedTicks);
+    }
+
+    /**
      * 현재 상태에 따른 Fish Power 값을 반환한다.
      * (Phase 2: 기본값 — Phase 3에서 FightConfig와 연동하여 조정)
      */

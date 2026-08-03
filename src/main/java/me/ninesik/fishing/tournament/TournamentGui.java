@@ -65,6 +65,9 @@ public class TournamentGui extends AbstractGui {
             setItem(53, createIcon(Material.ARROW, ChatColor.YELLOW + "다음 페이지", List.of()));
         }
         setItem(49, createIcon(Material.BARRIER, ChatColor.RED + "닫기", List.of()));
+        // 피드백: 각 GUI 창에는 메인 GUI로 돌아오는 버튼을 둔다.
+        setItem(50, createIcon(Material.OAK_DOOR, ChatColor.GOLD + "메인 GUI로",
+                List.of(ChatColor.GRAY + "낚시 메인메뉴로 돌아갑니다.")));
     }
 
     private ItemStack buildTournamentIcon(Tournament tournament) {
@@ -111,6 +114,10 @@ public class TournamentGui extends AbstractGui {
         }
         if (slot == 49) {
             player.closeInventory();
+            return;
+        }
+        if (slot == 50) {
+            me.ninesik.fishing.gui.MainGui.open(player);
             return;
         }
 

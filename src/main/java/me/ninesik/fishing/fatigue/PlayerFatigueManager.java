@@ -171,6 +171,20 @@ public class PlayerFatigueManager {
         return Math.min(configManager.getFatigueAbsoluteMax(), base + rodBonus);
     }
 
+    /**
+     * 자연 회복 1회당 실제 회복량을 반환한다.
+     * = config.yml의 fatigue.recovery.amount + 장착 낚싯대의 fatigue-recovery 보너스.
+     * 메인 GUI의 스탯 표기 및 /fishing stats 명령어에서 사용한다.
+     */
+    public int getEffectiveRecoveryAmount(Player player) {
+        int rodBonus = 0;
+        Rod rod = RodFinder.findHeldRod(player, rodRegistry, dependencyManager);
+        if (rod != null) {
+            rodBonus = rod.getFatigueRecoveryBonus();
+        }
+        return configManager.getFatigueRecoveryAmount() + rodBonus;
+    }
+
     public boolean isLocked(Player player) {
         return Boolean.TRUE.equals(locked.get(player.getUniqueId()));
     }

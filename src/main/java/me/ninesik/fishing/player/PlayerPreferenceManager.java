@@ -19,6 +19,8 @@ public class PlayerPreferenceManager {
     private final InMcFishing plugin;
     private final File preferencesDir;
     private final Map<UUID, Boolean> minigameEnabledCache = new ConcurrentHashMap<>();
+    /** 트로피 파이트 연습모드 여부 (유저 개인 설정 — 피드백: 유저 전용 연습 토글) */
+    private final Map<UUID, Boolean> trophyPracticeModeCache = new ConcurrentHashMap<>();
 
     /** 피로도 시스템 (선택적 — null이면 피로도 제한 없음) */
     private FatigueManager fatigueManager;
@@ -42,19 +44,27 @@ public class PlayerPreferenceManager {
         UUID uuid = player.getUniqueId();
         FileConfiguration config = loadConfig(uuid);
         minigameEnabledCache.put(uuid, config.getBoolean("minigame-enabled", true));
+        trophyPracticeModeCache.put(uuid, config.getBoolean("trophy-practice-mode", false));
     }
 
     public void unloadPlayer(Player player) {
         UUID uuid = player.getUniqueId();
         Boolean enabled = minigameEnabledCache.remove(uuid);
         if (enabled != null) {
-            saveMinigameEnabled(uuid, enabled);
+            saveBoolean(uuid, "minigame-enabled", enabled);
+        }
+        Boolean practice = trophyPracticeModeCache.remove(uuid);
+        if (practice != null) {
+            saveBoolean(uuid, "trophy-practice-mode", practice);
         }
     }
 
     public void saveAll() {
         for (Map.Entry<UUID, Boolean> entry : minigameEnabledCache.entrySet()) {
-            saveMinigameEnabled(entry.getKey(), entry.getValue());
+            saveBoolean(entry.getKey(), "minigame-enabled", entry.getValue());
+        }
+        for (Map.Entry<UUID, Boolean> entry : trophyPracticeModeCache.entrySet()) {
+            saveBoolean(entry.getKey(), "trophy-practice-mode", entry.getValue());
         }
     }
 
@@ -72,12 +82,30 @@ public class PlayerPreferenceManager {
             return;
         }
         minigameEnabledCache.put(player.getUniqueId(), enabled);
-        saveMinigameEnabled(player.getUniqueId(), enabled);
+        saveBoolean(player.getUniqueId(), "minigame-enabled", enabled);
     }
 
     public boolean toggleMinigame(Player player) {
         boolean next = !isMinigameEnabled(player);
         setMinigameEnabled(player, next);
+        return next;
+    }
+
+    /** 트로피 파이트 연습모드가 켜져 있는지 반환한다. */
+    public boolean isTrophyPracticeMode(Player player) {
+        return Boolean.TRUE.equals(trophyPracticeModeCache.getOrDefault(player.getUniqueId(), false));
+    }
+
+    /** 트로피 파이트 연습모드를 설정한다. */
+    public void setTrophyPracticeMode(Player player, boolean enabled) {
+        trophyPracticeModeCache.put(player.getUniqueId(), enabled);
+        saveBoolean(player.getUniqueId(), "trophy-practice-mode", enabled);
+    }
+
+    /** 트로피 파이트 연습모드를 토글하고 변경된 값을 반환한다. */
+    public boolean toggleTrophyPracticeMode(Player player) {
+        boolean next = !isTrophyPracticeMode(player);
+        setTrophyPracticeMode(player, next);
         return next;
     }
 
@@ -89,10 +117,10 @@ public class PlayerPreferenceManager {
         return YamlConfiguration.loadConfiguration(file);
     }
 
-    private void saveMinigameEnabled(UUID uuid, boolean enabled) {
+    private void saveBoolean(UUID uuid, String key, boolean value) {
         File file = preferenceFile(uuid);
         FileConfiguration config = loadConfig(uuid);
-        config.set("minigame-enabled", enabled);
+        config.set(key, value);
         try {
             config.save(file);
         } catch (IOException e) {

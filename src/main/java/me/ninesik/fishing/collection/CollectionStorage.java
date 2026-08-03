@@ -86,7 +86,8 @@ public class CollectionStorage {
                 @SuppressWarnings("unchecked")
                 List<String> commands = (List<String>) map.get("commands");
                 if (commands != null && !commands.isEmpty()) {
-                    data.getPendingMilestoneRewards().add(new PendingMilestoneReward(key, commands));
+                    String description = map.get("description") != null ? String.valueOf(map.get("description")) : null;
+                    data.getPendingMilestoneRewards().add(new PendingMilestoneReward(key, commands, description));
                 }
             }
         }
@@ -152,6 +153,9 @@ public class CollectionStorage {
             Map<String, Object> map = new HashMap<>();
             map.put("key", pending.getKey());
             map.put("commands", pending.getCommands());
+            if (pending.getDescription() != null) {
+                map.put("description", pending.getDescription());
+            }
             pendingList.add(map);
         }
         config.set("pending-rewards", pendingList);

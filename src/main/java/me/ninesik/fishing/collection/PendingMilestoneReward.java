@@ -14,14 +14,22 @@ public class PendingMilestoneReward {
     private final String key;
     private final List<String> commands;
     private final LocalDateTime createdAt;
+    /** 지급 사유 설명 (보상 이유 안내용). null이면 기본 문구로 대체된다. */
+    private final String description;
 
     public PendingMilestoneReward(String key, List<String> commands) {
+        this(key, commands, null);
+    }
+
+    public PendingMilestoneReward(String key, List<String> commands, String description) {
         this.key = key;
         this.commands = commands != null ? List.copyOf(commands) : Collections.emptyList();
+        this.description = description;
         this.createdAt = LocalDateTime.now();
     }
 
     public String getKey() { return key; }
     public List<String> getCommands() { return commands; }
     public LocalDateTime getCreatedAt() { return createdAt; }
+    public String getDescription() { return description; }
 }

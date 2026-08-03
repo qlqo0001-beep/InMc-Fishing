@@ -30,7 +30,9 @@
 #                         (기본 회복 200 + 이 값 50 = 250)
 #     reel-power:         트로피 파이트: 기본(30) + 이 값 으로 릴 파워가 결정된다 (추가값).
 #                         높을수록 물고기 체력(Stamina)을 빠르게 지치게 만듦
-#     line-strength:      트로피 파이트: 기본(100) + 이 값 으로 낚싯줄 최대 장력(Tension)이 결정 (추가값)
+#     line-strength:      트로피 파이트: 기본(100) + 이 값 으로 낚싯줄 최대 장력(Tension)이 결정 (추가값).
+#                         또한 config.yml의 distance-per-line-strength 비율만큼 Distance 상한(max-distance)에도
+#                         그대로 더해진다 — 줄이 튼튼할수록 물고기가 더 멀리 도망가도 줄이 버틴다.
 #     reel-durability:    트로피 파이트: 기본(30) + 이 값 으로 릴 내구도가 결정 (추가값).
 #                         높을수록 릴 상태(Reel State)가 느리게 감소
 #

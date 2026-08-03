@@ -15,12 +15,52 @@ public class FightCalculator {
     // ===== 릴 풀기(우클릭) 계수 =====
     // 피드백(fish/피드백.md)에서 확정한 릴 풀기 효과.
     // 이 값들은 베이스밸런스 — 추후 config.yml trophy-fight 섹션으로 이동 가능.
-    /** 릴 풀기 시 거리 증가의 기본 배율. (0 < 값). */
-    private static final double RELEASE_BASE = 1.0;
+    /**
+     * 릴 풀기 시 거리 증가의 기본 배율. (0 < 값).
+     *
+     * <p><b>밸런스 수정 (피드백: "거리값이 너무 빠르게 증가하거나 줄어든다"):</b>
+     * 이 값은 물고기 상태 배수와 곱해지기 전에 Tick(1/20초)마다 그대로 더해지는
+     * 고정값이었다. 기존 1.0이면 FINAL_STRUGGLE(상태 배수 ×6.0) 상태에서 우클릭을
+     * 하는 것만으로 초당 120에 달하는 거리가 추가되어, Distance 상한(기본 250)을
+     * 순식간에 넘겨 줄이 끊어졌다. {@link #FISH_ESCAPE_COEFFICIENT}와 동일한 비율(1/7.5 수준)로
+     * 낮춰 다른 Distance 계산과 시간 축을 맞춘다.</p>
+     */
+    private static final double RELEASE_BASE = 0.13;
     /** 연타당 콤보 1씩 증가 시 탠션 감소 가산량. (우클릭 연타 시 -2.0씩 감소가 커진다) */
     private static final double RELEASE_TENSION_PER_COMBO = 2.0;
     /** 릴 풀기 시 Reel State 회복 비율 (maxReelState 기준, 모든 상태 동일). */
     private static final double RELEASE_REEL_REGEN_RATIO = 0.008;
+
+    // ===== Distance 계수 (밸런스 수정) =====
+    /**
+     * 물고기가 도망가며 자연히 늘어나는 거리의 기본 계수.
+     *
+     * <p><b>밸런스 수정 (피드백: "낚싯대로 힘 싸움을 하기도 전에 A~S급 물고기들은
+     * 거리가 급속도로 멀어져서 줄을 끊고 도망가버린다"):</b> 기존 값 0.03은 Tick(1/20초)마다
+     * 그대로 적용되어, 등급 난이도 배수가 곱해지는 A~S급(등급 배수 최대 2.5, Rare Trophy
+     * 포함 시 최대 3.75)에서는 초당 90 이상의 거리가 늘어났다. Distance 상한이 기본 250인
+     * 상황에서 플레이어가 첫 입력을 넣기도 전에(릴 그레이스 타임 250ms) 줄이 끊어질 수밖에
+     * 없었다. 0.004로 낮춰(기존 대비 약 1/7.5) 등급별 난이도 곡선은 그대로 유지하면서도,
+     * 최상급 물고기와 마주쳐도 최소 수 초의 반응 시간을 확보하도록 한다.</p>
+     */
+    private static final double FISH_ESCAPE_COEFFICIENT = 0.004;
+    /**
+     * 릴 감기 시 기본 회수량 계수 (Stamina와 무관하게 항상 일부 적용).
+     *
+     * <p><b>밸런스 수정 (피드백: "낚싯대 릴 파워에서 거리를 감소시키는 옵션이 너무 강하다"):</b>
+     * 기존 0.12는 별도의 {@code reelEfficiency = min(1, reelPower/100)}과 함께 곱해져,
+     * reelPower가 커질수록 감소량이 reelPower의 제곱에 비례해 폭증했다(30→90이면 9배).
+     * reelEfficiency를 제거하고 reelPower를 선형으로만 적용하도록 바꾸면서, 기본
+     * 낚싯대(reelPower=30) 기준 결과값은 기존과 동일하게 유지되도록
+     * {@code 0.12 × (30/100) = 0.036}으로 재계산했다.</p>
+     */
+    private static final double BASE_REEL_COEFFICIENT = 0.036;
+    /**
+     * 릴 감기 시 추가 회수량 계수 (물고기가 지칠수록[exhaustionFactor↑] 커짐).
+     *
+     * <p>위 {@link #BASE_REEL_COEFFICIENT}와 동일한 이유로 재계산: {@code 0.35 × (30/100) = 0.105}.</p>
+     */
+    private static final double BONUS_REEL_COEFFICIENT = 0.105;
 
     /**
      * Fish Stamina 감소량을 계산한다.
@@ -96,7 +136,16 @@ public class FightCalculator {
      * 릴을 감으면 거리를 줄일 수 있다(단, 물고기가 CHARGE/FINAL_STRUGGLE 상태처럼
      * Resistance가 매우 높을 때는 여전히 밀릴 수 있다 — 그것이 힘겨루기의 핵심).</p>
      *
-     * @param reelPower 낚싯대 Reel Power
+     * <p><b>피드백 수정:</b> "릴 파워 값이 거리에 영향을 주는 거지? 거리에 영향을
+     * 안주게 만들고 기본값인 30만 적용되게 해줘." 이전에는 낚싯대의 실제 Reel Power가
+     * 그대로 {@code reelPower} 인자로 들어와 거리 회수량(baseReel/bonusReel)에 비례했다.
+     * 이제 호출부(TrophyFightManager.tick())가 낚싯대 실제 값 대신 항상
+     * {@code config.stats().defaultReelPower}(기본 30)를 넘기므로, 낚싯대를 무엇을
+     * 장비하든 거리 회수 속도는 동일하다 — 낚싯대의 Reel Power는 여전히 Stamina 감소
+     * 속도({@link #calculateStaminaDecrease})에는 영향을 준다.</p>
+     *
+     * @param reelPower Distance 계산에 사용할 Reel Power. 낚싯대의 실제 값이 아니라
+     *                  호출부에서 넘기는 고정 기준값(기본 30)이어야 한다 (위 피드백 참고).
      * @param fishPower 현재 Fish Power (AI 상태별)
      * @param fishResistance 현재 Fish Resistance (AI 상태별)
      * @param staminaRatio 현재 Stamina 비율 (0.0 ~ 1.0)
@@ -106,14 +155,23 @@ public class FightCalculator {
      */
     public double calculateDistanceChange(double reelPower, double fishPower, double fishResistance,
                                           double staminaRatio, boolean isReeling, FishState state) {
-        double fishEscape = fishPower * 0.03;
+        double fishEscape = fishPower * FISH_ESCAPE_COEFFICIENT;
 
         if (!isReeling) {
             return fishEscape;
         }
 
-        double reelEfficiency = Math.max(0.0, Math.min(1.0, reelPower / 100.0));
-        double resistanceFactor = 1.0 - Math.min(1.0, Math.max(0.0, fishResistance) / 100.0);
+        // 밸런스 수정 (피드백: "낚싯대 릴 파워에서 거리를 감소시키는 옵션이 너무 강하다"):
+        // 기존에는 reelPower가 두 번 곱해지고 있었다 —
+        //   1) baseReel/bonusReel 자체의 배수로 reelPower
+        //   2) reelEfficiency = min(1, reelPower/100)도 reelPower에서 파생
+        // 즉 baseReel ∝ reelPower², 릴 파워가 30(기본)에서 90(최상위 낚싯대)으로 3배 늘면
+        // 거리 감소량은 9배가 되어버리는 이차함수적 증폭이 있었다. reelPower를 한 번만
+        // 적용하도록(선형) 바꾸고, 기본 낚싯대(reelPower=30) 기준 감소량은 기존과 동일하게
+        // 유지되도록 계수를 재조정했다(30 × 기존계수 × 0.3 = 30 × 새 계수).
+        // 결과적으로 낚싯대가 좋아질수록 거리 감소가 "비례해서" 강해지되, 이전처럼
+        // 압도적으로 폭증하지는 않는다.
+        double resistanceFactor = 100.0 / (100.0 + Math.max(0.0, fishResistance));
         double exhaustionFactor = 1.0 - Math.max(0.0, Math.min(1.0, staminaRatio));
 
         // 피드백: 천천히 이동(SLOW_MOVE) 상태일 때 릴을 감으면 거리를 많이 줄인다.
@@ -122,10 +180,10 @@ public class FightCalculator {
             default -> 1.0;
         };
 
-        // 기본 회수량: Stamina와 무관하게 릴을 감기만 하면 항상 일부 적용된다.
-        double baseReel = reelPower * 0.12 * reelEfficiency * resistanceFactor * distanceModifier;
-        // 추가 회수량: 물고기가 지칠수록(Stamina↓) 커진다.
-        double bonusReel = reelPower * 0.35 * exhaustionFactor * reelEfficiency * resistanceFactor;
+        // 기본 회수량: Stamina와 무관하게 릴을 감기만 하면 항상 일부 적용된다. (reelPower에 선형 비례)
+        double baseReel = reelPower * BASE_REEL_COEFFICIENT * resistanceFactor * distanceModifier;
+        // 추가 회수량: 물고기가 지칠수록(Stamina↓) 커진다. (reelPower에 선형 비례)
+        double bonusReel = reelPower * BONUS_REEL_COEFFICIENT * exhaustionFactor * resistanceFactor;
 
         return fishEscape - (baseReel + bonusReel);
     }
@@ -233,7 +291,7 @@ public class FightCalculator {
      * @return Distance 증가량 (항상 0 이상 — 릴 풀기는 줄을 풀어주는 행동)
      */
     public double calculateReleaseDistanceChange(double fishPower, FishState state) {
-        double fishEscape = fishPower * 0.03;
+        double fishEscape = fishPower * FISH_ESCAPE_COEFFICIENT;
         double stateMultiplier = switch (state) {
             case REST -> 0.5;          // 휴식 — 거리 조금 증가
             case SLOW_MOVE -> 1.0;     // 천천히 이동 — 거리 조금 증가

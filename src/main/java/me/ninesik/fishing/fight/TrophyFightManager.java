@@ -90,6 +90,20 @@ public class TrophyFightManager {
      * (테스트 명령어 등에서 사용 — rod.yml에 등록되지 않은 상황을 대응)
      */
     public FightSession startFight(Player player, RewardEntry reward, Rod rod) {
+        return startFight(player, reward, rod, false);
+    }
+
+    /**
+     * 연습모드로 Trophy Fight을 시작한다 (피드백 — 유저 전용 연습 토글).
+     * 실제 낚시로 잡은 물고기에 대해 진행하되, 결과에 관계없이 보상을 지급하지 않는다.
+     * 낚싯대 스탯은 rodLookup을 통해 실시간 조회하므로 장착 효과를 그대로 받는다.
+     */
+    public FightSession startFightPractice(Player player, RewardEntry reward) {
+        Rod rod = rodLookup != null ? rodLookup.apply(player) : null;
+        return startFight(player, reward, rod, true);
+    }
+
+    private FightSession startFight(Player player, RewardEntry reward, Rod rod, boolean practice) {
         if (player == null || reward == null || reward.getFish() == null || reward.getGrade() == null) {
             throw new IllegalArgumentException("player/reward/fish/grade must not be null");
         }
@@ -101,6 +115,7 @@ public class TrophyFightManager {
         FishSnapshot snapshot = FishSnapshot.of(reward.getFish(), reward.getGrade());
         FightSession session = new FightSession(uuid, snapshot, System.currentTimeMillis());
         session.setReward(reward);
+        session.setPractice(practice);
 
         initStats(session, reward, rod);
 
@@ -110,10 +125,9 @@ public class TrophyFightManager {
         session.transitionTo(FightState.ACTIVE);
 
         // HUD 표시 + 플레이어 이동 제한
-        hud.showBossBar(player, session);
+        hud.showBossBar(player, session, configManager.getFightConfig().hud());
         restrictMovement(player);
 
-        // Fish exhausted 사운드 (Stamina가 0이 되면 재생 — tick에서 별도 처리)
         return session;
     }
 
@@ -162,6 +176,17 @@ public class TrophyFightManager {
         session.initStats(stamina, power, resistance, distance, tension, reelState,
                 reelPower, lineStrength, reelDurability);
         session.setDifficulty(difficulty);
+
+        // Distance 상한 = 기본값 + 낚싯대 line-strength 보너스 (피드백: "낚싯대 옵션에
+        // 줄 강도가 높아질수록 거리값이 추가되게 설정해 줘야 해. 디폴트+형태로").
+        // 줄이 튼튼할수록(line-strength↑) 물고기가 더 멀리 도망가도 줄이 버틴다.
+        double rodLineStrengthBonus = rod != null ? Math.max(0, rod.getLineStrength()) : 0.0;
+        double effectiveMaxDistance = stats.maxDistance + rodLineStrengthBonus * stats.distancePerLineStrength;
+        session.setMaxDistance(effectiveMaxDistance);
+
+        // Distance 하한 = 등급별 설정값 (피드백: "등급별로 최소 거리값을 설정되게 하면 더 좋을거 같아")
+        double minDistanceWithStamina = stats.minDistanceWithStaminaByGrade.getOrDefault(gradeId, 50.0);
+        session.setMinDistanceWithStamina(minDistanceWithStamina);
     }
 
     /**
@@ -195,21 +220,33 @@ public class TrophyFightManager {
     /**
      * Fight 결과에 따라 보상을 지급하거나 실패 메시지를 전송한다.
      * - SUCCESS: RewardService.giveReward() (아이템 지급 + caught 메시지 + 사운드 + FishCatchEvent)
-     * - FAILED/CANCELLED: RewardService.handleFail() (fail 메시지 + 사운드)
+     * - FAILED/CANCELLED: RewardService.handleFail() (실패 원인별 메시지 + 사운드)
      * 보상은 폐기된다 (패치예정.md §145-148: "승리 시 보상 지급, 패배 시 보상 폐기").
+     *
+     * <p>피드백: "파이트시, 물고기가 도망가는 원인을 나눴으면 좋겠어." FAILED인 경우
+     * {@code session.getFailReason()}(Tension/Reel State/Distance/Timeout 중 하나)에
+     * 대응하는 {@code messages.fail-*} 키를 사용한다. CANCELLED이거나 원인이 설정되지
+     * 않았으면 {@link FightFailReason#NONE}이 반환되어 기존 일반 "fail" 메시지를 쓴다.</p>
      */
     private void deliverResult(Player player, FightSession session, FightState endState) {
         if (endState == FightState.SUCCESS) {
-            RewardEntry reward = session.getReward();
-            if (reward != null && rewardService != null) {
-                rewardService.giveReward(player, reward);
+            if (session.isPractice()) {
+                // 연습모드: 보상을 지급하지 않고 '연습 완료' 안내만 한다 (피드백).
+                player.sendMessage(me.ninesik.fishing.util.Texts.colorize(
+                        "&e[연습모드] &7파이트 연습을 완료했습니다. (보상은 지급되지 않습니다.)"));
+            } else {
+                RewardEntry reward = session.getReward();
+                if (reward != null && rewardService != null) {
+                    rewardService.giveReward(player, reward);
+                }
             }
             // Fight-specific 성공 사운드
             FightConfig config = configManager.getFightConfig();
             Sounds.play(player, config.sound().success);
         } else if (endState == FightState.FAILED || endState == FightState.CANCELLED) {
             if (rewardService != null) {
-                rewardService.handleFail(player);
+                // 연습모드여도 실패 원인 안내는 유지한다 (연습 목적상 유용).
+                rewardService.handleFail(player, session.getFailReason().getMessageKey());
             }
         }
     }
@@ -272,13 +309,12 @@ public class TrophyFightManager {
             double staminaRatio = session.getStamina() / 100.0;
             session.getFishAI().tick(staminaRatio);
 
-            // 물고기 상태가 바뀌었으면 타이틀로 알려준다
-            // (패치예정.md 피드백: "물고기의 AI 상태에 대해서 유저가 알 수 없는게 큰거 같아")
+            // 물고기 상태를 타이틀로 계속 표시 (남은 지속시간 카운트다운 포함).
+            // 매 틱 갱신해야 긴 상태(REST 등)에서 타이틀이 중간에 꺼지지 않는다
+            // (패치예정.md 피드백: "상태의 유지가 길면 타이틀이 사라지는 문제가 있어").
             FishState currentFishState = session.getFishAI().getCurrentState();
-            if (session.getLastAnnouncedState() != currentFishState) {
-                hud.showStateTitle(player, currentFishState);
-                session.setLastAnnouncedState(currentFishState);
-            }
+            hud.updateStateTitle(player, currentFishState, session.getFishAI().getRemainingTicks(),
+                    session.getStamina(), session.getReelState(), config.hud());
 
             // 2-3. Fish Power/Resistance 계산
             // FishAI는 상태별 "기준값"만 반환하고, 등급×Rare Trophy 난이도 배수는
@@ -310,15 +346,29 @@ public class TrophyFightManager {
             // 릴 풀기(우클릭): 물고기 상태에 따라 Distance가 크게 증가한다 (피드백).
             // 그 외(릴 감기/idle): FightCalculator.calculateDistanceChange()가 내부에서
             //   isReeling 분기를 처리한다 (릴을 안 감아도 물고기가 도망가며 Distance가 늘어난다).
+            // 피드백: "릴 파워 값이 거리에 영향을 주는 거지? 거리에 영향을 안주게 만들고
+            // 기본값인 30만 적용되게 해줘." 낚싯대의 실제 Reel Power(session.getReelPower())
+            // 대신 config 기본값(defaultReelPower)을 고정으로 넘겨, 낚싯대가 좋아져도
+            // 거리 회수 속도는 항상 동일하게 유지한다 (Stamina 감소 속도에는 계속 영향을 준다).
             double distanceChange;
             if (isReleasing) {
                 distanceChange = calculator.calculateReleaseDistanceChange(session.getPower(), fishState);
             } else {
                 distanceChange = calculator.calculateDistanceChange(
-                        session.getReelPower(), session.getPower(), session.getResistance(),
+                        config.stats().defaultReelPower, session.getPower(), session.getResistance(),
                         staminaRatio, isReeling, fishState);
             }
             session.changeDistance(distanceChange);
+
+            // Fish Stamina가 아직 남아있는 동안에는 Distance가 일정 값 밑으로
+            // 내려가지 않는다 (피드백: "스테미너가 0보다 크면 거리값이 50 이하로
+            // 안줄어들게", 등급별 설정 가능). Stamina가 다 빠지면(완전히 지치면)
+            // 이 하한이 풀린다.
+            double minDistanceWithStamina = session.getMinDistanceWithStamina();
+            if (minDistanceWithStamina > 0 && session.getStamina() > 0
+                    && session.getDistance() < minDistanceWithStamina) {
+                session.setDistance(minDistanceWithStamina);
+            }
 
             // 7. Tension 계산
             // 릴 풀기(우클릭): 장력을 능동적으로 낮춘다. 그 외: 기존 계산(상태별 상승 배수).
@@ -352,8 +402,8 @@ public class TrophyFightManager {
             }
 
             // 9. HUD 갱신 (매 틱)
-            hud.updateBossBar(player, session, config.stats().maxDistance);
-            hud.updateActionBar(player, session);
+            hud.updateBossBar(player, session, session.getMaxDistance(), config.hud());
+            hud.updateActionBar(player, session, config.hud());
 
             // 10. 파티클/사운드 (config 인터벌)
             if (tickCount % particleInterval == 0) {
@@ -380,20 +430,25 @@ public class TrophyFightManager {
 
         // 패배1: Tension ≥ Line Strength (줄 끊어짐)
         if (session.getTension() >= session.getLineStrength()) {
+            session.setFailReason(FightFailReason.LINE_SNAPPED);
             stopFight(player, FightState.FAILED);
             return;
         }
 
         // 패배1-2: Distance ≥ Max Distance (물고기가 너무 멀리 도망가 줄이 끊어짐)
         // 패치예정.md 피드백: "물고기는 일정 거리에 도달하면 줄이 끊어져야 함."
-        double maxDistance = config.stats().maxDistance;
+        // maxDistance는 세션별로 낚싯대 line-strength 보너스가 반영된 값을 사용한다
+        // (피드백: "낚싯대 옵션에 줄 강도가 높아질수록 거리값이 추가되게").
+        double maxDistance = session.getMaxDistance();
         if (maxDistance > 0 && session.getDistance() >= maxDistance) {
+            session.setFailReason(FightFailReason.DISTANCE_EXCEEDED);
             stopFight(player, FightState.FAILED);
             return;
         }
 
         // 패배2: Reel State ≤ 0 (릴 파손)
         if (session.getReelState() <= 0) {
+            session.setFailReason(FightFailReason.REEL_BROKEN);
             stopFight(player, FightState.FAILED);
             return;
         }
@@ -403,6 +458,7 @@ public class TrophyFightManager {
             long elapsed = System.currentTimeMillis() - session.getStartTime();
             long maxTimeMs = (long) config.general().maxTimeSeconds * 1000L;
             if (maxTimeMs > 0 && elapsed > maxTimeMs) {
+                session.setFailReason(FightFailReason.TIMEOUT);
                 stopFight(player, FightState.FAILED);
             }
         }

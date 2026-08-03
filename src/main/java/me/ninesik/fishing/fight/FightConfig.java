@@ -108,6 +108,21 @@ public class FightConfig {
         public final String bossBarTitleFormat;
         /** ActionBar 텍스트 포맷 ({stamina}/{power}/{resistance}/{reel} = 각 수치) */
         public final String actionBarFormat;
+        /**
+         * Fish AI 상태 타이틀(메인) 포맷. {state_color} = 아래 상태별 색상,
+         * {state} = 상태 표시명(FishState.getDisplayName()).
+         * (피드백: "해당 부분을 콘피그에서 수정되게 해줘야 해")
+         */
+        public final String stateTitleFormat;
+        /**
+         * Fish AI 상태 서브타이틀 포맷.
+         * {stamina}/{reel} = 현재 Stamina/Reel State, {remaining_seconds} = 다음 상태
+         * 전이까지 남은 시간(초, 소수점 1자리). 피드백: "물고기 체력과 릴 상태를
+         * 서브 타이틀 초후변화 양옆에 1개씩 배치하자."
+         */
+        public final String stateSubtitleFormat;
+        /** 상태별 타이틀 색상 — FishState 이름(소문자, _를 -로) → 색상 코드 */
+        public final Map<String, String> stateColors;
 
         public HudConfig(FileConfiguration config) {
             this.barColorSafe = config.getString("trophy-fight.hud.bar-color-safe", "&a");
@@ -116,6 +131,28 @@ public class FightConfig {
             this.bossBarTitleFormat = config.getString("trophy-fight.hud.bossbar-title-format", "Distance: {distance}");
             this.actionBarFormat = config.getString("trophy-fight.hud.actionbar-format",
                     "Stamina {stamina}% | Power {power} | Resistance {resistance} | Reel {reel}%");
+            this.stateTitleFormat = config.getString("trophy-fight.hud.state-title-format", "{state_color}{state}");
+            this.stateSubtitleFormat = config.getString("trophy-fight.hud.state-subtitle-format",
+                    "&b체력 {stamina}  &8┃  &7{remaining_seconds}초 후 변화  &8┃  &e릴 {reel}");
+            this.stateColors = loadStateColors(config);
+        }
+
+        private Map<String, String> loadStateColors(FileConfiguration config) {
+            Map<String, String> defaults = new HashMap<>();
+            defaults.put("rest", "&a");
+            defaults.put("slow_move", "&e");
+            defaults.put("normal_move", "&f");
+            defaults.put("turn", "&e");
+            defaults.put("charge", "&6");
+            defaults.put("final_struggle", "&c");
+
+            Map<String, String> map = new HashMap<>();
+            for (Map.Entry<String, String> entry : defaults.entrySet()) {
+                String key = entry.getKey().replace('_', '-');
+                map.put(entry.getKey(), config.getString(
+                        "trophy-fight.hud.state-color." + key, entry.getValue()));
+            }
+            return Collections.unmodifiableMap(map);
         }
     }
 
@@ -170,6 +207,27 @@ public class FightConfig {
          * "물고기는 일정 거리에 도달하면 줄이 끊어져야 함"). 0이면 제한 없음.
          */
         public final double maxDistance;
+        /**
+         * 낚싯대의 line-strength(줄 강도) 1당 Distance 상한에 추가되는 보너스 비율.
+         *
+         * <p>피드백: "낚싯대 옵션에 줄 강도가 높아질수록 거리값이 추가되게 설정해 줘야 해
+         * (디폴트+형태로)". reel-power/reel-durability와 동일한 "기본값 + 낚싯대 보너스"
+         * 방식으로, 줄이 튼튼할수록(line-strength↑) 물고기가 더 멀리 도망가도 줄이 버틸 수
+         * 있게 한다. 최종 Distance 상한 = {@link #maxDistance} + (rod.line-strength × 이 비율).
+         * 기본값 1.0 = line-strength 보너스를 1:1로 그대로 더한다.</p>
+         */
+        public final double distancePerLineStrength;
+        /**
+         * Fish Stamina가 0보다 클 동안 Distance가 이 값 밑으로 내려가지 않는다.
+         * 등급별로 설정 가능하다 (피드백: "등급별로 최소 거리값을 설정되게 하면
+         * 더 좋을거 같아. 지금 기본값이 50이잖아. 그걸 등급별로 설정가능하게 해줘").
+         *
+         * <p>물고기가 아직 지치지 않은 동안에는 아무리 릴을 잘 감아도 일정 거리
+         * 밖에서는 완전히 끌려오지 않게 해, Stamina를 먼저 깎아야 하는 흐름을
+         * 강제한다. Stamina가 0이 되면(완전히 지치면) 이 하한이 풀려 끝까지
+         * 끌어올 수 있다. 값이 0이면 해당 등급은 하한 없음.</p>
+         */
+        public final Map<String, Double> minDistanceWithStaminaByGrade;
         /** Tension 최대값 */
         public final double maxTension;
         /** Reel State 기본값 */
@@ -195,6 +253,8 @@ public class FightConfig {
             this.defaultResistance = config.getDouble("trophy-fight.stats.default-resistance", 50.0);
             this.defaultDistance = config.getDouble("trophy-fight.stats.default-distance", 100.0);
             this.maxDistance = config.getDouble("trophy-fight.stats.max-distance", 250.0);
+            this.distancePerLineStrength = config.getDouble("trophy-fight.stats.distance-per-line-strength", 1.0);
+            this.minDistanceWithStaminaByGrade = loadMinDistanceWithStamina(config);
             this.maxTension = config.getDouble("trophy-fight.stats.max-tension", 100.0);
             this.defaultReelState = config.getDouble("trophy-fight.stats.default-reel-state", 100.0);
             this.defaultReelPower = config.getDouble("trophy-fight.stats.default-reel-power", 30.0);
@@ -207,6 +267,16 @@ public class FightConfig {
             // 기본값: 모든 등급 1.0
             for (String grade : new String[]{"f", "e", "d", "c", "b", "a", "s"}) {
                 map.put(grade, config.getDouble("trophy-fight.stats.grade-difficulty." + grade, 1.0));
+            }
+            return Collections.unmodifiableMap(map);
+        }
+
+        private Map<String, Double> loadMinDistanceWithStamina(FileConfiguration config) {
+            Map<String, Double> map = new HashMap<>();
+            // 기본값: 모든 등급 50.0 (피드백 반영 전 전역 기본값과 동일하게 유지)
+            for (String grade : new String[]{"f", "e", "d", "c", "b", "a", "s"}) {
+                map.put(grade, config.getDouble(
+                        "trophy-fight.stats.min-distance-with-stamina." + grade, 50.0));
             }
             return Collections.unmodifiableMap(map);
         }

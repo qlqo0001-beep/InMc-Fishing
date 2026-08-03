@@ -347,6 +347,30 @@ public class CollectionManager {
         return registered;
     }
 
+    /**
+     * 모든 등급의 등록 가능한 물고기를 일괄 등록한다 (피드백 — 모든 등급 일괄등록 버튼).
+     * 인벤토리 → 어망 순으로 소모하며, 물고기별 최대 슬롯 한도는 registerFish 내부에서 적용된다.
+     *
+     * @return 등록에 성공한 물고기 수
+     */
+    public int registerAll(Player player) {
+        if (!enabled || player == null) return 0;
+        CollectionData data = cache.get(player.getUniqueId());
+        if (data == null) return 0;
+
+        int registered = 0;
+        for (Fish fish : fishRegistry.getAll().values()) {
+            CollectionEntry entry = data.getEntry(fish.getId());
+            while (entry != null
+                    && entry.getStatus() == Status.ACTIVE
+                    && entry.getRegisteredSlots() < entry.getMaxSlots()
+                    && registerFish(player, fish.getId())) {
+                registered++;
+            }
+        }
+        return registered;
+    }
+
     public CollectionData getCollectionData(Player player) {
         return cache.get(player.getUniqueId());
     }

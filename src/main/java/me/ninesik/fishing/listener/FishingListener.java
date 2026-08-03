@@ -113,6 +113,13 @@ public class FishingListener implements Listener {
                 return;
             }
             resumeCastStatusIfWaiting(player);
+            // 피드백: 오토낚시로 물고기를 낚은 뒤 대기 액션바가 사라지는 문제를 고친다.
+            // 오토캐치는 후크가 BOBBING을 벗어난 상태로 끝나기 때문에 resumeCastStatusIfWaiting의
+            // BOBBING 게이트를 통과하지 못해 액션바가 재개되지 않는다. 여기서 재무장해서
+            // "기다리는 중" 대기 액션바가 다시 뜨도록 한다.
+            if (wasAutoCatch && result == MiniGame.GameResult.SUCCESS) {
+                startCastStatus(player);
+            }
         });
     }
 

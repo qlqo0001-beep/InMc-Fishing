@@ -28,6 +28,7 @@ public class CollectionGui extends AbstractGui {
     private static final int CONTENT_END = 44; // 6줄에서 마지막 줄 전까지
     private static final int PROGRESS_SLOT = 47;
     private static final int REGISTER_ALL_SLOT = 51;
+    private static final int BACK_SLOT = 50;
 
     private final CollectionManager collectionManager;
     private final RewardService rewardService;
@@ -134,10 +135,22 @@ public class CollectionGui extends AbstractGui {
                             ChatColor.GRAY + "물고기별 최대 슬롯까지 채워집니다.",
                             ChatColor.YELLOW + "클릭: " + currentTab + "등급 일괄 등록"
                     )));
+        } else if ("ALL".equals(currentTab)) {
+            // 피드백: ALL 탭에서도 모든 등급을 일괄 등록할 수 있다.
+            setItem(REGISTER_ALL_SLOT, createIcon(Material.HOPPER, ChatColor.GREEN + "모든 등급 일괄 등록",
+                    List.of(
+                            ChatColor.GRAY + "인벤토리와 어망의 모든 물고기를 등록합니다.",
+                            ChatColor.GRAY + "물고기별 최대 슬롯까지 채워집니다.",
+                            ChatColor.YELLOW + "클릭: 모든 등급 일괄 등록"
+                    )));
         } else {
             setItem(REGISTER_ALL_SLOT, createIcon(Material.PAPER, ChatColor.GRAY + "등급 일괄 등록",
                     List.of(ChatColor.GRAY + "등급 탭을 선택하면 사용할 수 있습니다.")));
         }
+
+        // 피드백: 각 GUI 창에는 메인 GUI로 돌아오는 버튼을 둔다.
+        setItem(BACK_SLOT, createIcon(Material.OAK_DOOR, ChatColor.GOLD + "메인 GUI로",
+                List.of(ChatColor.GRAY + "낚시 메인메뉴로 돌아갑니다.")));
 
         // 다음 페이지
         List<Fish> fishes = getFilteredFishList();
@@ -333,12 +346,17 @@ public class CollectionGui extends AbstractGui {
             if (slot == 45 && page > 0) {
                 page--;
                 refresh();
-            } else if (slot == REGISTER_ALL_SLOT && isGradeTab()) {
-                int registered = collectionManager.registerAllByGrade(player, currentTab);
+            } else if (slot == BACK_SLOT) {
+                me.ninesik.fishing.gui.MainGui.open(player);
+            } else if (slot == REGISTER_ALL_SLOT && (isGradeTab() || "ALL".equals(currentTab))) {
+                int registered = isGradeTab()
+                        ? collectionManager.registerAllByGrade(player, currentTab)
+                        : collectionManager.registerAll(player);
+                String label = isGradeTab() ? currentTab + "등급" : "모든 등급";
                 if (registered > 0) {
-                    player.sendMessage(ChatColor.GREEN + currentTab + "등급 물고기 " + registered + "마리를 도감에 등록했습니다.");
+                    player.sendMessage(ChatColor.GREEN + label + " 물고기 " + registered + "마리를 도감에 등록했습니다.");
                 } else {
-                    player.sendMessage(ChatColor.YELLOW + "등록할 수 있는 " + currentTab + "등급 물고기가 없습니다.");
+                    player.sendMessage(ChatColor.YELLOW + "등록할 수 있는 " + label + " 물고기가 없습니다.");
                 }
                 refresh();
             } else if (slot == 49) {

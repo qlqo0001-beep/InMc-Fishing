@@ -138,6 +138,9 @@ public class CollectionRewardService {
         placeholders.put("fish", fish.getVanillaName() != null ? fish.getVanillaName() : fish.getId());
         placeholders.put("size", String.format("%.1f", size));
 
+        // 피드백: 보상이 무슨 이유로 지급되는지 설명한다.
+        explain(player, rewardDescription("rare".equals(type) ? "rare-trophy" : "trophy", placeholders));
+
         if (claimNow(player, commands, placeholders)) {
             entry.markRewardClaimed("trophy-" + type);
             return true;
@@ -162,10 +165,14 @@ public class CollectionRewardService {
             return;
         }
 
+        String desc = rewardDescription("slot-completion", Map.of("fish", fishName(entry.getFishId())));
+        // 피드백: 보상이 무슨 이유로 지급되는지 설명한다.
+        explain(player, desc);
+
         if (claimNow(player, commands)) {
             entry.markRewardClaimed("slot-completion");
         } else {
-            addPendingMilestoneReward(dataOf(player), "slot-completion-" + entry.getFishId(), commands);
+            addPendingMilestoneReward(dataOf(player), "slot-completion-" + entry.getFishId(), commands, desc);
             // 대기 중에도 재지급을 막기 위해 즉시 클레임 처리한다 (isClaimed()가 pending도 체크하지만,
             // pending 항목이 나중에 지급된 뒤에는 claimed 플래그가 없어 재조건 충족 시 다시 큐잉될 수 있으므로 명시적으로 표시)
             entry.markRewardClaimed("slot-completion");
@@ -182,10 +189,13 @@ public class CollectionRewardService {
             return;
         }
 
+        String desc = rewardDescription("first-register", Map.of("fish", fishName(entry.getFishId())));
+        explain(player, desc);
+
         if (claimNow(player, commands)) {
             entry.markRewardClaimed("first-register");
         } else {
-            addPendingMilestoneReward(dataOf(player), "first-register-" + entry.getFishId(), commands);
+            addPendingMilestoneReward(dataOf(player), "first-register-" + entry.getFishId(), commands, desc);
         }
     }
 
@@ -209,10 +219,14 @@ public class CollectionRewardService {
                 continue;
             }
 
+            String desc = rewardDescription("milestone",
+                    Map.of("fish", fishName(entry.getFishId()), "milestone", String.valueOf(milestone)));
+            explain(player, desc);
+
             if (claimNow(player, commands)) {
                 entry.markRewardClaimed("milestone-" + milestone);
             } else {
-                addPendingMilestoneReward(dataOf(player), "milestone-" + milestone + "-" + entry.getFishId(), commands);
+                addPendingMilestoneReward(dataOf(player), "milestone-" + milestone + "-" + entry.getFishId(), commands, desc);
             }
         }
     }
@@ -230,10 +244,13 @@ public class CollectionRewardService {
                 continue;
             }
 
+            String desc = rewardDescription("grade-all-registered", Map.of("grade", gradeId.toUpperCase()));
+            explain(player, desc);
+
             if (claimNow(player, commands)) {
                 markClaimed(data, claimedKey);
             } else {
-                addPendingMilestoneReward(data, claimedKey, commands);
+                addPendingMilestoneReward(data, claimedKey, commands, desc);
             }
         }
     }
@@ -251,10 +268,13 @@ public class CollectionRewardService {
                 continue;
             }
 
+            String desc = rewardDescription("grade-all-perfect", Map.of("grade", gradeId.toUpperCase()));
+            explain(player, desc);
+
             if (claimNow(player, commands)) {
                 markClaimed(data, claimedKey);
             } else {
-                addPendingMilestoneReward(data, claimedKey, commands);
+                addPendingMilestoneReward(data, claimedKey, commands, desc);
             }
         }
     }
@@ -271,10 +291,13 @@ public class CollectionRewardService {
             return;
         }
 
+        String desc = rewardDescription("full-completion", Map.of());
+        explain(player, desc);
+
         if (claimNow(player, commands)) {
             markClaimed(data, claimedKey);
         } else {
-            addPendingMilestoneReward(data, claimedKey, commands);
+            addPendingMilestoneReward(data, claimedKey, commands, desc);
         }
     }
 
@@ -336,6 +359,10 @@ public class CollectionRewardService {
                 it.remove();
                 continue;
             }
+            // 피드백: 보상이 무슨 이유로 지급되는지 설명한다.
+            explain(player, pending.getDescription() != null
+                    ? pending.getDescription()
+                    : rewardDescription(rewardKeyType(pending.getKey()), Map.of()));
             if (claimNow(player, pending.getCommands())) {
                 it.remove();
             } else {
@@ -345,8 +372,12 @@ public class CollectionRewardService {
     }
 
     private void addPendingMilestoneReward(CollectionData data, String key, List<String> commands) {
+        addPendingMilestoneReward(data, key, commands, null);
+    }
+
+    private void addPendingMilestoneReward(CollectionData data, String key, List<String> commands, String description) {
         if (data == null) return;
-        data.getPendingMilestoneRewards().add(new PendingMilestoneReward(key, commands));
+        data.getPendingMilestoneRewards().add(new PendingMilestoneReward(key, commands, description));
     }
 
     private boolean isPendingMilestoneExpired(PendingMilestoneReward pending) {
@@ -366,6 +397,57 @@ public class CollectionRewardService {
 
     private CollectionData dataOf(Player player) {
         return collectionManager.getCollectionData(player);
+    }
+
+    private String fishName(String fishId) {
+        Fish f = collectionManager.getFishRegistry().getById(fishId);
+        if (f == null) return fishId != null ? fishId : "?";
+        return f.getVanillaName() != null ? f.getVanillaName() : f.getId();
+    }
+
+    // ===== 보상 사유 설명 (피드백) =====
+
+    /** pending 키 접두사로부터 보상 유형을 추출한다. */
+    private String rewardKeyType(String key) {
+        if (key == null) return "";
+        if (key.startsWith("first-register")) return "first-register";
+        if (key.startsWith("slot-completion")) return "slot-completion";
+        if (key.startsWith("milestone")) return "milestone";
+        if (key.startsWith("grade-all-registered")) return "grade-all-registered";
+        if (key.startsWith("grade-all-perfect")) return "grade-all-perfect";
+        if (key.startsWith("full-completion")) return "full-completion";
+        if (key.startsWith("trophy-rare")) return "rare-trophy";
+        if (key.startsWith("trophy-")) return "trophy";
+        return "";
+    }
+
+    /** 보상 유형별 설명 문구를 구성한다. config의 reward-descriptions.<type>을 우선 사용한다. */
+    private String rewardDescription(String type, Map<String, String> placeholders) {
+        String template = rewardConfig.getString("reward-descriptions." + type, "");
+        if (template == null || template.isBlank()) {
+            template = defaultRewardDescription(type);
+        }
+        return me.ninesik.fishing.util.Texts.apply(template, placeholders);
+    }
+
+    private String defaultRewardDescription(String type) {
+        return switch (type == null ? "" : type) {
+            case "first-register" -> "&e[도감] &7첫 등록 보상을 지급합니다.";
+            case "slot-completion" -> "&e[도감] &7물고기 슬롯 완성(퍼펙트) 보상을 지급합니다.";
+            case "milestone" -> "&e[도감] &7등록 마일스톤 달성 보상을 지급합니다.";
+            case "grade-all-registered" -> "&e[도감] &7등급 전체 등록 보상을 지급합니다.";
+            case "grade-all-perfect" -> "&e[도감] &7등급 전체 퍼펙트 보상을 지급합니다.";
+            case "full-completion" -> "&e[도감] &7도감 전체 완성 보상을 지급합니다.";
+            case "trophy" -> "&e[도감] &7트로피 달성 보상을 지급합니다.";
+            case "rare-trophy" -> "&e[도감] &7레어 트로피 달성 보상을 지급합니다.";
+            default -> "&e[도감] &7도감 보상을 지급합니다.";
+        };
+    }
+
+    /** 플레이어에게 보상 사유 설명 메시지를 전송한다. */
+    private void explain(Player player, String message) {
+        if (player == null || message == null || message.isBlank()) return;
+        player.sendMessage(me.ninesik.fishing.util.Texts.colorize(message));
     }
 
     private List<String> getStringList(String path) {

@@ -5,6 +5,7 @@ import me.ninesik.fishing.collection.CollectionManager;
 import me.ninesik.fishing.config.ConfigManager;
 import me.ninesik.fishing.fatigue.FatiguePotionItem;
 import me.ninesik.fishing.fatigue.PlayerFatigueManager;
+import me.ninesik.fishing.fight.FightSession;
 import me.ninesik.fishing.fight.TrophyFightManager;
 import me.ninesik.fishing.minigame.FishingMiniGame;
 import me.ninesik.fishing.model.Fish;
@@ -109,6 +110,8 @@ public class FishingCommand implements CommandExecutor, TabCompleter {
             case "testfight" -> handleTestFight(sender, args);
             case "testfightmode", "tfm" -> handleTestFightMode(sender, args);
             case "show", "자랑" -> handleShow(sender);
+            case "stats", "스탯" -> handleStats(sender);
+            case "menu", "gui", "메인" -> handleMenu(sender);
             default -> {
                 sender.sendMessage("§e[InMc-Fishing] §7알 수 없는 명령어: " + args[0]);
                 handleHelp(sender);
@@ -153,7 +156,7 @@ public class FishingCommand implements CommandExecutor, TabCompleter {
                                       @NotNull String alias, @NotNull String[] args) {
         if (args.length == 1) {
             List<String> subs = new ArrayList<>();
-            for (String sub : new String[]{"help", "reload", "debug", "simulate", "info", "collection", "rank", "tournament", "give", "list", "net", "minigame", "fatigue", "testfight", "testfightmode", "show"}) {
+            for (String sub : new String[]{"help", "reload", "debug", "simulate", "info", "collection", "rank", "tournament", "give", "list", "net", "minigame", "fatigue", "testfight", "testfightmode", "show", "stats", "menu"}) {
                 if (sub.startsWith(args[0].toLowerCase())) {
                     subs.add(sub);
                 }
@@ -456,15 +459,6 @@ public class FishingCommand implements CommandExecutor, TabCompleter {
             return;
         }
 
-        // 테스트용 낚싯대 (충분한 Fight 스탯)
-        Rod testRod = Rod.builder()
-                .id("testfight")
-                .useType("vanilla")
-                .reelPower(30.0)
-                .lineStrength(100.0)
-                .reelDurability(30.0)
-                .build();
-
         RewardEntry reward = RewardEntry.builder()
                 .fish(testFish)
                 .grade(grade)
@@ -483,10 +477,20 @@ public class FishingCommand implements CommandExecutor, TabCompleter {
         }
 
         try {
-            fightManager.startFight(player, reward, testRod);
+            // 버그 수정: 이전에는 고정된 testRod(reelPower 30 고정값 등)를 항상 사용해서
+            // 실제로 손에 든 낚싯대(rod.yml 보너스)가 전혀 반영되지 않았다.
+            // startFight(player, reward) 오버로드는 TrophyFightManager에 주입된 rodLookup
+            // (FishingListener::getRodForFight)을 그대로 사용해, 실제 프로덕션 흐름과 동일하게
+            // "현재 손에 든 낚싯대"를 인식한다. 인식되지 않는 낚싯대(미등록/맨손)면
+            // rodLookup이 null을 반환하고, TrophyFightManager가 기본 스탯으로 처리한다.
+            FightSession session = fightManager.startFight(player, reward);
             sender.sendMessage("§aTrophy Fight을 시작했습니다! (등급: " + grade.getId().toUpperCase()
                     + ", " + (isRareTrophy ? "Rare " : "") + "Trophy)");
             sender.sendMessage("§7L: 릴 감기(제압, 상태별 효과)  R: 릴 풀기(회복, 상태별 거리 증가)");
+            sender.sendMessage(String.format(
+                    "§7인식된 낚싯대 스탯 → Reel Power: %.1f, Line Strength: %.1f, Reel Durability: %.1f, Max Distance: %.1f",
+                    session.getReelPower(), session.getLineStrength(), session.getReelDurability(),
+                    session.getMaxDistance()));
         } catch (IllegalStateException e) {
             sender.sendMessage("§c이미 Fight 중입니다: " + e.getMessage());
         }
@@ -563,6 +567,40 @@ public class FishingCommand implements CommandExecutor, TabCompleter {
         if (!msg.isEmpty()) {
             Bukkit.broadcastMessage(Texts.colorize(msg));
         }
+    }
+
+    /**
+     * /fishing stats — 내 낚시 스탯을 채팅으로 안내한다.
+     * (피드백: 내 릴 파워/줄 강도/릴 내구성/피로도/자연회복량/등급 추가 출현확률)
+     */
+    private void handleStats(CommandSender sender) {
+        if (!sender.hasPermission("infishing.user")) {
+            sender.sendMessage("§c권한이 없습니다.");
+            return;
+        }
+        if (!(sender instanceof Player player)) {
+            sender.sendMessage("§c플레이어만 사용할 수 있습니다.");
+            return;
+        }
+        sender.sendMessage("§b§m                                                §r");
+        sender.sendMessage("§b[InMc-Fishing] §f내 낚시 스탯");
+        for (String line : me.ninesik.fishing.gui.MainGui.buildStatsLines(player)) {
+            sender.sendMessage("§7- " + line);
+        }
+        sender.sendMessage("§b§m                                                §r");
+    }
+
+    /** /fishing menu (gui/메인) — 낚시 메인 GUI를 연다. (시프트+F와 동일) */
+    private void handleMenu(CommandSender sender) {
+        if (!sender.hasPermission("infishing.user")) {
+            sender.sendMessage("§c권한이 없습니다.");
+            return;
+        }
+        if (!(sender instanceof Player player)) {
+            sender.sendMessage("§c플레이어만 사용할 수 있습니다.");
+            return;
+        }
+        me.ninesik.fishing.gui.MainGui.open(player);
     }
 
     /**

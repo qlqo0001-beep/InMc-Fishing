@@ -100,20 +100,26 @@ public class FightSession {
     private double maxReelState = 100.0;
 
     /**
+     * Distance 상한값 (initStats에서 설정).
+     * config.stats().max-distance에 낚싯대 line-strength 보너스가 더해진 값이다
+     * (피드백: "낚싯대 옵션에 줄 강도가 높아질수록 거리값이 추가되게 설정해 줘야 해").
+     * 이 값 이상으로 Distance가 벌어지면 줄이 끊어진 것으로 간주해 Fight가 실패한다.
+     */
+    private double maxDistance = 250.0;
+
+    /**
+     * Fish Stamina가 0보다 클 동안 Distance가 이 값 밑으로 내려가지 않는다
+     * (TrophyFightManager.initStats()에서 등급별로 config.stats().minDistanceWithStaminaByGrade
+     * 를 조회해 설정한다). 피드백: "등급별로 최소 거리값을 설정되게 하면 더 좋을거 같아."
+     */
+    private double minDistanceWithStamina = 50.0;
+
+    /**
      * Stamina 상한값 (initStats에서 설정, 등급×Rare Trophy 난이도 배수 반영).
      * 릴을 감지 않는 동안의 Stamina 회복량 계산에 쓰인다 (패치예정.md 피드백:
      * "릴을 당기지 않고 내버려두면 물고기의 스테미나가 천천히 차야 함").
      */
     private double maxStamina = 100.0;
-
-    /**
-     * 마지막으로 플레이어에게 타이틀로 알려준 Fish AI 상태.
-     * 매 틱 알려주면 타이틀이 계속 깜빡이므로, 상태가 실제로 바뀔 때만 표시하기 위해
-     * TrophyFightManager가 이 값과 현재 상태를 비교한다 (패치예정.md 피드백:
-     * "물고기의 AI 상태에 대해서 유저가 알 수 없는게 큰거 같아").
-     */
-    private FishState lastAnnouncedState;
-
 
     /**
      * 등급 × 트로피 종류(Rare Trophy) 난이도 배수.
@@ -131,6 +137,12 @@ public class FightSession {
     private RewardEntry reward;
 
     /**
+     * 연습모드 여부 (피드백 — 유저 전용 트로피 파이트 연습 토글).
+     * true이면 결과에 관계없이 보상을 지급하지 않는다 (즉시/대기 모두 스킵).
+     */
+    private boolean practice;
+
+    /**
      * 제한 시간 카운트다운 일시 정지 여부.
      * 패치예정.md §1046: "Stamina ≤ 0 조건이 충족되면 카운트다운을 멈춘다."
      * 최초로 Stamina가 0에 도달한 시점에 true로 래치(latch)되며, 이후 Stamina가
@@ -139,6 +151,14 @@ public class FightSession {
      * 그 이후로는 시간 압박 없이 마무리할 수 있어야 한다는 의도를 유지한다.
      */
     private boolean timerPaused;
+
+    /**
+     * Trophy Fight가 FAILED로 끝났을 때 그 원인.
+     * 기본값 {@link FightFailReason#NONE} — TrophyFightManager.checkEndConditions()가
+     * 실패를 판정하는 시점에 원인에 맞는 값으로 설정한다 (피드백: "물고기가 도망가는
+     * 원인을 나눴으면 좋겠어").
+     */
+    private FightFailReason failReason = FightFailReason.NONE;
 
     /**
      * @param playerId 플레이어 UUID (Player 객체 아님)
@@ -264,6 +284,15 @@ public class FightSession {
     }
 
     /**
+     * Distance를 특정 값으로 직접 설정한다. 0 미만으로 내려가지 않는다.
+     * Fish Stamina가 남아있는 동안 Distance 하한을 강제할 때 사용한다
+     * (피드백: "스테미너가 0보다 크면 거리값이 50 이하로 안줄어들게").
+     */
+    public void setDistance(double value) {
+        this.distance = Math.max(0, value);
+    }
+
+    /**
      * Tension을 변경한다. 0 미만으로 내려가지 않는다.
      */
     public void changeTension(double amount) {
@@ -285,17 +314,35 @@ public class FightSession {
     }
 
     /**
-     * 마지막으로 타이틀로 알려준 Fish AI 상태를 반환한다. (아직 없으면 {@code null})
+     * Fight 시작 시 설정된 Distance 상한값을 반환한다.
+     * (config.stats().max-distance + 낚싯대 line-strength 보너스)
      */
-    public FishState getLastAnnouncedState() {
-        return lastAnnouncedState;
+    public double getMaxDistance() {
+        return maxDistance;
     }
 
     /**
-     * 마지막으로 타이틀로 알려준 Fish AI 상태를 갱신한다.
+     * Distance 상한값을 설정한다. TrophyFightManager.initStats()에서
+     * Fight 시작 시 한 번 호출된다 (낚싯대 line-strength 보너스 반영).
      */
-    public void setLastAnnouncedState(FishState state) {
-        this.lastAnnouncedState = state;
+    public void setMaxDistance(double maxDistance) {
+        this.maxDistance = Math.max(0, maxDistance);
+    }
+
+    /**
+     * Fight 시작 시 등급에 따라 설정된 Distance 하한값을 반환한다
+     * (Stamina가 0보다 큰 동안에만 적용됨).
+     */
+    public double getMinDistanceWithStamina() {
+        return minDistanceWithStamina;
+    }
+
+    /**
+     * Distance 하한값을 설정한다. TrophyFightManager.initStats()에서
+     * Fight 시작 시 등급별 config.stats().minDistanceWithStaminaByGrade 값으로 설정된다.
+     */
+    public void setMinDistanceWithStamina(double minDistanceWithStamina) {
+        this.minDistanceWithStamina = Math.max(0, minDistanceWithStamina);
     }
 
     /**
@@ -382,12 +429,38 @@ public class FightSession {
         this.reward = reward;
     }
 
+    /** 연습모드 여부를 반환한다. */
+    public boolean isPractice() {
+        return practice;
+    }
+
+    /** 연습모드 여부를 설정한다. */
+    public void setPractice(boolean practice) {
+        this.practice = practice;
+    }
+
     public boolean isTimerPaused() {
         return timerPaused;
     }
 
     public void setTimerPaused(boolean timerPaused) {
         this.timerPaused = timerPaused;
+    }
+
+    /**
+     * Trophy Fight가 FAILED로 끝났을 때 그 원인을 반환한다.
+     * FAILED가 아니면 (또는 아직 설정 전이면) {@link FightFailReason#NONE}.
+     */
+    public FightFailReason getFailReason() {
+        return failReason;
+    }
+
+    /**
+     * 실패 원인을 설정한다. TrophyFightManager.checkEndConditions()가
+     * stopFight(FAILED)를 호출하기 직전에 호출한다.
+     */
+    public void setFailReason(FightFailReason failReason) {
+        this.failReason = failReason != null ? failReason : FightFailReason.NONE;
     }
 
     /**

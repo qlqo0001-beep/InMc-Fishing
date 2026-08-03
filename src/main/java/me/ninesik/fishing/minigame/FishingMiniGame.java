@@ -313,11 +313,21 @@ public class FishingMiniGame implements MiniGame {
                 if (reward != null) {
                     // Trophy Fight 시스템(패치예정.md): 트로피/레어 트로피 물고기는
                     // 일반 미니게임 성공 후 추가 Fight를 진행해야 최종 획득한다.
+                    // 피드백: 연습모드 ON이면 일반 물고기여도 파이트가 발동된다 (보상 없음).
+                    boolean practice = false;
+                    if (plugin instanceof me.ninesik.fishing.InMcFishing inMcFishing
+                            && inMcFishing.getPlayerPreferenceManager() != null) {
+                        practice = inMcFishing.getPlayerPreferenceManager().isTrophyPracticeMode(player);
+                    }
                     if (trophyFightManager != null
-                            && (reward.isTrophy() || reward.isRareTrophy())
                             && reward.getFish() != null
-                            && reward.getGrade() != null) {
-                        trophyFightManager.startFight(player, reward);
+                            && reward.getGrade() != null
+                            && (practice || reward.isTrophy() || reward.isRareTrophy())) {
+                        if (practice) {
+                            trophyFightManager.startFightPractice(player, reward);
+                        } else {
+                            trophyFightManager.startFight(player, reward);
+                        }
                     } else {
                         rewardService.giveReward(player, reward);
                     }

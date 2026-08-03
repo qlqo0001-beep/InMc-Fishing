@@ -36,9 +36,10 @@ public class NetListener implements Listener {
     }
 
     /**
-     * Sneak + F with a fishing rod opens the net before common server-menu
-     * listeners run. Non-rods are intentionally left untouched so an external
+     * Sneak + F with a fishing rod opens the fishing main menu (메인 GUI) before common
+     * server-menu listeners run. Non-rods are intentionally left untouched so an external
      * server-menu shortcut can handle them normally.
+     * (피드백: 메인 GUI 생성 후 시프트+F는 메인 GUI로 연결)
      */
     @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = false)
     public void onSneakSwapHands(PlayerSwapHandItemsEvent event) {
@@ -60,6 +61,6 @@ public class NetListener implements Listener {
         // Cancelling preserves the held rod and signals later menu listeners
         // that the fishing shortcut has already consumed this key press.
         event.setCancelled(true);
-        netManager.openNetGui(event.getPlayer());
+        me.ninesik.fishing.gui.MainGui.open(event.getPlayer());
     }
 }

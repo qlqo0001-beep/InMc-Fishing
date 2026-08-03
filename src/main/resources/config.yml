@@ -280,8 +280,19 @@ messages:
   # 대어(Big Fish) 낚시 성공 메시지
   big-fish: "&b대어를 낚았습니다!"
 
-  # 미니게임 실패 메시지
+  # 미니게임 실패 메시지 (일반 L/R 클릭 미니게임 실패 시. Trophy Fight 실패는 아래 fail-* 참고)
   fail: "&f물고기가 도망갔네.."
+
+  # Trophy Fight 실패 원인별 메시지
+  # (피드백: "파이트시, 물고기가 도망가는 원인을 나눴으면 좋겠어")
+  # Tension이 Line Strength에 도달 — 줄이 끊어짐
+  fail-tension: "&c줄이 끊겼네.."
+  # Reel State가 0에 도달 — 릴이 고장남
+  fail-reel-break: "&c릴이 고장났네.."
+  # Distance가 Max Distance에 도달 — 줄 길이가 부족함
+  fail-distance: "&c줄 길이가 부족하네.."
+  # 제한 시간 초과
+  fail-timeout: "&c시간이 초과되어 놓쳤네.."
 
   # 인벤토리가 가득 찼을 때 메시지
   no-empty-slot: "&c인벤토리에 빈칸이 없습니다!"
@@ -435,9 +446,23 @@ trophy-fight:
     bar-color-warning: "&e"    # 주의 (노랑)
     bar-color-danger: "&c"     # 위험 (빨강)
     # BossBar 네임 텍스트 ({distance} = 현재 Distance 값)
-    bossbar-title-format: "거리: {distance}"
+    bossbar-title-format: "거리: {distance} / {max_distance} M"
     # ActionBar 텍스트 ({stamina}/{power}/{resistance}/{reel} = 각 수치)
     actionbar-format: "물고기 채력 {stamina}% | 물고기 힘 {power} | 물고기 저항력 {resistance} | 릴 상태 {reel}%"
+    # Fish AI 상태 타이틀(메인) — {state_color} = 아래 state-color 설정, {state} = 상태 이름
+    # (피드백: "해당 부분을 콘피그에서 수정되게 해줘야 해")
+    state-title-format: "{state_color}{state}"
+    # Fish AI 상태 서브타이틀 — {stamina}/{reel} = 현재 체력/릴 상태, {remaining_seconds} = 다음 상태 전이까지 남은 시간(초)
+    # 피드백: "물고기 체력과 릴 상태를 서브 타이틀 초후변화 양옆에 1개씩 배치하자. 눈에 잘보이게"
+    state-subtitle-format: " &7{remaining_seconds}초 후 변화"
+    # 상태별 타이틀 색상
+    state-color:
+      rest: "&a"
+      slow-move: "&e"
+      normal-move: "&f"
+      turn: "&e"
+      charge: "&6"
+      final-struggle: "&c"
 
   # --- 사운드 설정 ---
   # Fight 중 상황별 사운드 (Phase 3에서 구현)
@@ -468,6 +493,23 @@ trophy-fight:
     # Distance 상한값 (이 값 이상 멀어지면 물고기가 도망가며 줄이 끊어짐, 0=제한 없음)
     # 패치예정.md 피드백: "물고기는 일정 거리에 도달하면 줄이 끊어져야 함"
     max-distance: 250.0
+    # 낚싯대 line-strength(줄 강도) 1당 위 max-distance에 추가되는 보너스 비율.
+    # 최종 Distance 상한 = max-distance + (낚싯대 options.line-strength × 이 값).
+    # reel-power/reel-durability와 동일한 "기본값 + 낚싯대 보너스" 방식이다.
+    # (피드백: "낚싯대 옵션에 줄 강도가 높아질수록 거리값이 추가되게 설정해 줘야 해")
+    distance-per-line-strength: 1.0
+    # Fish Stamina가 0보다 큰 동안 Distance가 이 값 밑으로 내려가지 않는다.
+    # 물고기가 아직 지치지 않았다면 아무리 릴을 잘 감아도 이 거리 밖에서는
+    # 완전히 끌려오지 않는다. 등급별로 설정 가능 (0 = 해당 등급 하한 없음).
+    # 피드백: "등급별로 최소 거리값을 설정되게 하면 더 좋을거 같아"
+    min-distance-with-stamina:
+      f: 50.0
+      e: 50.0
+      d: 50.0
+      c: 50.0
+      b: 50.0
+      a: 50.0
+      s: 50.0
     # Tension 최대값 (이 값에 도달하면 줄이 끊어짐)
     max-tension: 100.0
     # Reel State 기본값 (릴 내구도)
