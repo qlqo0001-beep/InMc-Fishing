@@ -326,7 +326,3 @@ weather:
 | Java | 25 |
 | API | Paper 26.2 |
 | 빌드 | Gradle Kotlin DSL |
-
-
-
-
