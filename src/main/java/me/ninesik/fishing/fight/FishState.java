@@ -22,6 +22,22 @@ public enum FishState {
     FINAL_STRUGGLE;
 
     /**
+     * 이 상태의 화면 표시용 한글 이름을 반환한다.
+     * Trophy Fight 타이틀에서 플레이어에게 현재 물고기 상태를 알려줄 때 사용한다
+     * (패치예정.md 피드백: "물고기의 AI 상태에 대해서 유저가 알 수 없는게 큰거 같아").
+     */
+    public String getDisplayName() {
+        return switch (this) {
+            case REST -> "휴식 중";
+            case SLOW_MOVE -> "천천히 이동";
+            case NORMAL_MOVE -> "이동 중";
+            case TURN -> "방향 전환";
+            case CHARGE -> "강하게 돌진!";
+            case FINAL_STRUGGLE -> "마지막 발악!!";
+        };
+    }
+
+    /**
      * 이 상태가 물고기의 저항이 없는 상태인지 확인한다.
      * (Stamina 0 이후에는 AI가 정지하므로 REST로 간주)
      */

@@ -165,7 +165,7 @@ public class CollectionRewardService {
         if (claimNow(player, commands)) {
             entry.markRewardClaimed("slot-completion");
         } else {
-            addPendingReward(dataOf(player), "slot-completion-" + entry.getFishId(), commands);
+            addPendingMilestoneReward(dataOf(player), "slot-completion-" + entry.getFishId(), commands);
             // 대기 중에도 재지급을 막기 위해 즉시 클레임 처리한다 (isClaimed()가 pending도 체크하지만,
             // pending 항목이 나중에 지급된 뒤에는 claimed 플래그가 없어 재조건 충족 시 다시 큐잉될 수 있으므로 명시적으로 표시)
             entry.markRewardClaimed("slot-completion");
@@ -185,7 +185,7 @@ public class CollectionRewardService {
         if (claimNow(player, commands)) {
             entry.markRewardClaimed("first-register");
         } else {
-            addPendingReward(dataOf(player), "first-register-" + entry.getFishId(), commands);
+            addPendingMilestoneReward(dataOf(player), "first-register-" + entry.getFishId(), commands);
         }
     }
 
@@ -212,7 +212,7 @@ public class CollectionRewardService {
             if (claimNow(player, commands)) {
                 entry.markRewardClaimed("milestone-" + milestone);
             } else {
-                addPendingReward(dataOf(player), "milestone-" + milestone + "-" + entry.getFishId(), commands);
+                addPendingMilestoneReward(dataOf(player), "milestone-" + milestone + "-" + entry.getFishId(), commands);
             }
         }
     }
@@ -233,7 +233,7 @@ public class CollectionRewardService {
             if (claimNow(player, commands)) {
                 markClaimed(data, claimedKey);
             } else {
-                addPendingReward(data, claimedKey, commands);
+                addPendingMilestoneReward(data, claimedKey, commands);
             }
         }
     }
@@ -254,7 +254,7 @@ public class CollectionRewardService {
             if (claimNow(player, commands)) {
                 markClaimed(data, claimedKey);
             } else {
-                addPendingReward(data, claimedKey, commands);
+                addPendingMilestoneReward(data, claimedKey, commands);
             }
         }
     }
@@ -274,7 +274,7 @@ public class CollectionRewardService {
         if (claimNow(player, commands)) {
             markClaimed(data, claimedKey);
         } else {
-            addPendingReward(data, claimedKey, commands);
+            addPendingMilestoneReward(data, claimedKey, commands);
         }
     }
 
@@ -329,10 +329,10 @@ public class CollectionRewardService {
         CollectionData data = collectionManager.getCollectionData(player);
         if (data == null) return;
 
-        Iterator<PendingReward> it = data.getPendingRewards().iterator();
+        Iterator<PendingMilestoneReward> it = data.getPendingMilestoneRewards().iterator();
         while (it.hasNext()) {
-            PendingReward pending = it.next();
-            if (isPendingExpired(pending)) {
+            PendingMilestoneReward pending = it.next();
+            if (isPendingMilestoneExpired(pending)) {
                 it.remove();
                 continue;
             }
@@ -344,12 +344,12 @@ public class CollectionRewardService {
         }
     }
 
-    private void addPendingReward(CollectionData data, String key, List<String> commands) {
+    private void addPendingMilestoneReward(CollectionData data, String key, List<String> commands) {
         if (data == null) return;
-        data.getPendingRewards().add(new PendingReward(key, commands));
+        data.getPendingMilestoneRewards().add(new PendingMilestoneReward(key, commands));
     }
 
-    private boolean isPendingExpired(PendingReward pending) {
+    private boolean isPendingMilestoneExpired(PendingMilestoneReward pending) {
         if (pendingTimeoutSeconds <= 0) return false;
         return java.time.Duration.between(pending.getCreatedAt(), java.time.LocalDateTime.now()).getSeconds() > pendingTimeoutSeconds;
     }
@@ -357,7 +357,7 @@ public class CollectionRewardService {
     private boolean isClaimed(CollectionData data, String key) {
         // 이미 지급 완료되었거나 대기 중인 보상은 중복 처리하지 않는다
         return data.getClaimedRewards().contains(key)
-                || data.getPendingRewards().stream().anyMatch(p -> p.getKey().equals(key));
+                || data.getPendingMilestoneRewards().stream().anyMatch(p -> p.getKey().equals(key));
     }
 
     private void markClaimed(CollectionData data, String key) {

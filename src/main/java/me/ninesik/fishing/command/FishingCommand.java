@@ -5,8 +5,12 @@ import me.ninesik.fishing.collection.CollectionManager;
 import me.ninesik.fishing.config.ConfigManager;
 import me.ninesik.fishing.fatigue.FatiguePotionItem;
 import me.ninesik.fishing.fatigue.PlayerFatigueManager;
+import me.ninesik.fishing.fight.TrophyFightManager;
 import me.ninesik.fishing.minigame.FishingMiniGame;
 import me.ninesik.fishing.model.Fish;
+import me.ninesik.fishing.model.Grade;
+import me.ninesik.fishing.model.RewardEntry;
+import me.ninesik.fishing.model.Rod;
 import me.ninesik.fishing.player.PlayerPreferenceManager;
 import me.ninesik.fishing.ranking.RankingManager;
 import me.ninesik.fishing.registry.FishRegistry;
@@ -19,6 +23,8 @@ import me.ninesik.fishing.session.FishingSessionManager;
 import me.ninesik.fishing.tournament.Tournament;
 import me.ninesik.fishing.tournament.TournamentManager;
 import org.bukkit.ChatColor;
+import org.bukkit.Bukkit;
+import me.ninesik.fishing.util.Texts;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
@@ -28,6 +34,7 @@ import org.bukkit.inventory.ItemStack;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -97,6 +104,9 @@ public class FishingCommand implements CommandExecutor, TabCompleter {
             case "list" -> handleList(sender, args);
             case "net", "어망" -> handleNet(sender);
             case "minigame", "game", "미니게임" -> handleMinigame(sender, args);
+            case "testfight" -> handleTestFight(sender, args);
+            case "testfightmode", "tfm" -> handleTestFightMode(sender, args);
+            case "show", "자랑" -> handleShow(sender);
             default -> {
                 sender.sendMessage("§e[InMc-Fishing] §7알 수 없는 명령어: " + args[0]);
                 handleHelp(sender);
@@ -122,6 +132,7 @@ public class FishingCommand implements CommandExecutor, TabCompleter {
         sender.sendMessage("§e/fishing info §7- 플러그인 정보(등급/물고기/낚싯대 개수 등)를 확인합니다.");
         sender.sendMessage("§e/fishing minigame <on|off> §7- 개인 L/R 클릭 미니게임을 켜거나 끕니다.");
         sender.sendMessage("§e/fishing fatigue §7- 내 자동 낚시 피로도를 확인합니다.");
+        sender.sendMessage("§e/fishing show §7- 손에 든 물고기를 서버 전체에 자랑합니다.");
 
         if (isAdmin) {
             sender.sendMessage("§c§l[관리자 전용]");
@@ -130,6 +141,7 @@ public class FishingCommand implements CommandExecutor, TabCompleter {
             sender.sendMessage("§e/fishing simulate <횟수> [등급] §7- 등급/보상 확률을 대량 시뮬레이션하여 검증합니다.");
             sender.sendMessage("§e/fishing give <플레이어> <net|fish|trophy|potion> ... §7- 플레이어에게 물고기/트로피/피로회복 물약을 지급합니다.");
             sender.sendMessage("§e/fishing fatigue <add|set> <플레이어> <수치> §7- 플레이어의 피로도를 증감/설정합니다.");
+            sender.sendMessage("§e/fishing testfightmode <on|off|toggle|status> §7- 기본 L/R 미니게임을 끄고, 잡는 물고기를 트로피 파이트로 바로 진입시킵니다. (테스트용)");
         }
         sender.sendMessage("§b§m                                                §r");
     }
@@ -139,7 +151,7 @@ public class FishingCommand implements CommandExecutor, TabCompleter {
                                       @NotNull String alias, @NotNull String[] args) {
         if (args.length == 1) {
             List<String> subs = new ArrayList<>();
-            for (String sub : new String[]{"help", "reload", "debug", "simulate", "info", "collection", "rank", "tournament", "give", "list", "net", "minigame", "fatigue"}) {
+            for (String sub : new String[]{"help", "reload", "debug", "simulate", "info", "collection", "rank", "tournament", "give", "list", "net", "minigame", "fatigue", "testfight", "testfightmode", "show"}) {
                 if (sub.startsWith(args[0].toLowerCase())) {
                     subs.add(sub);
                 }
@@ -165,6 +177,14 @@ public class FishingCommand implements CommandExecutor, TabCompleter {
                     .filter(value -> value.startsWith(args[1].toLowerCase()))
                     .toList();
         }
+        if (args.length == 2 && (args[0].equalsIgnoreCase("testfightmode")
+                || args[0].equalsIgnoreCase("tfm"))) {
+            return List.of("on", "off", "toggle", "status").stream()
+                    .filter(value -> value.startsWith(args[1].toLowerCase()))
+                    .toList();
+        }
+
+
 
         if (args.length == 2 && args[0].equalsIgnoreCase("list")) {
             List<String> grades = new ArrayList<>();
@@ -174,6 +194,22 @@ public class FishingCommand implements CommandExecutor, TabCompleter {
                 }
             }
             return grades;
+        }
+
+        if (args.length == 2 && args[0].equalsIgnoreCase("testfight")) {
+            List<String> grades = new ArrayList<>();
+            for (String id : gradeRegistry.getAll().keySet()) {
+                if (id.toUpperCase().startsWith(args[1].toUpperCase())) {
+                    grades.add(id.toUpperCase());
+                }
+            }
+            return grades;
+        }
+
+        if (args.length == 3 && args[0].equalsIgnoreCase("testfight")) {
+            return java.util.stream.Stream.of("trophy", "rare")
+                    .filter(s -> s.startsWith(args[2].toLowerCase()))
+                    .toList();
         }
 
         if (args.length == 2 && args[0].equalsIgnoreCase("simulate")) {
@@ -364,6 +400,167 @@ public class FishingCommand implements CommandExecutor, TabCompleter {
             }
         }
         player.sendMessage("§e미니게임: " + (enabled ? "§aON" : "§eOFF"));
+    }
+
+    /**
+     * /fishing testfight <grade> <trophyType> — 관리자 전용.
+     * 지정한 등급·트로피 종류로 Trophy Fight을 즉시 시작한다.
+     * grade: f/e/d/c/b/a/s, trophyType: trophy/rare
+     */
+    private void handleTestFight(CommandSender sender, String[] args) {
+        if (!sender.hasPermission("infishing.admin")) {
+            sender.sendMessage("§c권한이 없습니다.");
+            return;
+        }
+        if (!(sender instanceof Player player)) {
+            sender.sendMessage("§c플레이어만 사용할 수 있습니다.");
+            return;
+        }
+        if (args.length < 3) {
+            sender.sendMessage("§c사용법: /fishing testfight <grade> <trophy|rare>");
+            return;
+        }
+
+        Grade grade = gradeRegistry.getById(args[1].toLowerCase());
+        if (grade == null) {
+            sender.sendMessage("§c존재하지 않는 등급입니다: " + args[1]);
+            return;
+        }
+
+        String trophyType = args[2].toLowerCase();
+        boolean isTrophy;
+        boolean isRareTrophy;
+        if ("trophy".equals(trophyType)) {
+            isTrophy = true;
+            isRareTrophy = false;
+        } else if ("rare".equals(trophyType)) {
+            isTrophy = true;
+            isRareTrophy = true;
+        } else {
+            sender.sendMessage("§ctrophyType은 trophy 또는 rare이어야 합니다: " + args[2]);
+            return;
+        }
+
+        // 등급에 맞는 물고기 찾기 (첫 번째 매치)
+        Fish testFish = null;
+        for (Fish fish : fishRegistry.getAll().values()) {
+            if (fish.getGrade() != null && fish.getGrade().getId().equalsIgnoreCase(grade.getId())) {
+                testFish = fish;
+                break;
+            }
+        }
+        if (testFish == null) {
+            sender.sendMessage("§c등급 " + grade.getId().toUpperCase() + "의 물고기를 찾을 수 없습니다.");
+            return;
+        }
+
+        // 테스트용 낚싯대 (충분한 Fight 스탯)
+        Rod testRod = Rod.builder()
+                .id("testfight")
+                .useType("vanilla")
+                .reelPower(30.0)
+                .lineStrength(100.0)
+                .reelDurability(30.0)
+                .build();
+
+        RewardEntry reward = RewardEntry.builder()
+                .fish(testFish)
+                .grade(grade)
+                .originalGrade(grade)
+                .isDouble(false)
+                .isBigFish(false)
+                .size(testFish.getAvgSize())
+                .isTrophy(isTrophy)
+                .isRareTrophy(isRareTrophy)
+                .build();
+
+        TrophyFightManager fightManager = plugin.getTrophyFightManager();
+        if (fightManager == null) {
+            sender.sendMessage("§cTrophy Fight 시스템이 초기화되지 않았습니다.");
+            return;
+        }
+
+        try {
+            fightManager.startFight(player, reward, testRod);
+            sender.sendMessage("§aTrophy Fight을 시작했습니다! (등급: " + grade.getId().toUpperCase()
+                    + ", " + (isRareTrophy ? "Rare " : "") + "Trophy)");
+            sender.sendMessage("§7L: 릴 감기(제압, 상태별 효과)  R: 릴 풀기(회복, 상태별 거리 증가)");
+        } catch (IllegalStateException e) {
+            sender.sendMessage("§c이미 Fight 중입니다: " + e.getMessage());
+        }
+    }
+
+    /**
+     * /fishing testfightmode <on|off|toggle|status> — 관리자 전용 테스트 명령어 (피드백).
+     * 켜면 해당 플레이어가 잡는 물고기가 기본 L/R 클릭 미니게임을 생략하고
+     * 바로 트로피 파이트로 진입한다 (트로피 파이트 입력 시스템 테스트용).
+     */
+    private void handleTestFightMode(CommandSender sender, String[] args) {
+        if (!sender.hasPermission("infishing.admin")) {
+            sender.sendMessage("§c권한이 없습니다.");
+            return;
+        }
+        if (!(sender instanceof Player player)) {
+            sender.sendMessage("§c플레이어만 사용할 수 있습니다.");
+            return;
+        }
+
+        String mode = args.length >= 2 ? args[1].toLowerCase() : "toggle";
+        boolean enabled;
+        switch (mode) {
+            case "on" -> enabled = fishingMiniGame.setTestFightMode(player, true);
+            case "off" -> enabled = fishingMiniGame.setTestFightMode(player, false);
+            case "toggle" ->
+                    enabled = fishingMiniGame.setTestFightMode(player, !fishingMiniGame.isTestFightMode(player));
+            case "status" -> enabled = fishingMiniGame.isTestFightMode(player);
+            default -> {
+                player.sendMessage("§e사용법: /fishing testfightmode <on|off|toggle|status>");
+                return;
+            }
+        }
+
+        player.sendMessage("§e트로피 파이트 테스트 모드: "
+                + (enabled ? "§aON§e (잡는 물고기가 모두 트로피 파이트로 진입합니다)" : "§7OFF"));
+    }
+
+    /**
+     * /fishing show (별칭 /fishing 자랑) — 손에 든 물고기를 서버 전체에 자랑하는 공지 (피드백).
+     * 손에 든 물고기 아이템의 PDC(fish_id/size/trophy)를 읽어 공지한다.
+     */
+    private void handleShow(CommandSender sender) {
+        if (!(sender instanceof Player player)) {
+            sender.sendMessage("§c플레이어만 사용할 수 있습니다.");
+            return;
+        }
+        ItemStack held = player.getInventory().getItemInMainHand();
+        me.ninesik.fishing.service.RewardService.FishItemData data = rewardService.readFishItemData(held);
+        if (data == null) {
+            player.sendMessage("§c손에 물고기 아이템을 들고 사용해야 합니다.");
+            return;
+        }
+        Fish fish = fishRegistry.getById(data.fishId());
+        if (fish == null) {
+            player.sendMessage("§c존재하지 않는 물고기입니다.");
+            return;
+        }
+
+        String baseName = rewardService.resolveDisplayName(fish, held);
+        Grade grade = fish.getGrade();
+        String trophy = data.isRareTrophy() ? "&c🏆 레어 트로피"
+                : data.isTrophy() ? "&e🏆 트로피" : "";
+
+        Map<String, String> ph = new HashMap<>();
+        ph.put("player", player.getName());
+        ph.put("item", baseName);
+        ph.put("grade", grade != null ? grade.getId().toUpperCase() : "");
+        ph.put("graded_item", rewardService.formatDisplayNameWithGrade(fish, baseName));
+        ph.put("trophy", trophy);
+        ph.put("size", String.format("%.1f", data.size()));
+
+        String msg = configManager.formatMessage("show", ph);
+        if (!msg.isEmpty()) {
+            Bukkit.broadcastMessage(Texts.colorize(msg));
+        }
     }
 
     /**

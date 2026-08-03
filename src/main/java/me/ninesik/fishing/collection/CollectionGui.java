@@ -110,7 +110,7 @@ public class CollectionGui extends AbstractGui {
 
         // 전체수령
         CollectionData data = collectionManager.getCollectionData(player);
-        int pendingCount = data != null ? data.getPendingRewards().size() : 0;
+        int pendingCount = data != null ? data.getPendingMilestoneRewards().size() : 0;
         List<String> claimLore = pendingCount > 0
                 ? List.of(ChatColor.WHITE + "대기 중인 보상: " + pendingCount + "개")
                 : List.of(ChatColor.GRAY + "대기 중인 보상이 없습니다.");

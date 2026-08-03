@@ -164,10 +164,28 @@ public class FightConfig {
         public final double defaultResistance;
         /** Distance 기본값 */
         public final double defaultDistance;
+        /**
+         * Distance 상한값. 물고기와의 거리가 이 값 이상으로 벌어지면 줄이
+         * 끊어진 것으로 간주해 Fight가 실패로 종료된다 (패치예정.md 피드백:
+         * "물고기는 일정 거리에 도달하면 줄이 끊어져야 함"). 0이면 제한 없음.
+         */
+        public final double maxDistance;
         /** Tension 최대값 */
         public final double maxTension;
         /** Reel State 기본값 */
         public final double defaultReelState;
+        /**
+         * 기본 Reel Power (Fallback). 등록된 낚싯대가 없거나(미등록 바닐라 낚싯대)
+         * 낚싯대의 reel-power가 0 이하일 때 사용한다. (패치예정.md 피드백:
+         * 미등록 낚싯대로 트로피 파이트를 시작하면 reelPower=0이 되어
+         * 거리가 계속 늘어나며 항상 지는 버그 방지)
+         */
+        public final double defaultReelPower;
+        /**
+         * 기본 Reel Durability (Fallback). 낚싯대가 없거나 reel-durability가
+         * 0 이하일 때 사용한다.
+         */
+        public final double defaultReelDurability;
         /** 등급별 난이도 차등 배수 — 등급ID → 배수 */
         public final Map<String, Double> gradeDifficultyMultipliers;
 
@@ -176,8 +194,11 @@ public class FightConfig {
             this.defaultPower = config.getDouble("trophy-fight.stats.default-power", 50.0);
             this.defaultResistance = config.getDouble("trophy-fight.stats.default-resistance", 50.0);
             this.defaultDistance = config.getDouble("trophy-fight.stats.default-distance", 100.0);
+            this.maxDistance = config.getDouble("trophy-fight.stats.max-distance", 250.0);
             this.maxTension = config.getDouble("trophy-fight.stats.max-tension", 100.0);
             this.defaultReelState = config.getDouble("trophy-fight.stats.default-reel-state", 100.0);
+            this.defaultReelPower = config.getDouble("trophy-fight.stats.default-reel-power", 30.0);
+            this.defaultReelDurability = config.getDouble("trophy-fight.stats.default-reel-durability", 30.0);
             this.gradeDifficultyMultipliers = loadGradeMultipliers(config);
         }
 

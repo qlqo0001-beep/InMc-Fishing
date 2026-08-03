@@ -86,7 +86,7 @@ public class CollectionStorage {
                 @SuppressWarnings("unchecked")
                 List<String> commands = (List<String>) map.get("commands");
                 if (commands != null && !commands.isEmpty()) {
-                    data.getPendingRewards().add(new PendingReward(key, commands));
+                    data.getPendingMilestoneRewards().add(new PendingMilestoneReward(key, commands));
                 }
             }
         }
@@ -148,7 +148,7 @@ public class CollectionStorage {
         config.set("claimed-rewards", new ArrayList<>(data.getClaimedRewards()));
 
         List<Map<String, Object>> pendingList = new ArrayList<>();
-        for (PendingReward pending : data.getPendingRewards()) {
+        for (PendingMilestoneReward pending : data.getPendingMilestoneRewards()) {
             Map<String, Object> map = new HashMap<>();
             map.put("key", pending.getKey());
             map.put("commands", pending.getCommands());

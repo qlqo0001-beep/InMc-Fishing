@@ -78,7 +78,7 @@ cast-status:
   enabled: true
   # 찌가 물에 있는 동안 액션바를 갱신하는 주기(틱). 20 = 1초
   refresh-interval-ticks: 20
-  ready: "&a물고기를 기다리는 중~ &f{rod}| &b피로도 {fatigue}"
+  ready: "&a물고기를 기다리는 중~ &f{rod}"
   unregistered-rod: "&c등록되지 않은 낚싯대"
   wrong-world: "&c이 월드에서는 낚시 불가"
   plugin-disabled: "&c낚시 플러그인 비활성"
@@ -265,10 +265,17 @@ messages:
   prefix: "&f[ &b낚시&f ]"
 
   # 낚시 성공 일반 메시지
-  caught: "{prefix} 축하합니다! {item}&f를(을) 낚았습니다!"
+  # {graded_item} = 등급 접두사 포함 물고기 이름 (예: [F] 생대구), {trophy} = 트로피/레어 트로피 문구 (비트로피면 빈 문자열)
+  caught: "{prefix} 축하합니다! {graded_item}&f를(을) 낚았습니다! {trophy}"
 
   # 더블 보상 성공 메시지 (아이템 2개)
-  caught-double: "{prefix} 축하합니다! {item}&f를(을) 2마리 낚았습니다!"
+  caught-double: "{prefix} 축하합니다! {graded_item}&f를(을) 2마리 낚았습니다! {trophy}"
+
+  # 트로피/레어 트로피를 낚았을 때 서버 전체 공지 (피드백)
+  trophy-announce: "&6[ 낚시 ] &f{player}&a님이 {graded_item}&a을(를) 낚았습니다! {trophy}"
+
+  # /fishing show 명령어 — 손에 든 물고기를 전체 서버에 자랑하는 공지
+  show: "&6[ 낚시 ] &f{player}&7님이 {graded_item}&7을(를) 자랑합니다! {trophy}"
 
   # 대어(Big Fish) 낚시 성공 메시지
   big-fish: "&b대어를 낚았습니다!"
@@ -428,9 +435,9 @@ trophy-fight:
     bar-color-warning: "&e"    # 주의 (노랑)
     bar-color-danger: "&c"     # 위험 (빨강)
     # BossBar 네임 텍스트 ({distance} = 현재 Distance 값)
-    bossbar-title-format: "Distance: {distance}"
+    bossbar-title-format: "거리: {distance}"
     # ActionBar 텍스트 ({stamina}/{power}/{resistance}/{reel} = 각 수치)
-    actionbar-format: "Stamina {stamina}% | Power {power} | Resistance {resistance} | Reel {reel}%"
+    actionbar-format: "물고기 채력 {stamina}% | 물고기 힘 {power} | 물고기 저항력 {resistance} | 릴 상태 {reel}%"
 
   # --- 사운드 설정 ---
   # Fight 중 상황별 사운드 (Phase 3에서 구현)
@@ -438,11 +445,16 @@ trophy-fight:
   sound:
     # 사운드 출력 인터벌 (틱). 기본값 2.
     interval: 2
-    charge: ""              # 강한 돌진
-    reel-overload: ""       # 릴 과부하
-    tension-danger: ""     # 장력 위험
-    fish-exhausted: ""     # 물고기 지침
-    success: ""            # 회수 성공
+    # 물고기가 강하게 돌진
+    charge: "entity.salmon.flop"
+    # 릴이 과부하 상태
+    reel-overload: "block.chain.hit"
+    # 장력이 위험 수준
+    tension-danger: "block.note_block.basedrum"
+    # 물고기가 완전히 지침
+    fish-exhausted: "entity.player.levelup"
+    # 힘겨루기 성공
+    success: "entity.firework_rocket.twinkle"
 
   # --- 스탯 설정 ---
   # Fight 핵심 스탯 기본값 (Phase 2에서 구체화)
@@ -453,10 +465,19 @@ trophy-fight:
     default-resistance: 50.0
     # Distance 기본값 (플레이어와 물고기 사이 거리)
     default-distance: 100.0
+    # Distance 상한값 (이 값 이상 멀어지면 물고기가 도망가며 줄이 끊어짐, 0=제한 없음)
+    # 패치예정.md 피드백: "물고기는 일정 거리에 도달하면 줄이 끊어져야 함"
+    max-distance: 250.0
     # Tension 최대값 (이 값에 도달하면 줄이 끊어짐)
     max-tension: 100.0
     # Reel State 기본값 (릴 내구도)
     default-reel-state: 100.0
+    # 기본 Reel Power (Fallback) — 등록된 낚싯대가 없거나(미등록 바닐라 낚싯대)
+    # rod의 reel-power가 0 이하일 때 사용. 0이면 물고기 체력을 소모시키지 못해
+    # Fight에서 거리가 계속 늘어나며 항상 지게 됩니다.
+    default-reel-power: 30.0
+    # 기본 Reel Durability (Fallback) — 낚싯대가 없거나 reel-durability가 0 이하일 때 사용.
+    default-reel-durability: 30.0
 
     # 등급별 난이도 차등 배수 (1.0 = 기본, 높을수록 어려움)
     # Rare Trophy는 기본 배수에 추가로 더 어려움 (Phase 2에서 적용)

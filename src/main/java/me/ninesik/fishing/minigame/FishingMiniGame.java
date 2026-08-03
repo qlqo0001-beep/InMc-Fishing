@@ -45,6 +45,12 @@ public class FishingMiniGame implements MiniGame {
     private final Map<UUID, BukkitTask> autoCatchTasks = new ConcurrentHashMap<>();
     /** 자동 낚시 모드 여부 */
     private final Map<UUID, Boolean> autoCatchMode = new ConcurrentHashMap<>();
+    /**
+     * 트로피 파이트 테스트 모드 여부 (피드백 - 테스트 명령어).
+     * 켜면 해당 플레이어가 잡는 물고기는 기본 L/R 클릭 미니게임을 생략하고
+     * 바로 트로피 파이트(Fight)로 진입한다. 런타임 전용이며 서버 재시작 시 초기화된다.
+     */
+    private final Map<UUID, Boolean> testFightMode = new ConcurrentHashMap<>();
 
     /**
      * 미니게임이 종료될 때(성공/실패/타임아웃/취소) 알림을 받을 콜백. FishingListener가
@@ -72,6 +78,32 @@ public class FishingMiniGame implements MiniGame {
         this.trophyFightManager = trophyFightManager;
     }
 
+    /**
+     * 트로피 파이트 테스트 모드를 설정한다 (피드백 - 테스트 명령어).
+     * 켜면 해당 플레이어가 잡는 물고기가 기본 L/R 클릭 미니게임 대신
+     * 트로피 파이트로 바로 진입한다.
+     *
+     * @param player 대상 플레이어
+     * @param enabled true = 테스트 모드 켬, false = 끔
+     * @return 변경된 테스트 모드 상태
+     */
+    public boolean setTestFightMode(Player player, boolean enabled) {
+        UUID uuid = player.getUniqueId();
+        if (enabled) {
+            testFightMode.put(uuid, Boolean.TRUE);
+        } else {
+            testFightMode.remove(uuid);
+        }
+        return enabled;
+    }
+
+    /**
+     * 해당 플레이어가 트로피 파이트 테스트 모드인지 확인한다.
+     */
+    public boolean isTestFightMode(Player player) {
+        return Boolean.TRUE.equals(testFightMode.get(player.getUniqueId()));
+    }
+
     public FishingMiniGame(JavaPlugin plugin,
                            MiniGameManager gameManager,
                            FishingSessionManager sessionManager,
@@ -91,6 +123,15 @@ public class FishingMiniGame implements MiniGame {
     @Override
     public void start(Player player, Grade grade, RewardEntry reward) {
         if (gameManager.hasActiveGame(player)) {
+            return;
+        }
+
+        // 트로피 파이트 테스트 모드 (피드백 - 테스트 명령어):
+        // 기본 L/R 클릭 미니게임을 생략하고 잡은 물고기를 바로 트로피 파이트로 진입시킨다.
+        if (isTestFightMode(player)) {
+            if (trophyFightManager != null) {
+                trophyFightManager.startFight(player, reward);
+            }
             return;
         }
 
@@ -276,7 +317,7 @@ public class FishingMiniGame implements MiniGame {
                             && (reward.isTrophy() || reward.isRareTrophy())
                             && reward.getFish() != null
                             && reward.getGrade() != null) {
-                        trophyFightManager.startFight(player, reward.getFish(), reward.getGrade());
+                        trophyFightManager.startFight(player, reward);
                     } else {
                         rewardService.giveReward(player, reward);
                     }

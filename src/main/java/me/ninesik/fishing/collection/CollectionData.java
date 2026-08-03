@@ -18,14 +18,14 @@ public class CollectionData {
     private String playerName;
     private LocalDateTime lastUpdated;
     private final Map<String, CollectionEntry> entries; // key = fishId (소문자)
-    private final List<PendingReward> pendingRewards;   // 지급 대기 중인 보상
+    private final List<PendingMilestoneReward> pendingMilestoneRewards;   // 지급 대기 중인 보상
     private final Set<String> claimedRewards;           // 이미 처리된 보상 키
 
     public CollectionData(UUID playerUuid) {
         this.playerUuid = playerUuid;
         this.lastUpdated = LocalDateTime.now();
         this.entries = new HashMap<>();
-        this.pendingRewards = new ArrayList<>();
+        this.pendingMilestoneRewards = new ArrayList<>();
         this.claimedRewards = new HashSet<>();
     }
 
@@ -33,7 +33,7 @@ public class CollectionData {
     public String getPlayerName() { return playerName; }
     public LocalDateTime getLastUpdated() { return lastUpdated; }
     public Map<String, CollectionEntry> getEntries() { return entries; }
-    public List<PendingReward> getPendingRewards() { return pendingRewards; }
+    public List<PendingMilestoneReward> getPendingMilestoneRewards() { return pendingMilestoneRewards; }
     public Set<String> getClaimedRewards() { return claimedRewards; }
 
     public void setPlayerName(String playerName) { this.playerName = playerName; }

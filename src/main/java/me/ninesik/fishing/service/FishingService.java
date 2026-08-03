@@ -3,6 +3,7 @@ package me.ninesik.fishing.service;
 import me.ninesik.fishing.config.ConfigManager;
 import me.ninesik.fishing.dependency.DependencyManager;
 import me.ninesik.fishing.fatigue.PlayerFatigueManager;
+import me.ninesik.fishing.fight.TrophyFightManager;
 import me.ninesik.fishing.listener.FishingListener;
 import me.ninesik.fishing.minigame.FishingMiniGame;
 import me.ninesik.fishing.minigame.MiniGameManager;
@@ -30,6 +31,7 @@ public class FishingService {
     private final PlayerFatigueManager fatigueManager;
     private FishingMiniGame fishingMiniGame;
     private FishingListener fishingListener;
+    private TrophyFightManager trophyFightManager;
 
     public FishingService(JavaPlugin plugin, DependencyManager dependencyManager,
                           RodRegistry rodRegistry, GradeRegistry gradeRegistry,
@@ -64,6 +66,15 @@ public class FishingService {
     }
 
     public void initialize() {
+        // Trophy Fight 시스템 생성 (FishingListener 생성 전 — 순환 의존성 회피)
+        trophyFightManager = new TrophyFightManager(
+                (me.ninesik.fishing.InMcFishing) plugin,
+                configManager,
+                rewardService,
+                null  // rodLookup은 FishingListener 생성 후 주입
+        );
+        trophyFightManager.startScheduler();
+
         this.fishingMiniGame = new FishingMiniGame(
                 plugin,
                 miniGameManager,
@@ -73,6 +84,8 @@ public class FishingService {
                 gradeRegistry,
                 fatigueManager
         );
+        // FishingMiniGame에 TrophyFightManager 주입
+        fishingMiniGame.setTrophyFightManager(trophyFightManager);
 
         this.fishingListener = new FishingListener(
                 (me.ninesik.fishing.InMcFishing) plugin,
@@ -86,8 +99,11 @@ public class FishingService {
                 fishingMiniGame,
                 rewardService,
                 playerPreferenceManager,
-                fatigueManager
+                fatigueManager,
+                trophyFightManager
         );
+        // FishingListener가 생성되었으므로 rodLookup 함수를 주입
+        trophyFightManager.setRodLookup(fishingListener::getRodForFight);
         plugin.getServer().getPluginManager().registerEvents(fishingListener, plugin);
     }
 
@@ -110,18 +126,18 @@ public class FishingService {
     }
 
     public void shutdown() {
+        if (trophyFightManager != null) {
+            trophyFightManager.shutdown();
+        }
         if (fishingMiniGame != null) {
             fishingMiniGame.cleanupAll();
         }
-
         if (fishingListener != null) {
             HandlerList.unregisterAll(fishingListener);
             fishingListener = null;
         }
-
         sessionManager.closeAllSessions();
         miniGameManager.stopAllGames();
-
         if (fatigueManager != null) {
             fatigueManager.shutdown();
         }
@@ -157,5 +173,13 @@ public class FishingService {
 
     public PlayerFatigueManager getFatigueManager() {
         return fatigueManager;
+    }
+
+    public TrophyFightManager getTrophyFightManager() {
+        return trophyFightManager;
+    }
+
+    public FishingListener getFishingListener() {
+        return fishingListener;
     }
 }

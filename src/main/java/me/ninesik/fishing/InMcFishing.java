@@ -52,7 +52,6 @@ public final class InMcFishing extends JavaPlugin {
     private TournamentManager tournamentManager;
     private me.ninesik.fishing.net.NetManager netManager;
     private PlayerPreferenceManager playerPreferenceManager;
-    private TrophyFightManager trophyFightManager;
 
     @Override
     public void onEnable() {
@@ -132,11 +131,8 @@ public final class InMcFishing extends JavaPlugin {
         getServer().getPluginManager().registerEvents(
                 new TournamentListener(tournamentManager), this);
 
-        // Trophy Fight 시스템 초기화 (Phase 4: 세션 관리자 + Tick 스케줄러 + FishingMiniGame 주입)
-        trophyFightManager = new TrophyFightManager(this);
-        trophyFightManager.startScheduler();
-        // FishingMiniGame에 TrophyFightManager 주입 (트로피 물고기 Fight 진입 분기)
-        fishingService.getFishingMiniGame().setTrophyFightManager(trophyFightManager);
+        // Trophy Fight 시스템은 FishingService.initialize()에서 생성·시작됨.
+        // InMcFishing.onEnable() 이후 fishingService.getTrophyFightManager()로 접근 가능.
 
         // 명령어 등록 (fishingService 초기화 후 — NPE 방지)
         me.ninesik.fishing.command.FishingCommand cmd = new me.ninesik.fishing.command.FishingCommand(this);
@@ -162,9 +158,6 @@ public final class InMcFishing extends JavaPlugin {
         }
         if (tournamentManager != null) {
             tournamentManager.shutdown();
-        }
-        if (trophyFightManager != null) {
-            trophyFightManager.shutdown();
         }
         if (fishingService != null) {
             fishingService.shutdown();
@@ -272,6 +265,6 @@ public final class InMcFishing extends JavaPlugin {
     }
 
     public TrophyFightManager getTrophyFightManager() {
-        return trophyFightManager;
+        return fishingService != null ? fishingService.getTrophyFightManager() : null;
     }
 }

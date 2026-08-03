@@ -97,8 +97,41 @@ public class NetManager {
         LocalDateTime now = LocalDateTime.now();
 
         for (int i = 0; i < amount; i++) {
-            data.add(new NetEntry(fish.getId(), reward.getSize(), gradeId, now));
+            data.add(new NetEntry(fish.getId(), reward.getSize(), gradeId, now,
+                    reward.isTrophy(), reward.isRareTrophy()));
         }
+        return true;
+    }
+
+    /**
+     * 인벤토리에 있는 물고기 아이템을 어망으로 이동한다 (피드백 - 인벤→어망).
+     * 아이템의 PDC(fish_id/size/grade/trophy)를 읽어 NetEntry를 생성한다.
+     *
+     * @return 어망에 추가 성공 여부 (물고기 아님/등록 실패/가득 참 → false)
+     */
+    public boolean addFromInventory(Player player, ItemStack item) {
+        me.ninesik.fishing.service.RewardService.FishItemData data = rewardService.readFishItemData(item);
+        if (data == null || data.fishId() == null || data.fishId().isEmpty()) {
+            return false;
+        }
+        Fish fish = fishRegistry.getById(data.fishId());
+        if (fish == null) {
+            return false;
+        }
+
+        NetData net = cache.get(player.getUniqueId());
+        if (net == null) {
+            net = loadPlayer(player);
+        }
+        if (!net.hasSpace(1)) {
+            return false;
+        }
+
+        String gradeId = (data.gradeId() != null && !data.gradeId().isEmpty())
+                ? data.gradeId()
+                : (fish.getGrade() != null ? fish.getGrade().getId() : "?");
+        net.add(new NetEntry(data.fishId(), data.size(), gradeId, LocalDateTime.now(),
+                data.isTrophy(), data.isRareTrophy()));
         return true;
     }
 
@@ -119,7 +152,7 @@ public class NetManager {
             return false;
         }
 
-        ItemStack item = rewardService.createItemStack(fish, 1, entry.getSize());
+        ItemStack item = rewardService.createItemStack(fish, 1, entry.getSize(), entry.isTrophy(), entry.isRareTrophy());
         if (item == null) {
             player.sendMessage(ChatColor.RED + "물고기 아이템 생성에 실패했습니다.");
             return false;
@@ -156,7 +189,7 @@ public class NetManager {
                 continue;
             }
 
-            ItemStack item = rewardService.createItemStack(fish, 1, entry.getSize());
+            ItemStack item = rewardService.createItemStack(fish, 1, entry.getSize(), entry.isTrophy(), entry.isRareTrophy());
             if (item == null) {
                 data.remove(0);
                 continue;

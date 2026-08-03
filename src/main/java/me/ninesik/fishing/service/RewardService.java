@@ -11,8 +11,11 @@ import me.ninesik.fishing.util.InventoryUtil;
 import me.ninesik.fishing.util.Sounds;
 import me.ninesik.fishing.util.Texts;
 import org.bukkit.Bukkit;
+import org.bukkit.NamespacedKey;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.ItemMeta;
+import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.util.HashMap;
@@ -89,7 +92,7 @@ public class RewardService {
         // 어망이 꽉 차면 기존 인벤토리 지급으로 폴백한다.
         if (netManager != null && netManager.addFish(player, reward)) {
             // 표시명 (메시지용, 색상 포함)
-            ItemStack tempItem = createItemStack(fish, 1, reward.getSize());
+            ItemStack tempItem = createItemStack(fish, 1, reward.getSize(), reward.isTrophy(), reward.isRareTrophy());
             String itemDisplay = resolveDisplayName(fish, tempItem);
             itemDisplay = Texts.colorize(itemDisplay);
 
@@ -110,6 +113,9 @@ public class RewardService {
                 player.sendMessage(catchMsg);
             }
 
+            // 트로피/레어 트로피 서버 공지 (피드백)
+            announceTrophy(player, reward, itemDisplay);
+
             // 사운드
             Sounds.play(player, configManager.getSound("success"));
             if (effectiveDouble) {
@@ -125,7 +131,7 @@ public class RewardService {
             return true;
         }
 
-        ItemStack item = createItemStack(fish, amount, reward.getSize());
+        ItemStack item = createItemStack(fish, amount, reward.getSize(), reward.isTrophy(), reward.isRareTrophy());
         if (item == null) {
             logger.warning("Failed to create reward item for fish id=" + fish.getId()
                     + " use-type=" + fish.getUseType() + " player=" + player.getName());
@@ -184,6 +190,9 @@ public class RewardService {
         if (!catchMsg.isEmpty()) {
             player.sendMessage(catchMsg);
         }
+
+        // 트로피/레어 트로피 서버 공지 (피드백)
+        announceTrophy(player, reward, itemDisplay);
 
         // 사운드
         Sounds.play(player, configManager.getSound("success"));
@@ -265,6 +274,59 @@ public class RewardService {
         NONE, NORMAL, RARE
     }
 
+    /**
+     * 물고기 아이템(PDC)에서 추출한 정보.
+     * 인벤→어망 이동, /fishing show 등에서 사용한다 (피드백).
+     *
+     * @param fishId      물고기 ID (없으면 null → 물고기 아이템이 아님)
+     * @param size        이 아이템에 부여된 실제 크기(cm)
+     * @param gradeId     등급 ID (저장돼 있을 때만)
+     * @param isTrophy    일반 트로피 여부
+     * @param isRareTrophy 레어 트로피 여부
+     */
+    public record FishItemData(String fishId, double size, String gradeId,
+                               boolean isTrophy, boolean isRareTrophy) {
+    }
+
+    /**
+     * 물고기 아이템(PDC)에서 fish_id/size/grade/is_trophy/is_rare_trophy를 읽는다.
+     * PDC에 fish_id가 없으면(물고기 아이템이 아니면) null을 반환한다.
+     */
+    public FishItemData readFishItemData(ItemStack item) {
+        if (item == null || !item.hasItemMeta() || !item.getItemMeta().hasDisplayName()) {
+            return null;
+        }
+        var pdc = item.getItemMeta().getPersistentDataContainer();
+        String fishId = pdc.get(new NamespacedKey(plugin, "fish_id"), PersistentDataType.STRING);
+        if (fishId == null || fishId.isEmpty()) {
+            return null;
+        }
+        String gradeId = pdc.get(new NamespacedKey(plugin, "grade_id"), PersistentDataType.STRING);
+        Double size = pdc.get(new NamespacedKey(plugin, "size"), PersistentDataType.DOUBLE);
+        Byte trophy = pdc.get(new NamespacedKey(plugin, "is_trophy"), PersistentDataType.BYTE);
+        Byte rare = pdc.get(new NamespacedKey(plugin, "is_rare_trophy"), PersistentDataType.BYTE);
+        return new FishItemData(
+                fishId,
+                size != null ? size : 0.0,
+                gradeId != null ? gradeId : "",
+                trophy != null && trophy != 0,
+                rare != null && rare != 0);
+    }
+
+    /**
+     * size 기반 일반 트로피 여부를 공개한다 (어망의 기존 데이터 트로피 폴백용).
+     */
+    public boolean isTrophyBySize(Fish fish, double size) {
+        return evaluateTrophyType(fish, size) == TrophyType.NORMAL;
+    }
+
+    /**
+     * size 기반 레어 트로피 여부를 공개한다 (어망의 기존 데이터 트로피 폴백용).
+     */
+    public boolean isRareTrophyBySize(Fish fish, double size) {
+        return evaluateTrophyType(fish, size) == TrophyType.RARE;
+    }
+
     public ItemStack createItemStack(Fish fish, int amount) {
         return createItemStack(fish, amount, 0.0);
     }
@@ -295,7 +357,8 @@ public class RewardService {
                             .map(Texts::colorize)
                             .toList());
                 }
-                appendSizeLore(fish, lore, size);
+                // 인벤토리 아이템에는 사이즈를 표시하지 않는다 (피드백: 어망에서만 사이즈 표시).
+                // 사이즈는 PDC에만 저장된다 (인벤→어망 이동/샵/자랑용).
                 appendTrophyLore(lore, isTrophy, isRareTrophy);
                 if (fish.isFatiguePotion()) {
                     lore.add("§7피로도 회복: §a+" + fish.getFatigueRecovery());
@@ -308,6 +371,7 @@ public class RewardService {
                     meta.setCustomModelData(fish.getCustomModelData());
                 }
 
+                applyPdc(meta, fish, size, isTrophy, isRareTrophy);
                 item.setItemMeta(meta);
             }
             return item;
@@ -335,16 +399,13 @@ public class RewardService {
 
                 List<String> lore = meta.hasLore() ? meta.getLore() : new java.util.ArrayList<>();
                 if (lore == null) lore = new java.util.ArrayList<>();
-                if (fish.hasSize()) {
-                    lore = lore.stream()
-                            .map(line -> line.replace("{size}", String.format("%.1f", size)))
-                            .collect(java.util.stream.Collectors.toList());
-                }
+                // 인벤토리 아이템에는 사이즈를 표시하지 않는다 (피드백: 어망에서만 사이즈 표시).
                 appendTrophyLore(lore, isTrophy, isRareTrophy);
                 if (!lore.isEmpty()) {
                     meta.setLore(lore);
                 }
 
+                applyPdc(meta, fish, size, isTrophy, isRareTrophy);
                 result.setItemMeta(meta);
             }
             return result;
@@ -375,14 +436,13 @@ public class RewardService {
                 String baseName = resolveDisplayName(fish, item);
                 meta.setDisplayName(formatDisplayNameWithGrade(fish, baseName));
 
-                // 기존 vanilla-lore + 사이즈 정보 + 트로피 정보 추가
+                // 기존 vanilla-lore + 트로피 정보 추가 (사이즈는 인벤토리에서 미표시)
                 List<String> lore = new java.util.ArrayList<>();
                 if (fish.getVanillaLore() != null && !fish.getVanillaLore().isEmpty()) {
                     lore.addAll(fish.getVanillaLore().stream()
                             .map(Texts::colorize)
                             .toList());
                 }
-                appendSizeLore(fish, lore, size);
                 // 기존 createItemStack(fish, amount, size) 경로: 사전 판정 없이 size 기반 트로피 판정
                 TrophyType trophyType = evaluateTrophyType(fish, size);
                 appendTrophyLore(lore, trophyType == TrophyType.NORMAL, trophyType == TrophyType.RARE);
@@ -399,6 +459,7 @@ public class RewardService {
                     meta.setCustomModelData(fish.getCustomModelData());
                 }
 
+                applyPdc(meta, fish, size, trophyType == TrophyType.NORMAL, trophyType == TrophyType.RARE);
                 item.setItemMeta(meta);
             }
             return item;
@@ -426,20 +487,16 @@ public class RewardService {
                 String baseName = resolveDisplayName(fish, result);
                 meta.setDisplayName(formatDisplayNameWithGrade(fish, baseName));
 
-                // Lore에 {size} 플레이스홀더 + 트로피 정보 적용
+                // Lore에 트로피 정보 적용 (사이즈는 인벤토리에서 미표시)
                 List<String> lore = meta.hasLore() ? meta.getLore() : new java.util.ArrayList<>();
                 if (lore == null) lore = new java.util.ArrayList<>();
-                if (fish.hasSize()) {
-                    lore = lore.stream()
-                            .map(line -> line.replace("{size}", String.format("%.1f", size)))
-                            .collect(java.util.stream.Collectors.toList());
-                }
                 TrophyType trophyType2 = evaluateTrophyType(fish, size);
                 appendTrophyLore(lore, trophyType2 == TrophyType.NORMAL, trophyType2 == TrophyType.RARE);
                 if (!lore.isEmpty()) {
                     meta.setLore(lore);
                 }
 
+                applyPdc(meta, fish, size, trophyType2 == TrophyType.NORMAL, trophyType2 == TrophyType.RARE);
                 result.setItemMeta(meta);
             }
             return result;
@@ -472,7 +529,29 @@ public class RewardService {
         map.put("original_grade", original != null ? original.getId().toUpperCase() : "");
         map.put("double", String.valueOf(reward.isDouble() && reward.getFish().isDoubleEnabled()));
         map.put("big_fish", String.valueOf(reward.isBigFish()));
+        // 트로피/레어 트로피 문구 (비트로피면 빈 문자열)
+        String trophyText = reward.isRareTrophy() ? rareTrophyLore
+                : reward.isTrophy() ? trophyLore : "";
+        map.put("trophy", trophyText);
+        // 등급 접두사가 붙은 표시명 (예: &a[F] 생대구)
+        map.put("graded_item", formatDisplayNameWithGrade(reward.getFish(), itemDisplay));
+        // 사이즈 (cm)
+        map.put("size", String.format("%.1f", reward.getSize()));
         return map;
+    }
+
+    /**
+     * 트로피/레어 트로피를 낚았을 때 서버 전체에 공지한다 (피드백).
+     * 비트로피면 아무것도 하지 않는다.
+     */
+    private void announceTrophy(Player player, RewardEntry reward, String itemDisplay) {
+        if (!reward.isTrophy() && !reward.isRareTrophy()) {
+            return;
+        }
+        String msg = configManager.formatMessage("trophy-announce", placeholders(player, reward, itemDisplay));
+        if (!msg.isEmpty()) {
+            Bukkit.broadcastMessage(Texts.colorize(msg));
+        }
     }
 
     private static String stripColor(String input) {
@@ -499,6 +578,54 @@ public class RewardService {
         } else if (isTrophy) {
             lore.add(Texts.colorize(trophyLore));
         }
+    }
+
+    /**
+     * 패치예정.md §1246-1257: 아이템에 inmcfishing 네임스페이스의 PDC를 저장한다.
+     * fish_id, grade_id, is_trophy, is_rare_trophy는 개별 키로 저장하고,
+     * 나머지 상세 정보는 fish_snapshot JSON 하나로 저장한다.
+     */
+    private void applyPdc(ItemMeta meta, Fish fish, double size, boolean isTrophy, boolean isRareTrophy) {
+        NamespacedKey fishIdKey = new NamespacedKey(plugin, "fish_id");
+        NamespacedKey gradeIdKey = new NamespacedKey(plugin, "grade_id");
+        NamespacedKey trophyKey = new NamespacedKey(plugin, "is_trophy");
+        NamespacedKey rareKey = new NamespacedKey(plugin, "is_rare_trophy");
+        NamespacedKey sizeKey = new NamespacedKey(plugin, "size");
+        NamespacedKey snapshotKey = new NamespacedKey(plugin, "fish_snapshot");
+
+        meta.getPersistentDataContainer().set(fishIdKey, PersistentDataType.STRING, fish.getId());
+        meta.getPersistentDataContainer().set(gradeIdKey, PersistentDataType.STRING, fish.getGrade() != null ? fish.getGrade().getId() : "");
+        meta.getPersistentDataContainer().set(trophyKey, PersistentDataType.BYTE, (byte) (isTrophy ? 1 : 0));
+        meta.getPersistentDataContainer().set(rareKey, PersistentDataType.BYTE, (byte) (isRareTrophy ? 1 : 0));
+        meta.getPersistentDataContainer().set(sizeKey, PersistentDataType.DOUBLE, size);
+        meta.getPersistentDataContainer().set(snapshotKey, PersistentDataType.STRING, buildSnapshotJson(fish));
+    }
+
+    /**
+     * Fish 정보를 JSON 문자열로 직렬화한다 (PDC fish_snapshot 용도).
+     */
+    private String buildSnapshotJson(Fish fish) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("{\"id\":\"").append(escapeJson(fish.getId())).append("\"");
+        sb.append(",\"useType\":\"").append(escapeJson(fish.getUseType())).append("\"");
+        sb.append(",\"minSize\":").append(fish.getMinSize());
+        sb.append(",\"maxSize\":").append(fish.getMaxSize());
+        sb.append(",\"avgSize\":").append(fish.getAvgSize());
+        sb.append(",\"customModelData\":").append(fish.getCustomModelData());
+        sb.append(",\"doubleEnabled\":").append(fish.isDoubleEnabled());
+        if (fish.getGrade() != null) {
+            sb.append(",\"grade\":\"").append(escapeJson(fish.getGrade().getId())).append("\"");
+        }
+        if (fish.getVanillaName() != null) {
+            sb.append(",\"vanillaName\":\"").append(escapeJson(fish.getVanillaName())).append("\"");
+        }
+        sb.append("}");
+        return sb.toString();
+    }
+
+    private static String escapeJson(String s) {
+        if (s == null) return "";
+        return s.replace("\\", "\\\\").replace("\"", "\\\"");
     }
 
     /**

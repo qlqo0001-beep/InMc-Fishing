@@ -1,5 +1,7 @@
 package me.ninesik.fishing.listener;
 
+import me.ninesik.fishing.fight.FightState;
+import me.ninesik.fishing.fight.TrophyFightManager;
 import me.ninesik.fishing.config.ConfigManager;
 import me.ninesik.fishing.dependency.DependencyManager;
 import me.ninesik.fishing.fatigue.PlayerFatigueManager;
@@ -57,6 +59,7 @@ public class FishingListener implements Listener {
     private final RewardService rewardService;
     private final PlayerPreferenceManager playerPreferenceManager;
     private final PlayerFatigueManager fatigueManager;
+    private final TrophyFightManager trophyFightManager;
 
     /**
      * 29.1: rod.yml에 등록되지 않은 순수 바닐라 FISHING_ROD("이름 없는 기본 낚싯대")로 낚시할 때
@@ -83,7 +86,8 @@ public class FishingListener implements Listener {
                            RollEngine rollEngine, ConfigManager configManager,
                            FishingMiniGame fishingMiniGame, RewardService rewardService,
                            PlayerPreferenceManager playerPreferenceManager,
-                           PlayerFatigueManager fatigueManager) {
+                           PlayerFatigueManager fatigueManager,
+                           TrophyFightManager trophyFightManager) {
         this.plugin = plugin;
         this.dependencyManager = dependencyManager;
         this.rodRegistry = rodRegistry;
@@ -96,9 +100,14 @@ public class FishingListener implements Listener {
         this.rewardService = rewardService;
         this.playerPreferenceManager = playerPreferenceManager;
         this.fatigueManager = fatigueManager;
+        this.trophyFightManager = trophyFightManager;
 
         // 미니게임(일반/자동 낚시) 종료 후 "찌를 던지고 대기 중" 액션바를 이어서 표시하기 위한 콜백 등록
+        // Trophy Fight 진행 중에는 캐스트 상태를 재개하지 않는다 (Fight 종료 시 TrophyFightManager가 처리)
         this.fishingMiniGame.setGameEndListener((player, result, wasAutoCatch) -> {
+            if (trophyFightManager != null && trophyFightManager.isInFight(player)) {
+                return;
+            }
             if (result == MiniGame.GameResult.CANCEL) {
                 // 퇴장/사망/월드이동 등으로 인한 취소는 cleanupPlayer()가 이미 정리함
                 return;
@@ -118,6 +127,10 @@ public class FishingListener implements Listener {
             if (game != null) {
                 game.stop(player, MiniGame.GameResult.CANCEL);
             }
+        }
+        // Trophy Fight 강제 종료 (퇴장/월드이동/사망/아이템드롭/핫바변경)
+        if (trophyFightManager != null) {
+            trophyFightManager.stopFight(player, FightState.CANCELLED);
         }
         sessionManager.removeSession(player);
     }
@@ -173,6 +186,12 @@ public class FishingListener implements Listener {
 
         // 허용된 월드인지 확인
         if (!isAllowedWorld(player)) {
+            return;
+        }
+
+        // Trophy Fight 중에는 새 입질/미니게임 시작 방지
+        if (trophyFightManager != null && trophyFightManager.isInFight(player)) {
+            event.setCancelled(true);
             return;
         }
 
@@ -417,6 +436,37 @@ public class FishingListener implements Listener {
         }
 
         if (!miniGameManager.hasActiveGame(player)) {
+            // Trophy Fight 중 L/R 클릭은 릴 조작(Reeling 토글)으로 처리
+            if (trophyFightManager != null && trophyFightManager.isInFight(player)) {
+                java.util.Optional<me.ninesik.fishing.fight.FightSession> session =
+                        trophyFightManager.getSession(player.getUniqueId());
+                if (session.isPresent()) {
+                    me.ninesik.fishing.fight.FightSession fs = session.get();
+                    int currentTick = player.getTicksLived();
+                    UUID uuid = player.getUniqueId();
+
+                    // 유령 클릭 방지 (일반 미니게임과 동일한 처리 — 패치예정.md 피드백:
+                    // 우클릭 시 같은 틱에 유령 LEFT_CLICK_AIR가 발생해 릴 감기가 함께
+                    // 등록되던 버그. 이 필터가 없으면 우클릭도 릴을 당기는 것처럼 보인다.)
+                    if (action == Action.RIGHT_CLICK_AIR || action == Action.RIGHT_CLICK_BLOCK) {
+                        lastRightClickTick.put(uuid, currentTick);
+                        // 우클릭 = 릴 풀기 (피드백): Distance 증가 + Tension 감소 + Reel State 회복.
+                        // 안 눌러도 연타를 멈추면 유예시간 후 자동으로 풀기 상태가 꺼진다.
+                        fs.registerReleaseClick();
+                    } else if (action == Action.LEFT_CLICK_AIR || action == Action.LEFT_CLICK_BLOCK) {
+                        Integer lastRight = lastRightClickTick.get(uuid);
+                        Integer lastLeft = lastLeftClickTick.get(uuid);
+                        boolean ghost = (lastRight != null && lastRight == currentTick)
+                                || (lastLeft != null && lastLeft == currentTick);
+                        lastLeftClickTick.put(uuid, currentTick);
+                        if (!ghost) {
+                            fs.registerReelClick();
+                        }
+                    }
+                }
+                event.setCancelled(true);
+                return;
+            }
             return;
         }
 
@@ -574,6 +624,10 @@ public class FishingListener implements Listener {
             if (miniGameManager.hasActiveGame(player)) {
                 return;
             }
+            // Trophy Fight 진행 중이면 ActionBar를 시작하지 않음
+            if (trophyFightManager != null && trophyFightManager.isInFight(player)) {
+                return;
+            }
             // 중복 시작 방지 — startCastStatus 내부에서도 hookInWater로 검사
             startCastStatus(player);
         } else if (newState == FishHook.HookState.UNHOOKED
@@ -591,6 +645,24 @@ public class FishingListener implements Listener {
             return true;
         }
         return worlds.contains(player.getWorld().getName());
+    }
+
+    /**
+     * Trophy Fight에서 사용할 낚싯대 스탯을 조회한다.
+     * rod.yml에 등록된 낚싯대이면 해당 Rod을 반환하고,
+     * 그 외(미등록 바닐라/미등록 MMOItems/미낚싯대)에는 null을 반환한다.
+     * (null이면 TrophyFightManager가 기본값으로 처리)
+     */
+    public Rod getRodForFight(Player player) {
+        RodLookupResult result = lookupRod(player);
+        if (result instanceof RodLookupResult.Matched matched) {
+            return matched.rod();
+        }
+        return null;
+    }
+
+    public TrophyFightManager getTrophyFightManager() {
+        return trophyFightManager;
     }
 
     private sealed interface RodLookupResult

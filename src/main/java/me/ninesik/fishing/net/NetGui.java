@@ -95,7 +95,8 @@ public class NetGui extends AbstractGui {
         if (data != null) {
             setItem(47, createIcon(Material.CHEST,
                     ChatColor.GOLD + "어망 사용량: " + data.size() + "/" + data.getMaxSize(),
-                    List.of(ChatColor.GRAY + "물고기 클릭 시 인벤토리로 꺼냅니다.")));
+                    List.of(ChatColor.GRAY + "위 물고기 클릭 시 인벤토리로 꺼냅니다.",
+                            ChatColor.GRAY + "아래 인벤토리의 물고기 클릭 시 어망에 넣습니다.")));
         }
 
         // 전체 꺼내기 (인벤토리 빈자리만큼)
@@ -139,6 +140,19 @@ public class NetGui extends AbstractGui {
         if (fish.hasSize() && entry.getSize() > 0) {
             lore.add(ChatColor.GRAY + "사이즈: " + ChatColor.AQUA + String.format("%.1f", entry.getSize()) + "cm");
         }
+        // 트로피/레어 표시 (피드백 - 어망에서 확인 가능해야 함).
+        // 기존 저장 데이터(트로피 플래그 없음)는 size 기반으로 재판정해 폴백한다.
+        boolean isTrophy = entry.isTrophy();
+        boolean isRare = entry.isRareTrophy();
+        if (!isTrophy && !isRare && fish.hasSize() && entry.getSize() > 0) {
+            isRare = rewardService.isRareTrophyBySize(fish, entry.getSize());
+            isTrophy = !isRare && rewardService.isTrophyBySize(fish, entry.getSize());
+        }
+        if (isRare) {
+            lore.add(ChatColor.RED + "🏆 레어 트로피");
+        } else if (isTrophy) {
+            lore.add(ChatColor.GOLD + "🏆 트로피");
+        }
         lore.add(ChatColor.GRAY + "잡은 시간: " + ChatColor.WHITE + entry.getCaughtAt().toLocalDate());
         lore.add(ChatColor.YELLOW + "클릭: 인벤토리로 꺼내기");
         meta.setLore(lore);
@@ -148,6 +162,25 @@ public class NetGui extends AbstractGui {
 
     @Override
     public void handleClick(InventoryClickEvent event) {
+        // 플레이어 인벤토리에서 어망으로 물고기 넣기 (피드백 - 인벤→어망 이동 추가)
+        if (event.getClickedInventory() == player.getInventory()) {
+            ItemStack clicked = event.getCurrentItem();
+            if (clicked != null && clicked.getType() != Material.AIR) {
+                me.ninesik.fishing.service.RewardService.FishItemData d = rewardService.readFishItemData(clicked);
+                if (d == null || d.fishId() == null || d.fishId().isEmpty()) {
+                    return; // 물고기 아이템이 아님 — 조용히 무시
+                }
+                if (netManager.addFromInventory(player, clicked)) {
+                    event.getClickedInventory().setItem(event.getSlot(), null);
+                    player.sendMessage(ChatColor.GREEN + "물고기를 어망에 넣었습니다.");
+                    refresh();
+                } else {
+                    player.sendMessage(ChatColor.RED + "어망이 가득 찼거나 넣을 수 없습니다.");
+                }
+            }
+            return;
+        }
+
         int slot = event.getRawSlot();
         if (slot < 0 || slot >= inventory.getSize()) return;
 

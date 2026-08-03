@@ -86,25 +86,33 @@ public class FishAI {
      */
     private void transition(double staminaRatio) {
         FishState next;
-        double r = random.nextDouble();
 
-        if (staminaRatio <= 0.2) {
-            // 지침 상태 — 휴식/천천히 이동 위주
-            if (r < 0.5) next = FishState.REST;
-            else if (r < 0.8) next = FishState.SLOW_MOVE;
-            else next = FishState.NORMAL_MOVE;
-        } else if (staminaRatio <= 0.5) {
-            // 중간 상태 — 일반 이동/방향 전환 위주
-            if (r < 0.3) next = FishState.SLOW_MOVE;
-            else if (r < 0.6) next = FishState.NORMAL_MOVE;
-            else if (r < 0.8) next = FishState.TURN;
-            else next = FishState.CHARGE;
+        // 밸런스 피드백: 마지막 발악(FINAL_STRUGGLE) 이후에는 무조건 휴식(REST)으로 전이한다.
+        // 발악으로 스태미나를 깎아낸 보상을 "잡아내는 타이밍"(REST는 Power/Resistance가 최저)으로
+        // 자연스럽게 이어주기 위함. 다른 상태에서는 기존 스태미나 기반 랜덤 전이를 쓴다.
+        if (currentState == FishState.FINAL_STRUGGLE) {
+            next = FishState.REST;
         } else {
-            // 초기 상태 — 강한 돌진/발악 위주
-            if (r < 0.2) next = FishState.NORMAL_MOVE;
-            else if (r < 0.4) next = FishState.TURN;
-            else if (r < 0.7) next = FishState.CHARGE;
-            else next = FishState.FINAL_STRUGGLE;
+            double r = random.nextDouble();
+
+            if (staminaRatio <= 0.2) {
+                // 지침 상태 — 휴식/천천히 이동 위주
+                if (r < 0.5) next = FishState.REST;
+                else if (r < 0.8) next = FishState.SLOW_MOVE;
+                else next = FishState.NORMAL_MOVE;
+            } else if (staminaRatio <= 0.5) {
+                // 중간 상태 — 일반 이동/방향 전환 위주
+                if (r < 0.3) next = FishState.SLOW_MOVE;
+                else if (r < 0.6) next = FishState.NORMAL_MOVE;
+                else if (r < 0.8) next = FishState.TURN;
+                else next = FishState.CHARGE;
+            } else {
+                // 초기 상태 — 강한 돌진/발악 위주
+                if (r < 0.2) next = FishState.NORMAL_MOVE;
+                else if (r < 0.4) next = FishState.TURN;
+                else if (r < 0.7) next = FishState.CHARGE;
+                else next = FishState.FINAL_STRUGGLE;
+            }
         }
 
         this.currentState = next;

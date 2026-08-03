@@ -44,7 +44,9 @@ public class NetStorage {
                 if (caughtAt == null) {
                     caughtAt = LocalDateTime.now();
                 }
-                data.add(new NetEntry(fishId, size, gradeId, caughtAt));
+                boolean isTrophy = parseBool(map.get("is-trophy"));
+                boolean isRareTrophy = parseBool(map.get("is-rare-trophy"));
+                data.add(new NetEntry(fishId, size, gradeId, caughtAt, isTrophy, isRareTrophy));
             }
         }
 
@@ -65,6 +67,8 @@ public class NetStorage {
             map.put("size", entry.getSize());
             map.put("grade-id", entry.getGradeId());
             map.put("caught-at", entry.getCaughtAt().format(DATE_FORMAT));
+            map.put("is-trophy", entry.isTrophy() ? 1 : 0);
+            map.put("is-rare-trophy", entry.isRareTrophy() ? 1 : 0);
             entryList.add(map);
         }
         config.set("entries", entryList);
@@ -100,5 +104,13 @@ public class NetStorage {
         } catch (Exception e) {
             return null;
         }
+    }
+
+    private static boolean parseBool(Object value) {
+        if (value instanceof Boolean b) return b;
+        if (value instanceof Number n) return n.intValue() != 0;
+        if (value == null) return false;
+        String s = String.valueOf(value);
+        return "true".equalsIgnoreCase(s) || "1".equals(s);
     }
 }
