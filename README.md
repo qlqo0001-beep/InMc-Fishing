@@ -273,6 +273,8 @@
 | `worldguard.yml` | WorldGuard 낚시 허용 구역 설정 (설치 시에만) |
 | `mmoitems-example.yml` | MMOItems 연동 예시 |
 
+> 📄 관련 상세 문서: [`TROPHY_FIGHT.md`](TROPHY_FIGHT.md) — Trophy Fight 내부 동작(상태·수식·밸런스·UI 구성)
+
 ### Trophy Fight 설정 (`fight.yml` → `trophy-fight:`)
 
 | 항목 | 기본값 | 설명 |
