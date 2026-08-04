@@ -402,7 +402,7 @@ public class FishingListener implements Listener {
 
     private void blockFishing(PlayerFishEvent event, Player player) {
         event.setCancelled(true);
-        String message = configManager.getMessage("unregistered-rod");
+        String message = configManager.getMessage("fail.unregistered-rod");
         if (message != null && !message.isEmpty()) {
             player.sendMessage(message);
         }

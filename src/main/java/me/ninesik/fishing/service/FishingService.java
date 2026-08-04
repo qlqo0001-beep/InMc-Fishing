@@ -112,15 +112,20 @@ public class FishingService {
     }
 
     public void reload() {
-        // config.yml/modifiers.yml 재로드 (Registry 재생성은 RegistryManager에서 별도로 처리)
+        // 모든 설정/config/modifiers/messages/fight/fatigue/potions 파일 재로드 (피드백)
         plugin.reloadConfig();
         configManager.load();
         if (plugin instanceof me.ninesik.fishing.InMcFishing inMcFishing) {
+            // Registry 재로드 — grades.yml, items/*-grade.yml(물고기), items/rod.yml(낚싯대) (피드백)
+            inMcFishing.reloadRegistries();
             if (inMcFishing.getCollectionManager() != null) {
                 inMcFishing.getCollectionManager().reload();
             }
             if (inMcFishing.getTournamentManager() != null) {
                 inMcFishing.getTournamentManager().reload();
+            }
+            if (inMcFishing.getNetManager() != null) {
+                inMcFishing.getNetManager().reload();
             }
         }
     }

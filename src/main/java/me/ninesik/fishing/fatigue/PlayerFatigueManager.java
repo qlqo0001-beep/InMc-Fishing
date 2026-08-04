@@ -237,14 +237,14 @@ public class PlayerFatigueManager {
         if (value <= configManager.getFatigueLockThreshold() && !isLocked(player)) {
             locked.put(player.getUniqueId(), true);
             playerPreferenceManager.setMinigameEnabled(player, true);
-            player.sendMessage(configManager.formatMessage("fatigue-locked"));
+            player.sendMessage(configManager.formatMessage("fatigue.locked"));
         }
     }
 
     private void checkUnlock(Player player, int value) {
         if (value >= configManager.getFatigueUnlockThreshold() && isLocked(player)) {
             locked.put(player.getUniqueId(), false);
-            player.sendMessage(configManager.formatMessage("fatigue-unlocked"));
+            player.sendMessage(configManager.formatMessage("fatigue.unlocked"));
         }
     }
 

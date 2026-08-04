@@ -366,7 +366,7 @@ public class FishingCommand implements CommandExecutor, TabCompleter {
             return;
         }
         if (!configManager.isMinigameOffToggleAllowed()) {
-            player.sendMessage(configManager.formatMessage("minigame-toggle-disabled"));
+            player.sendMessage(configManager.formatMessage("minigame.toggle-disabled"));
             return;
         }
 
@@ -375,27 +375,27 @@ public class FishingCommand implements CommandExecutor, TabCompleter {
         switch (requested) {
             case "on" -> {
                 playerPreferenceManager.setMinigameEnabled(player, true);
-                player.sendMessage(configManager.formatMessage("minigame-on"));
+                player.sendMessage(configManager.formatMessage("minigame.on"));
                 return;
             }
             case "off" -> {
                 if (fatigueManager != null && fatigueManager.isLocked(player)) {
-                    player.sendMessage(configManager.formatMessage("fatigue-locked"));
+                    player.sendMessage(configManager.formatMessage("fatigue.locked"));
                     return;
                 }
                 playerPreferenceManager.setMinigameEnabled(player, false);
-                player.sendMessage(configManager.formatMessage("minigame-off"));
+                player.sendMessage(configManager.formatMessage("minigame.off"));
                 return;
             }
             case "toggle" -> {
                 if (fatigueManager != null && fatigueManager.isLocked(player)
                         && playerPreferenceManager.isMinigameEnabled(player)) {
                     // 현재 ON → OFF로 넘어가려는 시도인데 피로도로 잠긴 상태
-                    player.sendMessage(configManager.formatMessage("fatigue-locked"));
+                    player.sendMessage(configManager.formatMessage("fatigue.locked"));
                     return;
                 }
                 enabled = playerPreferenceManager.toggleMinigame(player);
-                player.sendMessage(configManager.formatMessage(enabled ? "minigame-on" : "minigame-off"));
+                player.sendMessage(configManager.formatMessage(enabled ? "minigame.on" : "minigame.off"));
                 return;
             }
             case "status" -> enabled = playerPreferenceManager.isMinigameEnabled(player);
@@ -563,7 +563,7 @@ public class FishingCommand implements CommandExecutor, TabCompleter {
         ph.put("trophy", trophy);
         ph.put("size", String.format("%.1f", data.size()));
 
-        String msg = configManager.formatMessage("show", ph);
+        String msg = configManager.formatMessage("catch.show", ph);
         if (!msg.isEmpty()) {
             Bukkit.broadcastMessage(Texts.colorize(msg));
         }

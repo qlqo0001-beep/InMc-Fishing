@@ -1,0 +1,54 @@
+# ============================================================
+#  InMc-Fishing 피로도 회복 물약 아이템 정의
+#  /fishing give potion <플레이어> <등급> [개수] 로 지급할 수 있습니다.
+#  손에 들고 우클릭하면 1개를 소모해 amount만큼 즉시 회복합니다.
+# ============================================================
+#  각 등급(f~s) 아래 속성:
+#    amount   - 회복량
+#    material - 바닐라 아이템 종류 (기본 POTION)
+#    name     - 표시 이름 (& 색상코드)
+#    lore     - 설명 줄 목록 (& 색상코드)
+# ============================================================
+potions:
+  f:
+    amount: 200
+    material: POTION
+    name: "&f[F] 피로회복 물약"
+    lore:
+      - "&7피로도를 &f200 &7회복합니다."
+  e:
+    amount: 500
+    material: POTION
+    name: "&a[E] 피로회복 물약"
+    lore:
+      - "&7피로도를 &a500 &7회복합니다."
+  d:
+    amount: 1000
+    material: POTION
+    name: "&b[D] 피로회복 물약"
+    lore:
+      - "&7피로도를 &b1000 &7회복합니다."
+  c:
+    amount: 2000
+    material: POTION
+    name: "&9[C] 피로회복 물약"
+    lore:
+      - "&7피로도를 &92000 &7회복합니다."
+  b:
+    amount: 4000
+    material: POTION
+    name: "&5[B] 피로회복 물약"
+    lore:
+      - "&7피로도를 &54000 &7회복합니다."
+  a:
+    amount: 8000
+    material: POTION
+    name: "&6[A] 피로회복 물약"
+    lore:
+      - "&7피로도를 &68000 &7회복합니다."
+  s:
+    amount: 16000
+    material: POTION
+    name: "&c[S] 피로회복 물약"
+    lore:
+      - "&7피로도를 &c16000 &7회복합니다."

@@ -382,14 +382,14 @@ public class FishingMiniGame implements MiniGame {
 
         String title;
         String subtitle = null;
-        int fadeIn = (int) (configManager.getConfig().getDouble("titles.title-fade-in", 0.5) * 20);
-        int stay = (int) (configManager.getConfig().getDouble("titles.title-display-seconds", 2.0) * 20);
-        int fadeOut = (int) (configManager.getConfig().getDouble("titles.title-fade-out", 0.5) * 20);
+        int fadeIn = (int) (configManager.getMessagesConfig().getDouble("titles.title-fade-in", 0.5) * 20);
+        int stay = (int) (configManager.getMessagesConfig().getDouble("titles.title-display-seconds", 2.0) * 20);
+        int fadeOut = (int) (configManager.getMessagesConfig().getDouble("titles.title-fade-out", 0.5) * 20);
 
         switch (result) {
             case SUCCESS -> {
-                title = configManager.getConfig().getString("titles.success-title", "&f잡았다!");
-                String successSub = configManager.getConfig().getString("titles.success-subtitle", "&a{sequence}");
+                title = configManager.getMessage("titles.success-title", "&f잡았다!");
+                String successSub = configManager.getMessage("titles.success-subtitle", "&a{sequence}");
                 if (session != null && !successSub.isEmpty()) {
                     String seqStr = session.getSequence().stream()
                             .map(ci -> ci == me.ninesik.fishing.session.ClickInput.LEFT_CLICK ? "L" : "R")
@@ -398,12 +398,12 @@ public class FishingMiniGame implements MiniGame {
                 }
             }
             case FAIL -> {
-                title = configManager.getConfig().getString("titles.fail-title", "&f물고기가 도망갔네..");
-                subtitle = configManager.getConfig().getString("titles.fail-subtitle", "&cL : 좌클릭 R : 우클릭");
+                title = configManager.getMessage("titles.fail-title", "&f물고기가 도망갔네..");
+                subtitle = configManager.getMessage("titles.fail-subtitle", "&cL : 좌클릭 R : 우클릭");
             }
             case TIMEOUT -> {
-                title = configManager.getConfig().getString("titles.timeout-title", "&f물고기가 도망갔네..");
-                subtitle = configManager.getConfig().getString("titles.fail-subtitle", "&cL : 좌클릭 R : 우클릭");
+                title = configManager.getMessage("titles.timeout-title", "&f물고기가 도망갔네..");
+                subtitle = configManager.getMessage("titles.fail-subtitle", "&cL : 좌클릭 R : 우클릭");
             }
             default -> { return; }
         }

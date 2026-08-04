@@ -18,26 +18,26 @@ public enum FightFailReason {
      * 메시지가 fallback으로 쓰인다.
      */
     NONE,
-    /** Tension이 Line Strength에 도달 — 줄이 끊어짐. {@code messages.fail-tension} */
+    /** Tension이 Line Strength에 도달 — 줄이 끊어짐. {@code fail.tension} */
     LINE_SNAPPED,
-    /** Reel State가 0에 도달 — 릴이 고장남. {@code messages.fail-reel-break} */
+    /** Reel State가 0에 도달 — 릴이 고장남. {@code fail.reel-break} */
     REEL_BROKEN,
-    /** Distance가 Max Distance에 도달 — 줄 길이가 부족함. {@code messages.fail-distance} */
+    /** Distance가 Max Distance에 도달 — 줄 길이가 부족함. {@code fail.distance} */
     DISTANCE_EXCEEDED,
-    /** 제한 시간 초과. {@code messages.fail-timeout} */
+    /** 제한 시간 초과. {@code fail.timeout} */
     TIMEOUT;
 
     /**
-     * 이 원인에 대응하는 {@code messages.<key>} 설정 키를 반환한다.
-     * {@link #NONE}은 기존 일반 실패 메시지 키("fail")를 반환한다.
+     * 이 원인에 대응하는 messages.yml {@code fail.*} 설정 키(카테고리 포함)를 반환한다.
+     * {@link #NONE}은 기존 일반 실패 메시지 키("fail.fail")를 반환한다.
      */
     public String getMessageKey() {
         return switch (this) {
-            case LINE_SNAPPED -> "fail-tension";
-            case REEL_BROKEN -> "fail-reel-break";
-            case DISTANCE_EXCEEDED -> "fail-distance";
-            case TIMEOUT -> "fail-timeout";
-            case NONE -> "fail";
+            case LINE_SNAPPED -> "fail.tension";
+            case REEL_BROKEN -> "fail.reel-break";
+            case DISTANCE_EXCEEDED -> "fail.distance";
+            case TIMEOUT -> "fail.timeout";
+            case NONE -> "fail.fail";
         };
     }
 }

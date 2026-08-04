@@ -69,9 +69,13 @@ public class CollectionManager {
     /**
      * collections.yml의 unlock 섹션을 로드한다.
      * 각 단계는 required-registrations(필요 등록 슬롯 수)와 reveal(공개할 정보 목록)로 구성된다.
+     * (hidden-text 표시 문자열은 messages.yml의 collection.unlock.hidden-text 에서 읽는다)
      */
     private void loadUnlockConfig() {
-        this.unlockHiddenText = collectionsConfig.getString("unlock.hidden-text", "???");
+        me.ninesik.fishing.config.ConfigManager cm =
+                plugin.getFishingService() != null ? plugin.getFishingService().getConfigManager() : null;
+        this.unlockHiddenText = cm != null
+                ? cm.getMessage("collection.unlock.hidden-text", "???") : "???";
         this.unlockTiers = new java.util.ArrayList<>();
         if (collectionsConfig.isList("unlock.tiers")) {
             for (Object obj : collectionsConfig.getList("unlock.tiers", List.of())) {

@@ -60,7 +60,7 @@ public class FatiguePotionListener implements Listener {
             player.getInventory().setItemInMainHand(null);
         }
 
-        player.sendMessage(configManager.formatMessage("fatigue-potion-used", Map.of(
+        player.sendMessage(configManager.formatMessage("fatigue.potion-used", Map.of(
                 "amount", String.valueOf(amount),
                 "current", String.valueOf(fatigueManager.getFatigue(player))
         )));

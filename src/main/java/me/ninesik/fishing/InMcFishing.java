@@ -224,7 +224,11 @@ public final class InMcFishing extends JavaPlugin {
         saveResource("worldguard.yml", false);
         saveResource("tournaments.yml", false);
         saveResource("collections.yml", false);
+        saveResource("messages.yml", false);
+        saveResource("fight.yml", false);
+        saveResource("fatigue.yml", false);
         saveResource("items/rod.yml", false);
+        saveResource("items/potions.yml", false);
         saveResource("items/f-grade.yml", false);
         saveResource("items/e-grade.yml", false);
         saveResource("items/d-grade.yml", false);
@@ -233,6 +237,17 @@ public final class InMcFishing extends JavaPlugin {
         saveResource("items/a-grade.yml", false);
         saveResource("items/s-grade.yml", false);
         saveResource("mmoitems-example.yml", false);
+    }
+
+    /**
+     * /fishing reload 시 등록(Registry) 정보를 다시 로드한다.
+     * grades.yml, items/*-grade.yml(물고기), items/rod.yml(낚싯대)를 재로드해 Registry를 재구성한다.
+     * (피드백: "리로드가 yml의 모든 값을 리로드해야 하고, item 안에 있는 물고기 등도 로드돼야 함")
+     *
+     * @return 정상 로드 시 true, 치명적 오류로 실패 시 false
+     */
+    public boolean reloadRegistries() {
+        return loadRegistries();
     }
 
     public static InMcFishing getInstance() {

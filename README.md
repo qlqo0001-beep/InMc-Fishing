@@ -259,17 +259,21 @@
 
 | 파일 | 역할 |
 |------|------|
-| `config.yml` | 기본 설정(월드/효과음/확률/메시지/화면 표시) + **trophy-fight 힘겨루기 설정** |
+| `config.yml` | 기본 설정(월드/미니게임 OFF/어망/효과음/확률) — 항목이 적은 설정만 |
 | `grades.yml` | 등급별 확률, 클릭 수, 제한 시간 |
 | `items/f-grade.yml` ~ `items/s-grade.yml` | 등급별 물고기/보상 아이템 목록 |
 | `items/rod.yml` | 낚싯대 종류, 보너스, Fight 스탯(릴 파워/줄 강도/릴 내구도) |
+| `items/potions.yml` | 피로도 회복 물약 아이템 정의 |
+| `fight.yml` | Trophy Fight 힘겨루기 시스템 설정 (ai/hud/sound/intro/stats 그룹) |
+| `fatigue.yml` | 자동 낚시(미니게임 OFF) 전용 피로도 시스템 설정 |
+| `messages.yml` | 모든 표시 텍스트(채팅/액션바/타이틀) — 역할군별 카테고리 그룹 |
 | `modifiers.yml` | 월드/바이옴/날씨/시간/권한별 확률 조정 |
 | `collections.yml` | 도감 보상, 랭킹, 트로피 설정 |
 | `tournaments.yml` | 낚시 대회 종류와 일정 |
 | `worldguard.yml` | WorldGuard 낚시 허용 구역 설정 (설치 시에만) |
 | `mmoitems-example.yml` | MMOItems 연동 예시 |
 
-### Trophy Fight 설정 (`config.yml` → `trophy-fight:`)
+### Trophy Fight 설정 (`fight.yml` → `trophy-fight:`)
 
 | 항목 | 기본값 | 설명 |
 |------|--------|------|
@@ -286,6 +290,19 @@
 | `stats.default-reel-power` | 30.0 | 기본 릴 파워(미등록 낚싯대 fallback) — 낮으면 물고기 체력 소모가 약해지고 거리가 잘 줄지 않음 |
 | `stats.default-reel-durability` | 30.0 | 기본 릴 내구도(미등록 낚싯대 fallback) |
 | `stats.grade-difficulty` | f:0.5 ~ s:2.5 | 등급별 난이도 배수 (레어 트로피는 추가로 어려움) |
+
+### 피로도 설정 (`fatigue.yml` → `fatigue:`) & 회복 물약 (`items/potions.yml` → `potions:`)
+- `fatigue.default` / `fatigue.max` — 기본/절대 최대 피로도
+- `fatigue.recovery.amount` / `.interval` — 자연 회복량/주기
+- `fatigue.consume.<grade>` — 자동 낚시 성공 시 등급별 피로도 소모량
+- `potions.<grade>.<amount/material/name/lore>` — 피로도 회복 물약 아이템 정의 (등급 f~s)
+
+### 메시지 설정 (`messages.yml`)
+모든 표시 텍스트를 역할군별 카테고리로 묶어 관리합니다:
+- `catch.*` — 낚시 성공/획득, `fail.*` — 실패/제한(파이트 실패 원인별 포함)
+- `minigame.*` — 미니게임 ON/OFF, `fatigue.*` — 피로도
+- `cast-status.*` — 찌 액션바, `auto-catch.*` — 자동 낚시 액션바
+- `titles.*` — 미니게임 타이틀, `collection.*` — 도감(보상 사유·hidden-text)
 
 ### 간단한 설정 예시
 

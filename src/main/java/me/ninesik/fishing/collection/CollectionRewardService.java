@@ -421,9 +421,12 @@ public class CollectionRewardService {
         return "";
     }
 
-    /** 보상 유형별 설명 문구를 구성한다. config의 reward-descriptions.<type>을 우선 사용한다. */
+    /** 보상 유형별 설명 문구를 구성한다. messages.yml의 collection.reward-descriptions.<type>을 우선 사용한다. */
     private String rewardDescription(String type, Map<String, String> placeholders) {
-        String template = rewardConfig.getString("reward-descriptions." + type, "");
+        me.ninesik.fishing.config.ConfigManager cm =
+                plugin.getFishingService() != null ? plugin.getFishingService().getConfigManager() : null;
+        String template = cm != null
+                ? cm.getMessageRaw("collection.reward-descriptions." + type, "") : "";
         if (template == null || template.isBlank()) {
             template = defaultRewardDescription(type);
         }

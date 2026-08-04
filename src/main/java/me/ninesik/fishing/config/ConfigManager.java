@@ -29,20 +29,36 @@ public class ConfigManager {
     private final InMcFishing plugin;
     private FileConfiguration config;
     private FileConfiguration modifiers;
+    private FileConfiguration messages;
+    private FileConfiguration fight;
+    private FileConfiguration fatigue;
+    private FileConfiguration potions;
 
     public ConfigManager(InMcFishing plugin) {
         this.plugin = plugin;
         load();
     }
 
+    /**
+     * 모든 설정 파일(config/modifiers/messages/fight/fatigue/items-potions)을 (재)로드한다.
+     * /fishing reload 및 서버 리로드 시 호출된다 (피드백: "리로드가 지금 yml의 모든 값을 리로드해야 함").
+     */
     public void load() {
         this.config = plugin.getConfig();
+        this.messages = loadResource("messages.yml");
+        this.fight = loadResource("fight.yml");
+        this.fatigue = loadResource("fatigue.yml");
+        this.potions = loadResource("items/potions.yml");
+        this.modifiers = loadResource("modifiers.yml");
+    }
 
-        File modifiersFile = new File(plugin.getDataFolder(), "modifiers.yml");
-        if (!modifiersFile.exists()) {
-            plugin.saveResource("modifiers.yml", false);
+    /** 리소스를 데이터 폴더에 최초 1회 저장하고 로드해서 반환한다. */
+    private FileConfiguration loadResource(String resourcePath) {
+        File file = new File(plugin.getDataFolder(), resourcePath);
+        if (!file.exists()) {
+            plugin.saveResource(resourcePath, false);
         }
-        this.modifiers = YamlConfiguration.loadConfiguration(modifiersFile);
+        return YamlConfiguration.loadConfiguration(file);
     }
 
     public double getBigFishChance() {
@@ -74,24 +90,41 @@ public class ConfigManager {
     }
 
     /**
-     * messages.<key> 값을 읽어 '&' 색상 코드를 변환해서 반환한다. 없으면 빈 문자열.
+     * messages.yml 의 메시지&lt;key&gt; 값을 읽어 '&amp;' 색상 코드를 변환해서 반환한다. 없으면 빈 문자열.
+     * key 는 카테고리가 포함된 전체 경로다 (예: "catch.caught", "fail.tension", "minigame.on").
      * placeholder 치환은 하지 않는다 — {@link #formatMessage(String, Map)} 사용.
      */
     public String getMessage(String key) {
-        String raw = config.getString("messages." + key, "");
+        String raw = messages.getString(key, "");
         return Texts.colorize(raw);
     }
 
+    /** messages.yml 에서 key(전체 경로)로 읽되, 없으면 default 값을 색상 변환하여 반환한다. (타이틀 등 기본값 보장용) */
+    public String getMessage(String key, String def) {
+        String raw = messages.getString(key, def);
+        return Texts.colorize(raw);
+    }
+
+    /** messages.yml 의 raw 문자열을 그대로 반환한다 (색상 변환 안 함). 없으면 def 반환. (도감 보상 사유 등) */
+    public String getMessageRaw(String key, String def) {
+        return messages.getString(key, def);
+    }
+
+    /** messages.yml FileConfiguration 을 반환한다 (타이틀 수치 등 직접 조회용). */
+    public FileConfiguration getMessagesConfig() {
+        return messages;
+    }
+
     /**
-     * messages.<key>를 읽고 placeholder 치환 후 색상 변환한다.
-     * {prefix}는 messages.prefix 값으로 자동 치환된다.
+     * messages.yml 메시지를 읽고 placeholder 치환 후 색상 변환한다.
+     * {prefix}는 messages.yml의 prefix 값으로 자동 치환된다.
      */
     public String formatMessage(String key, Map<String, String> placeholders) {
-        String raw = config.getString("messages." + key, "");
+        String raw = messages.getString(key, "");
         if (raw == null || raw.isEmpty()) {
             return "";
         }
-        String prefix = config.getString("messages.prefix", "");
+        String prefix = messages.getString("prefix", "");
         Map<String, String> merged = new java.util.HashMap<>();
         if (placeholders != null) {
             merged.putAll(placeholders);
@@ -146,74 +179,75 @@ public class ConfigManager {
 
     /**
      * Trophy Fight 설정을 구조화된 {@link FightConfig} 객체로 반환한다.
-     * 개별 getter가 아닌 객체 자체를 반환하여 이후 유지보수를 용이하게 한다.
+     * fight.yml 을 기반으로 로드한다 (개별 getter 대신 객체 자체를 반환해 유지보수를 용이하게 함).
      *
      * @return FightConfig 객체 (AI/HUD/Sound/Stats/General 카테고리 포함)
      */
     public FightConfig getFightConfig() {
-        return new FightConfig(config);
+        return new FightConfig(fight);
     }
 
     // ===================== fatigue (유저 피드백: 자동 낚시 피로도 시스템) =====================
+    // 피로도 설정은 fatigue.yml (fatigue: 루트), 물약 아이템 정의는 items/potions.yml (potions: 루트)에서 읽는다.
 
     /** 신규 플레이어의 기본 최대 피로도 (fatigue.default). */
     public int getFatigueDefaultMax() {
-        return config.getInt("fatigue.default", 1000);
+        return fatigue.getInt("fatigue.default", 1000);
     }
 
     /** 낚싯대 보너스를 포함해도 넘을 수 없는 절대 상한 (fatigue.max). */
     public int getFatigueAbsoluteMax() {
-        return config.getInt("fatigue.max", 20000);
+        return fatigue.getInt("fatigue.max", 20000);
     }
 
     /** 자연 회복 1회당 회복량 (fatigue.recovery.amount). */
     public int getFatigueRecoveryAmount() {
-        return config.getInt("fatigue.recovery.amount", 200);
+        return fatigue.getInt("fatigue.recovery.amount", 200);
     }
 
     /** 자연 회복 주기(초), 최소 1초 (fatigue.recovery.interval). */
     public int getFatigueRecoveryIntervalSeconds() {
-        return Math.max(1, config.getInt("fatigue.recovery.interval", 600));
+        return Math.max(1, fatigue.getInt("fatigue.recovery.interval", 600));
     }
 
     /** 자동 낚시 성공 시 등급별 피로도 소모량 (fatigue.consume.<grade>). */
     public int getFatigueConsume(String gradeId) {
         if (gradeId == null) return 0;
-        return config.getInt("fatigue.consume." + gradeId.toLowerCase(), 0);
+        return fatigue.getInt("fatigue.consume." + gradeId.toLowerCase(), 0);
     }
 
     /** 피로도가 이 값 이하이면 미니게임이 강제 ON되고 OFF 전환이 잠긴다 (fatigue.auto-minigame-lock-threshold). */
     public int getFatigueLockThreshold() {
-        return config.getInt("fatigue.auto-minigame-lock-threshold", 0);
+        return fatigue.getInt("fatigue.auto-minigame-lock-threshold", 0);
     }
 
     /** 잠긴 상태에서 이 값 이상 회복되면 다시 OFF 전환이 가능해진다 (fatigue.auto-minigame-unlock-threshold). */
     public int getFatigueUnlockThreshold() {
-        return config.getInt("fatigue.auto-minigame-unlock-threshold", 100);
+        return fatigue.getInt("fatigue.auto-minigame-unlock-threshold", 100);
     }
 
-    /** 등급별 회복 물약의 회복량 (fatigue.potions.<grade>.amount). */
+    /** 등급별 회복 물약의 회복량 (potions.<grade>.amount) — items/potions.yml. */
     public int getFatiguePotionAmount(String gradeId) {
         if (gradeId == null) return 0;
-        return config.getInt("fatigue.potions." + gradeId.toLowerCase() + ".amount", 0);
+        return potions.getInt("potions." + gradeId.toLowerCase() + ".amount", 0);
     }
 
-    /** 등급별 회복 물약의 표시 이름 (fatigue.potions.<grade>.name), '&' 색상 코드 미변환 원본. */
+    /** 등급별 회복 물약의 표시 이름 (potions.<grade>.name), '&' 색상 코드 미변환 원본 — items/potions.yml. */
     public String getFatiguePotionName(String gradeId) {
         if (gradeId == null) return "&b피로회복 물약";
-        return config.getString("fatigue.potions." + gradeId.toLowerCase() + ".name", "&b피로회복 물약");
+        return potions.getString("potions." + gradeId.toLowerCase() + ".name", "&b피로회복 물약");
     }
 
-    /** 등급별 회복 물약의 Lore (fatigue.potions.<grade>.lore), '&' 색상 코드 미변환 원본. */
+    /** 등급별 회복 물약의 Lore (potions.<grade>.lore), '&' 색상 코드 미변환 원본 — items/potions.yml. */
     public List<String> getFatiguePotionLore(String gradeId) {
         if (gradeId == null) return Collections.emptyList();
-        return config.getStringList("fatigue.potions." + gradeId.toLowerCase() + ".lore");
+        return potions.getStringList("potions." + gradeId.toLowerCase() + ".lore");
     }
 
-    /** 등급별 회복 물약의 베이스 Material (fatigue.potions.<grade>.material). */
+    /** 등급별 회복 물약의 베이스 Material (potions.<grade>.material) — items/potions.yml. */
     public String getFatiguePotionMaterial(String gradeId) {
         if (gradeId == null) return "POTION";
-        return config.getString("fatigue.potions." + gradeId.toLowerCase() + ".material", "POTION");
+        return potions.getString("potions." + gradeId.toLowerCase() + ".material", "POTION");
     }
 
     public List<String> getAllowedWorlds() {
@@ -250,16 +284,18 @@ public class ConfigManager {
         return config.getBoolean("cast-status.enabled", true);
     }
 
+    /** (messages.yml cast-status.<key> — 찌 액션바 표시 텍스트, 색상 미변환 원본) */
     public String getCastStatusMessage(String key) {
-        return config.getString("cast-status." + key, "");
+        return messages.getString("cast-status." + key, "");
     }
 
     public int getCastStatusRefreshIntervalTicks() {
         return Math.max(1, config.getInt("cast-status.refresh-interval-ticks", 20));
     }
 
+    /** (messages.yml auto-catch.actionbar-format — 자동 낚시 액션바, 색상 미변환 원본) */
     public String getAutoCatchActionBarFormat() {
-        return config.getString("auto-catch.actionbar-format", "&e{time}s &7후 낚음...");
+        return messages.getString("auto-catch.actionbar-format", "&e{time}s &7후 낚음...");
     }
 
     /**

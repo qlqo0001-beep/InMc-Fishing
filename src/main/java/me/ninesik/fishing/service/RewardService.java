@@ -98,7 +98,7 @@ public class RewardService {
 
             // 대어 메시지
             if (reward.isBigFish()) {
-                String bigFishMsg = configManager.formatMessage("big-fish", placeholders(player, reward, itemDisplay));
+                String bigFishMsg = configManager.formatMessage("catch.big-fish", placeholders(player, reward, itemDisplay));
                 if (!bigFishMsg.isEmpty()) {
                     player.sendMessage(bigFishMsg);
                 }
@@ -107,8 +107,9 @@ public class RewardService {
 
             // 성공/더블 메시지
             boolean effectiveDouble = reward.isDouble() && fish.isDoubleEnabled();
-            String catchKey = effectiveDouble ? "caught-double" : "caught";
-            String catchMsg = configManager.formatMessage(catchKey, placeholders(player, reward, itemDisplay));
+            String catchMsg = configManager.formatMessage(
+                    effectiveDouble ? "catch.caught-double" : "catch.caught",
+                    placeholders(player, reward, itemDisplay));
             if (!catchMsg.isEmpty()) {
                 player.sendMessage(catchMsg);
             }
@@ -135,7 +136,7 @@ public class RewardService {
         if (item == null) {
             logger.warning("Failed to create reward item for fish id=" + fish.getId()
                     + " use-type=" + fish.getUseType() + " player=" + player.getName());
-            String msg = configManager.formatMessage("no-rewards", placeholders(player, reward, ""));
+            String msg = configManager.formatMessage("fail.no-rewards", placeholders(player, reward, ""));
             if (!msg.isEmpty()) {
                 player.sendMessage(msg);
             }
@@ -146,7 +147,7 @@ public class RewardService {
         boolean canFit = InventoryUtil.canFit(player.getInventory(), item);
         if (!canFit) {
             if (!configManager.isDropOverflowItems()) {
-                String msg = configManager.formatMessage("no-empty-slot");
+                String msg = configManager.formatMessage("fail.no-empty-slot");
                 if (!msg.isEmpty()) {
                     player.sendMessage(msg);
                 }
@@ -163,7 +164,7 @@ public class RewardService {
         } else if (!remaining.isEmpty()) {
             // drop-overflow-items=false인데 일부만 들어간 경우 — 이미 들어간 건 되돌리기 어려우므로
             // 사전 canFit이 false였어야 함. 방어적으로 no-empty-slot 메시지만 출력.
-            String msg = configManager.formatMessage("no-empty-slot");
+            String msg = configManager.formatMessage("fail.no-empty-slot");
             if (!msg.isEmpty()) {
                 player.sendMessage(msg);
             }
@@ -176,7 +177,7 @@ public class RewardService {
 
         // 대어 메시지 (S 등급 승급 없음은 RollEngine에서 isBigFish=false로 처리됨)
         if (reward.isBigFish()) {
-            String bigFishMsg = configManager.formatMessage("big-fish", placeholders(player, reward, itemDisplay));
+            String bigFishMsg = configManager.formatMessage("catch.big-fish", placeholders(player, reward, itemDisplay));
             if (!bigFishMsg.isEmpty()) {
                 player.sendMessage(bigFishMsg);
             }
@@ -185,8 +186,9 @@ public class RewardService {
 
         // 성공/더블 메시지
         boolean effectiveDouble = reward.isDouble() && fish.isDoubleEnabled();
-        String catchKey = effectiveDouble ? "caught-double" : "caught";
-        String catchMsg = configManager.formatMessage(catchKey, placeholders(player, reward, itemDisplay));
+        String catchMsg = configManager.formatMessage(
+                effectiveDouble ? "catch.caught-double" : "catch.caught",
+                placeholders(player, reward, itemDisplay));
         if (!catchMsg.isEmpty()) {
             player.sendMessage(catchMsg);
         }
@@ -229,10 +231,10 @@ public class RewardService {
         if (player == null) {
             return;
         }
-        String key = (messageKey == null || messageKey.isEmpty()) ? "fail" : messageKey;
+        String key = (messageKey == null || messageKey.isEmpty()) ? "fail.fail" : messageKey;
         String msg = configManager.formatMessage(key);
-        if (msg.isEmpty() && !"fail".equals(key)) {
-            msg = configManager.formatMessage("fail");
+        if (msg.isEmpty() && !"fail.fail".equals(key)) {
+            msg = configManager.formatMessage("fail.fail");
         }
         if (!msg.isEmpty()) {
             player.sendMessage(msg);
@@ -565,7 +567,7 @@ public class RewardService {
         if (!reward.isTrophy() && !reward.isRareTrophy()) {
             return;
         }
-        String msg = configManager.formatMessage("trophy-announce", placeholders(player, reward, itemDisplay));
+        String msg = configManager.formatMessage("catch.trophy-announce", placeholders(player, reward, itemDisplay));
         if (!msg.isEmpty()) {
             Bukkit.broadcastMessage(Texts.colorize(msg));
         }
