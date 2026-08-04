@@ -61,9 +61,11 @@ public class FightHUD {
             return;
         }
 
-        // Tension 비율 (0.0 ~ 1.0) — Line Strength 기준
-        double maxTension = Math.max(1.0, session.getLineStrength());
-        double tensionRatio = Math.min(1.0, session.getTension() / maxTension);
+        // Tension 비율 (0.0 ~ 1.0) — Line Strength(줄 강도) 기준
+        // 지역 변수는 줄 강도 상한을 담고 있으므로 maxTension → maxLineStrength로 명명해
+        // 의미(줄이 끊어지는 장력 상한 = 줄 강도)를 코드에 명확히 드러낸다 (피드백.md 연관 정리).
+        double maxLineStrength = Math.max(1.0, session.getLineStrength());
+        double tensionRatio = Math.min(1.0, session.getTension() / maxLineStrength);
         bar.setProgress(tensionRatio);
 
         // Tension 위험도에 따른 게이지 색 + 타이틀 색상 접두사 (config 값 사용)

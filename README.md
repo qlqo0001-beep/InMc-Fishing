@@ -280,9 +280,9 @@
 | `sound.*` | - | 상황별 사운드 (돌진/과부하/장력위험/지침/성공) |
 | `stats.default-stamina` | 100.0 | 물고기 기본 체력 |
 | `stats.default-distance` | 100.0 | 기본 거리 |
-| `stats.max-distance` | 250.0 | 거리 상한(도망/줄 끊김) |
-| `stats.max-tension` | 100.0 | 장력 최대값 |
-| `stats.default-reel-state` | 100.0 | 릴 상태 기본값 |
+| `stats.max-distance` | 150.0 | 거리 상한(도망/줄 끊김) |
+| `stats.default-line-strength` | 100.0 | 기본 줄 강도(미등록 낚싯대 fallback) — 장력(Tension)이 이 값+낚싯대 보너스 이상이 되면 줄이 끊어짐. (구 `max-tension`, 호환 fallback 유지) |
+| `stats.default-reel-state` | 100.0 | 릴 HP 기본값(0이면 릴 파손으로 패배) |
 | `stats.default-reel-power` | 30.0 | 기본 릴 파워(미등록 낚싯대 fallback) — 낮으면 물고기 체력 소모가 약해지고 거리가 잘 줄지 않음 |
 | `stats.default-reel-durability` | 30.0 | 기본 릴 내구도(미등록 낚싯대 fallback) |
 | `stats.grade-difficulty` | f:0.5 ~ s:2.5 | 등급별 난이도 배수 (레어 트로피는 추가로 어려움) |

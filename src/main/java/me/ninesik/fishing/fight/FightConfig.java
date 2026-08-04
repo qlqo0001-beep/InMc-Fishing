@@ -199,11 +199,11 @@ public class FightConfig {
      * Phase 2에서 핵심 계산 구현 시 사용된다.
      */
     public static class StatsConfig {
-        /** Fish Stamina 기본값 */
+        /** 기본 물고기 스탯값 — 물고기 체력(Stamina). 0이 되면 지쳐서 끌려온다. 등급 난이도·레어 트로피 배수가 곱해진다. */
         public final double defaultStamina;
-        /** Fish Power 기본값 */
+        /** 기본 물고기 스탯값 — 물고기 힘(Power). 릴 상태(릴 HP) 감소에 영향을 준다. 등급 난이도·레어 트로피 배수가 곱해진다. */
         public final double defaultPower;
-        /** Fish Resistance 기본값 */
+        /** 기본 물고기 스탯값 — 물고기 저항력(Resistance). 릴 상태(릴 HP) 감소에 영향을 준다. 등급 난이도·레어 트로피 배수가 곱해진다. */
         public final double defaultResistance;
         /** Distance 기본값 */
         public final double defaultDistance;
@@ -234,9 +234,24 @@ public class FightConfig {
          * 끌어올 수 있다. 값이 0이면 해당 등급은 하한 없음.</p>
          */
         public final Map<String, Double> minDistanceWithStaminaByGrade;
-        /** Tension 최대값 */
-        public final double maxTension;
-        /** Reel State 기본값 */
+        /**
+         * 기본 줄 강도(Line Strength, Fallback). 등록된 낚싯대가 없거나(미등록 바닐라 낚싯대)
+         * 낚싯대의 line-strength가 0 이하일 때 사용하는 기본 줄 강도이다.
+         *
+         * <p><b>피드백 반영 (피드백.md):</b> 기존 config 키 {@code max-tension}은
+         * "Tension 최대값"처럼 보였으나, 코드에서는 실제로 <b>기본 줄 강도</b>로 사용된다
+         * (줄이 끊어지는 기준 = {@code tension >= lineStrength}). 의미에 맞게 키 이름을
+         * {@code default-line-strength}로 변경하고, 기존 {@code max-tension} 키는
+         * 이미 배포된 서버 설정 호환성을 위해 fallback으로 계속 읽는다.</p>
+         */
+        public final double defaultLineStrength;
+        /**
+         * 릴 HP(Reel State) 기본값 — Fight 중 소모되는 릴 상태.
+         *
+         * <p><b>피드백 반영 (피드백.md):</b> "사실상 릴 HP라고 표현됌" — 이 값은 Fight 중
+         * 깎이는 릴 상태이며, 0이 되면 릴 파손({@code REEL_BROKEN})으로 Fight가 패배로
+         * 종료된다. 즉 "릴 내구도"가 아니라 <b>릴 HP</b>가 맞다.</p>
+         */
         public final double defaultReelState;
         /**
          * 기본 Reel Power (Fallback). 등록된 낚싯대가 없거나(미등록 바닐라 낚싯대)
@@ -261,7 +276,10 @@ public class FightConfig {
             this.maxDistance = config.getDouble("trophy-fight.stats.max-distance", 250.0);
             this.distancePerLineStrength = config.getDouble("trophy-fight.stats.distance-per-line-strength", 1.0);
             this.minDistanceWithStaminaByGrade = loadMinDistanceWithStamina(config);
-            this.maxTension = config.getDouble("trophy-fight.stats.max-tension", 100.0);
+            // 피드백.md: max-tension은 실제로 "기본 줄 강도"이므로 default-line-strength로 리네임.
+            // 기존 max-tension 키를 그대로 쓰는 배포 서버 호환성을 위해 fallback으로 읽는다.
+            this.defaultLineStrength = config.getDouble("trophy-fight.stats.default-line-strength",
+                    config.getDouble("trophy-fight.stats.max-tension", 100.0));
             this.defaultReelState = config.getDouble("trophy-fight.stats.default-reel-state", 100.0);
             this.defaultReelPower = config.getDouble("trophy-fight.stats.default-reel-power", 30.0);
             this.defaultReelDurability = config.getDouble("trophy-fight.stats.default-reel-durability", 30.0);

@@ -506,15 +506,15 @@ trophy-fight:
   # --- 스탯 설정 ---
   # Fight 핵심 스탯 기본값 (Phase 2에서 구체화)
   stats:
-    # 물고기 스탯 기본값
-    default-stamina: 100.0
-    default-power: 50.0
-    default-resistance: 50.0
-    # Distance 기본값 (플레이어와 물고기 사이 거리)
+    # 기본 물고기 스탯값 (등급 난이도 배수·레어 트로피 배수가 곱해진 최종값으로 적용)
+    default-stamina: 100.0      # 물고기 체력(Stamina) — 0이 되면 지쳐서 끌려옴
+    default-power: 50.0         # 물고기 힘(Power) — 릴 상태(릴 HP) 감소에 영향
+    default-resistance: 50.0    # 물고기 저항력(Resistance) — 릴 상태(릴 HP) 감소에 영향
+    # Distance 기본값 (플레이어와 물고기 사이 초반 거리)
     default-distance: 100.0
     # Distance 상한값 (이 값 이상 멀어지면 물고기가 도망가며 줄이 끊어짐, 0=제한 없음)
     # 패치예정.md 피드백: "물고기는 일정 거리에 도달하면 줄이 끊어져야 함"
-    max-distance: 250.0
+    max-distance: 150.0
     # 낚싯대 line-strength(줄 강도) 1당 위 max-distance에 추가되는 보너스 비율.
     # 최종 Distance 상한 = max-distance + (낚싯대 options.line-strength × 이 값).
     # reel-power/reel-durability와 동일한 "기본값 + 낚싯대 보너스" 방식이다.
@@ -526,15 +526,21 @@ trophy-fight:
     # 피드백: "등급별로 최소 거리값을 설정되게 하면 더 좋을거 같아"
     min-distance-with-stamina:
       f: 50.0
-      e: 50.0
-      d: 50.0
-      c: 50.0
-      b: 50.0
-      a: 50.0
-      s: 50.0
-    # Tension 최대값 (이 값에 도달하면 줄이 끊어짐)
-    max-tension: 100.0
-    # Reel State 기본값 (릴 내구도)
+      e: 60.0
+      d: 70.0
+      c: 80.0
+      b: 90.0
+      a: 100.0
+      s: 120.0
+    # 기본 줄 강도(Line Strength) — 트로피 파이트에 낚싯대가 없거나 미등록일 때 쓰는 기본값.
+    # 등록된 낚싯대가 있으면 "이 기본값 + 낚싯대 line-strength 보너스"로 합산된다 (추가값 방식).
+    # 줄이 끊어지는 기준: 전체 줄 강도에 대해 현재 장력(Tension)이 이 값 이상이 되면 줄이 끊어짐.
+    # (피드백: "max-tension이 콘피그 상에서 디폴트 줄 강도인데 맥스 탠션이라고 나타남 수정요망" —
+    #  실제 의미(기본 줄 강도)에 맞게 키 이름을 default-line-strength로 변경. 기존 max-tension 키도
+    #  호환성을 위해 여전히 읽는다 — FightConfig가 default-line-strength가 없으면 max-tension으로 fallback)
+    default-line-strength: 100.0
+    # 릴 HP(Reel State) 기본값 — Fight 중 소모되는 릴 상태. 0이 되면 릴 파손(REEL_BROKEN)으로 패배.
+    # (피드백: "사실상 릴 HP라고 표현됌" — 주석을 릴 HP로 정정)
     default-reel-state: 100.0
     # 기본 Reel Power — 트로피 파이트에 낚싯대가 없거나 미등록일 때 쓰는 기본값.
     # 등록된 낚싯대가 있으면 "이 기본값 + 낚싯대 reel-power 보너스"로 합산된다 (추가값 방식).

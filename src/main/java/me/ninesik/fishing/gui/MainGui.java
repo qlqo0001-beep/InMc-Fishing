@@ -29,7 +29,7 @@ import java.util.List;
  * 낚시 메인 GUI (피드백).
  *
  * <p>시프트+F(스왑)로 열리는 허브 메뉴이다. 내 낚시 스탯 / 어망 / 도감 / 랭킹 / 대회로
- * 이동하고, 오토낚시·트로피 파이트 연습모드 토글, 트로피 파이트 설명, 닫기를 제공한다.</p>
+ * 이동하고, 미니게임 ON/OFF·트로피 파이트 연습모드 토글, 트로피 파이트 설명, 닫기를 제공한다.</p>
  *
  * <p>각 이동 대상 GUI(어망/도감/랭킹/대회)는 "메인 GUI로" 복귀 버튼을 가진다.</p>
  */
@@ -134,7 +134,7 @@ public class MainGui extends AbstractGui {
         lines.add(ChatColor.GRAY + "현재 낚싯대: " + ChatColor.WHITE + rodName);
 
         double reelPower = stats.defaultReelPower + (rod != null ? Math.max(0, rod.getReelPower()) : 0);
-        double lineStrength = stats.maxTension + (rod != null ? Math.max(0, rod.getLineStrength()) : 0);
+        double lineStrength = stats.defaultLineStrength + (rod != null ? Math.max(0, rod.getLineStrength()) : 0);
         double reelDurability = stats.defaultReelDurability + (rod != null ? Math.max(0, rod.getReelDurability()) : 0);
         lines.add(ChatColor.YELLOW + "릴 파워: " + ChatColor.WHITE + String.format("%.1f", reelPower));
         lines.add(ChatColor.YELLOW + "줄 강도: " + ChatColor.WHITE + String.format("%.1f", lineStrength));
@@ -169,7 +169,7 @@ public class MainGui extends AbstractGui {
 
 
 
-    // ===== 오토낚시 토글 =====
+    // ===== 미니게임 ON/OFF 토글 =====
 
     private ItemStack buildAutoCatchIcon() {
         PlayerPreferenceManager prefs = plugin().getPlayerPreferenceManager();
@@ -178,7 +178,7 @@ public class MainGui extends AbstractGui {
 
         List<String> lore = new ArrayList<>();
         lore.add(ChatColor.GRAY + "L/R 클릭 미니게임을 켜거나 끕니다.");
-        lore.add(ChatColor.GRAY + "OFF면 자동으로 낚입니다. (오토낚시)");
+        lore.add(ChatColor.GRAY + "OFF면 입질 후 자동으로 낚습니다. (자동 낚시)");
         if (fatigue != null) {
             lore.add(ChatColor.AQUA + "피로도: " + ChatColor.WHITE + fatigue.getFatigue(player)
                     + ChatColor.GRAY + " / " + ChatColor.WHITE + fatigue.getEffectiveMax(player));
@@ -189,10 +189,10 @@ public class MainGui extends AbstractGui {
         if (fatigue != null && fatigue.isLocked(player)) {
             lore.add(ChatColor.RED + "피로도가 낮아 미니게임 OFF가 잠겨 있습니다.");
         }
-        lore.add(ChatColor.YELLOW + "현재: " + (on ? ChatColor.GREEN + "ON (미니게임)" : ChatColor.RED + "OFF (오토낚시)"));
+        lore.add(ChatColor.YELLOW + "현재: " + (on ? ChatColor.GREEN + "ON (미니게임)" : ChatColor.RED + "OFF (자동 낚시)"));
         lore.add(ChatColor.GRAY + "클릭: 토글");
         return createIcon(on ? Material.COMPARATOR : Material.REPEATER,
-                ChatColor.GOLD + "오토낚시 " + (on ? "ON" : "OFF"), lore);
+                ChatColor.GOLD + "미니게임 " + (on ? "ON" : "OFF"), lore);
     }
 
     // ===== 연습모드 토글 =====
@@ -270,7 +270,7 @@ public class MainGui extends AbstractGui {
                 PlayerPreferenceManager prefs = plugin().getPlayerPreferenceManager();
                 if (prefs != null) {
                     prefs.toggleMinigame(player);
-                    emitToggleActionBar("오토낚시", prefs.isMinigameEnabled(player));
+                    emitToggleActionBar("미니게임", prefs.isMinigameEnabled(player));
                     refresh();
                 }
             }

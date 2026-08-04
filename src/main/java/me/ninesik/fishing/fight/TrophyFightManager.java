@@ -275,7 +275,7 @@ public class TrophyFightManager {
         // 트로피 파이트 스탯은 낚싯대 보너스를 기본값에 더한다 (피로도 시스템과 동일한 의미).
         // 보너스가 0인 낚싯대/미등록 낚싯대(rod==null)는 기본값 그대로 → "기본 낚싯대 기준 난이도" 유지.
         double baseReelPower = stats.defaultReelPower;
-        double baseLineStrength = stats.maxTension;
+        double baseLineStrength = stats.defaultLineStrength;
         double baseReelDurability = stats.defaultReelDurability;
 
         double reelPower = baseReelPower + (rod != null ? Math.max(0, rod.getReelPower()) : 0);
