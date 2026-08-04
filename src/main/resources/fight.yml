@@ -31,13 +31,15 @@ trophy-fight:
     bar-color-safe: "&a"       # 안정 (초록)
     bar-color-warning: "&e"    # 주의 (노랑)
     bar-color-danger: "&c"     # 위험 (빨강)
-    # BossBar 네임 텍스트 ({distance} = 현재 Distance 값)
+    # BossBar 네임 텍스트 ({distance}/{max_distance} = 현재/최대 거리)
     bossbar-title-format: "거리: {distance} / {max_distance} M"
-    # ActionBar 텍스트 ({stamina}/{power}/{resistance}/{reel} = 각 수치)
-    actionbar-format: "물고기 채력 {stamina}% | 물고기 힘 {power} | 물고기 저항력 {resistance} | 릴 상태 {reel}%"
-    # Fish AI 상태 타이틀(메인) — {state_color} = 아래 state-color 설정, {state} = 상태 이름
+    # ActionBar 텍스트 ({stamina}/{reel}/{distance}/{max_distance} = 각 수치)
+    actionbar-format: "물고기 채력 {stamina}% | 릴 상태 {reel}% | 거리 {distance}/{max_distance}M"
+    # Fish AI 상태 타이틀(메인) — {state_color} = 아래 state-color 설정, {state} = 상태 이름.
+    # 아래 state-guide.<state>.title/subtitle 이 없을 때만 폴백으로 사용된다.
     state-title-format: "{state_color}{state}"
-    # Fish AI 상태 서브타이틀 — {remaining_seconds} = 다음 상태 전이까지 남은 시간(초)
+    # Fish AI 상태 서브타이틀 — {remaining_seconds} = 다음 상태 전이까지 남은 시간(초).
+    # (상태 가이드가 없을 때 폴백, 가이드 있으면 state-guide.<state>.subtitle 사용)
     state-subtitle-format: " &7{remaining_seconds}초 후 변화"
     # 상태별 타이틀 색상
     state-color:
@@ -47,6 +49,48 @@ trophy-fight:
       turn: "&e"
       charge: "&6"
       final-struggle: "&c"
+      dive: "&3"
+      exhausted: "&7"
+      circle: "&8"
+      jump: "&e"
+      line-tangle: "&c"
+    # 상태별 권장 행동 가이드 (좌/우클릭 축) — Title에 상태, Subtitle에 할 행동 힌트.
+    # {state} = 상태 이름, {state_color} = 위 색상, {stamina}/{reel}/{remaining_seconds} 도 사용 가능.
+    # 설정하지 않은 상태는 하드코딩된 기본 가이드(아래와 동일)를 사용한다.
+    state-guide:
+      rest:
+        title: "&a🐟 휴식"
+        subtitle: "&2L클릭으로 릴을 감으세요. (최고의 회수 타이밍)"
+      slow-move:
+        title: "&e🐟 천천히 이동"
+        subtitle: "&6가장 많이 끌어올릴 수 있습니다. L클릭!"
+      normal-move:
+        title: "&f🐟 이동"
+        subtitle: "&7조금씩 릴을 감으세요. 장력을 주시하세요."
+      turn:
+        title: "&e🐟 방향 전환"
+        subtitle: "&e장력이 증가합니다. 무리하지 마세요."
+      charge:
+        title: "&6🐟 돌진!"
+        subtitle: "&6R클릭으로 줄을 풀어 장력을 낮추세요."
+      final-struggle:
+        title: "&c🐟 최후의 발악!"
+        subtitle: "&c지금은 버티세요. R클릭으로 줄을 관리하세요."
+      dive:
+        title: "&3🐟 잠수!"
+        subtitle: "&3우클릭 연타로 버티세요! 탠션이 폭증합니다."
+      exhausted:
+        title: "&7🐟 탈진!"
+        subtitle: "&2좌클릭 연타로 승부를 보세요! 저항이 없습니다."
+      circle:
+        title: "&8🐟 원형 유영"
+        subtitle: "&7좌우 클릭을 번갈아 밸런스를 유지하세요."
+      jump:
+        title: "&e🐟 점프!"
+        subtitle: "&7클릭을 잠시 멈추세요."
+      line-tangle:
+        title: "&c🐟 줄 엉킴!"
+        subtitle: "&c우클릭으로 줄을 풀어야 합니다!"
 
   # --- 사운드 설정 ---
   # 빈 문자열("") = 해당 상황 사운드 끄기
@@ -132,3 +176,12 @@ trophy-fight:
       b: 1.6
       a: 2.0
       s: 2.5
+
+  # --- 줄 엉킴(LINE_TANGLE) 랜덤 페널티 이벤트 (피드백) ---
+  # 기본 비활성. 활성 시 상태 전이 과정에서 일정 확률로 "줄 엉킴" 상태가 발동한다.
+  # 줄 엉킴 중에는 좌클릭(릴 감기) 효율이 크게 떨어지고, 우클릭(줄 풀기)으로만 관리해야 한다.
+  line-tangle:
+    # 이벤트 활성화 여부 (false = 미발생)
+    enabled: false
+    # 상태 전이 시 LINE_TANGLE로 발동할 확률 (0.0 ~ 1.0). 예: 0.05 = 5%
+    trigger-chance: 0.05

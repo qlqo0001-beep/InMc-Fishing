@@ -228,6 +228,10 @@ public class TrophyFightManager {
 
         initStats(session, reward, rod);
 
+        // LINE_TANGLE(줄 엉킴) 랜덤 페널티 확률 주입 — config 비활성이면 0 (미발생)
+        FightConfig.LineTangleConfig lineTangle = configManager.getFightConfig().lineTangle();
+        session.getFishAI().setLineTangleChance(lineTangle.enabled ? lineTangle.triggerChance : 0.0);
+
         sessions.put(uuid, session);
 
         // WAITING → ACTIVE 즉시 전환

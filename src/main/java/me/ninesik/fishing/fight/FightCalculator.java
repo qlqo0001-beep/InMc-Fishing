@@ -85,6 +85,11 @@ public class FightCalculator {
         double stateMultiplier = switch (state) {
             case CHARGE -> 1.5;        // 돌진 — 스태미너를 더 많이 줄인다
             case FINAL_STRUGGLE -> 0.4; // 발악 — 스태미너가 잘 안 줄어든다
+            case EXHAUSTED -> 2.0;     // 탈진 — 좌클릭 몰아치기 최적 (스태미너 가장 잘 깎임)
+            case DIVE -> 1.2;          // 잠수 — 좌클릭 시 스태미너가 조금 더 깎임
+            case CIRCLE -> 1.0;        // 원형 유영 — 보통
+            case JUMP -> 0.3;          // 점프 — 클릭 효과 약화
+            case LINE_TANGLE -> 0.2;   // 줄 엉킴 — 좌클릭 무효
             default -> 1.0;
         };
         return base * stateMultiplier;
@@ -111,7 +116,8 @@ public class FightCalculator {
             case SLOW_MOVE -> 0.0008;
             case NORMAL_MOVE -> 0.0004;
             case TURN -> 0.0002;
-            case CHARGE, FINAL_STRUGGLE -> 0.0;
+            case CIRCLE -> 0.0002;     // 원형 유영(소강) — 완만하게 약간 회복
+            case CHARGE, FINAL_STRUGGLE, DIVE, JUMP, LINE_TANGLE, EXHAUSTED -> 0.0;
         };
         return Math.max(0.0, maxStamina) * ratio;
     }
@@ -175,7 +181,12 @@ public class FightCalculator {
 
         // 피드백: 천천히 이동(SLOW_MOVE) 상태일 때 릴을 감으면 거리를 많이 줄인다.
         double distanceModifier = switch (state) {
-            case SLOW_MOVE -> 1.5;
+            case SLOW_MOVE -> 1.5;     // 천천히 이동 — 거리 회수 보너스
+            case EXHAUSTED -> 2.0;     // 탈진 — 좌클릭 시 거리 회수 최대 (몰아치기 보상)
+            case CIRCLE -> 0.5;        // 원형 유영 — 거리 변화 완만
+            case JUMP -> 0.5;          // 점프 — 클릭 효과 약화
+            case DIVE -> 0.2;          // 잠수 — 거리 변화 거의 없음
+            case LINE_TANGLE -> 0.2;   // 줄 엉킴 — 좌클릭 무효
             default -> 1.0;
         };
 
@@ -215,6 +226,10 @@ public class FightCalculator {
         double stateMultiplier = switch (state) {
             case TURN -> 1.5;
             case CHARGE, FINAL_STRUGGLE -> 2.0;
+            case DIVE -> 3.0;          // 잠수 — 좌클릭 시 탠션 폭증 (좌클릭 금지)
+            case LINE_TANGLE -> 1.5;   // 줄 엉킴 — 좌클릭 위험
+            case EXHAUSTED -> 0.6;     // 탈진 — 좌클릭해도 안전 (몰아치기)
+            case JUMP -> 0.8;          // 점프 — 탠션 영향 적음
             default -> 1.0;
         };
         return tensionGain * stateMultiplier;
@@ -298,6 +313,11 @@ public class FightCalculator {
             case TURN -> 3.0;          // 방향 전환 — 거리 조금 많이 증가
             case CHARGE -> 4.0;        // 돌진 — 거리 많이 증가
             case FINAL_STRUGGLE -> 6.0; // 발악 — 거리 매우 많이 증가
+            case EXHAUSTED -> 0.5;     // 탈진 — 우클릭해도 거리 별로 안 늘어남
+            case CIRCLE -> 1.0;        // 원형 유영 — 우클릭 시 거리 완만
+            case JUMP -> 1.0;
+            case LINE_TANGLE -> 3.0;   // 줄 엉킴 — 우클릭으로 관리
+            case DIVE -> 4.0;          // 잠수 — 우클릭해도 거리 크게 늘어남
         };
         return fishEscape + RELEASE_BASE * stateMultiplier;
     }

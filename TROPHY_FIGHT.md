@@ -22,27 +22,35 @@
 
 ## 2. 물고기 AI — 상태 기계 (FishAI)
 
-물고기는 6개 상태를 돌며 행동합니다. **상태마다 Power / Resistance / 지속시간이 다릅니다**
-(현재 하드코딩 기본값).
+물고기는 11개 상태를 돌며 행동합니다. 상태는 **"지금 어느 클릭을 써야 하는가"**라는 행동 축으로
+나뉩니다 (좌클릭 위주 / 우클릭 위주 / 좌우 밸런스 / 대기 / 페널티). 상태마다
+Power / Resistance / 지속시간이 다릅니다 (현재 하드코딩 기본값).
 
-| 상태 | 뜻 | Power | Resistance | 지속시간(틱) |
-|------|------|-------|-----------|--------------|
-| `REST` | 휴식 | 10 | 10 | 2~4초 |
-| `SLOW_MOVE` | 천천히 이동 | 20 | 20 | 1.5~3초 |
-| `NORMAL_MOVE` | 이동 | 40 | 40 | 1~2.5초 |
-| `TURN` | 방향전환 | 50 | 50 | 0.75~1.75초 |
-| `CHARGE` | 돌진 | 80 | 70 | 0.5~1.25초 |
-| `FINAL_STRUGGLE` | 최후 발악 | 100 | 90 | 0.25~0.75초 |
+| 상태 | 행동 축 | Power | Resistance | 지속시간(틱) |
+|------|---------|-------|-----------|--------------|
+| `REST` | 좌클릭 | 10 | 10 | 2~4초 |
+| `SLOW_MOVE` | 좌클릭 | 20 | 20 | 1.5~3초 |
+| `NORMAL_MOVE` | 밸런스 | 40 | 40 | 1~2.5초 |
+| `TURN` | 좌우 밸런스 | 50 | 50 | 0.75~1.75초 |
+| `CIRCLE` | 좌우 밸런스(소강) | 40 | 60 | 2~3초 |
+| `CHARGE` | 우클릭 | 80 | 70 | 0.5~1.25초 |
+| `DIVE` | 우클릭(탠션 폭증) | 60 | 100 | 0.4~1.0초 |
+| `FINAL_STRUGGLE` | 우클릭 | 100 | 90 | 0.25~0.75초 |
+| `EXHAUSTED` | 좌클릭(몰아치기 보상) | 5 | 5 | 2~3초 |
+| `JUMP` | 대기(관망) | 30 | 30 | 0.5~0.8초 |
+| `LINE_TANGLE` | 우클릭 탈출(페널티) | 50 | 80 | 1.5~2.5초 |
 
 **전이 규칙** (매 틱 `FishAI.tick()`, 상태 지속시간 종료 시 `transition()`):
 
-- **FINAL_STRUGGLE(발악) 뒤에는 무조건 REST(휴식)로 전이** — 발악으로 스태미너를 깎아낸
-  보상을 "잡아내는 타이밍"(Power·Resistance 최저)으로 이어주는 밸런스 규칙.
-- 그 외에는 물고기 **스태미너 비율**에 따라 가중 랜덤 전이:
-  - 스태미너 ≤ 20% → 휴식/천천히 이동 위주
-  - 스태미너 ≤ 50% → 이동/방향전환 위주 + 약간 돌진
-  - 스태미너 높음(초반) → 강한 돌진/발악 위주
-- **핵심 의미**: 물고기가 지칠수록 플레이어에게 유리하고, 초반엔 사납게 덤빕니다.
+- **FINAL_STRUGGLE(발악) 뒤에는 무조건 EXHAUSTED(탈진)로** — 발악으로 스태미너를 깎아낸
+  보상을 "좌클릭 몰아치기 타이밍"(Power·Resistance 최저)으로 이어준다
+  → "몰아치기 → 위기 → 다시 몰아치기" 리듬.
+- **EXHAUSTED(탈진) 후**: 물고기가 회복하며 다시 위기 상태(SLOW/NORMAL/CHARGE)로 올라선다.
+- 그 외에는 물고기 **스태미너 비율**에 따라 가중 랜덤 전이
+  (CIRCLE 소강 / JUMP 관망 / DIVE 돌진계 포함).
+- **LINE_TANGLE(줄엉킴)**: config `line-tangle.enabled`(기본 false)일 때만 상태 전이 확률로
+  발동. 발생 중 좌클릭 효율이 크게 떨어지고 우클릭으로만 관리해야 한다.
+- **핵심 의미**: 물고기가 지칠수록 플레이어에게 유리(좌클릭 몰아치기), 초반엔 사납게 덤빕니다.
 
 > 참고: `FightConfig.AiConfig`의 `stateDurations`/`transitionProbabilities`(yml)는 현재 **빈 맵** —
 > 실제 판정은 위 하드코딩 값을 사용합니다.
@@ -135,15 +143,17 @@ Fight는 매 틱(1/20초) 계산되는 "실시간 힘겨루기 시뮬레이션"�
 - **BossBar (상단)**: Tension 비율을 게이지로 표시 — `tension / lineStrength`
   - 위험도 색: <50% 초록 → <80% 노랑 → ≥80% 빨강 (`hud.bar-color-*`)
   - 이름: `"거리: {distance} / {max_distance} M"` (`hud.bossbar-title-format`)
-- **ActionBar (하단)**:
-  `"물고기 채력 {stamina}% | 물고기 힘 {power} | 물고기 저항력 {resistance} | 릴 상태 {reel}%"`
-  (`hud.actionbar-format`)
-- **상태 타이틀 (중앙)**: 현재 물고기 상태 + 남은 지속시간 카운트다운 서브타이틀
-  - 제목: `{state_color}{state}` (`hud.state-title-format`, `state-color` 맵)
-  - 서브: `"…{remaining_seconds}초 후 변화"` (`hud.state-subtitle-format`)
+- **ActionBar (하단)**: 물고기 체력·릴 상태·거리 표시
+  `"물고기 채력 {stamina}% | 릴 상태 {reel}% | 거리 {distance}/{max_distance}M"`
+  (`hud.actionbar-format`, `{power}/{resistance}` 도 사용 가능)
+- **상태 타이틀 (중앙) + 권장 행동 서브타이틀**:
+  - 상태별 가이드 `hud.state-guide.<state>.(title|subtitle)` 를 우선 사용 (권장 행동 힌트)
+  - 설정이 없으면 `state-title-format`/`state-subtitle-format`(상태명 + 남은시간)으로 폴백
+  - 예: DIVE → `🐟 잠수!` / `우클릭 연타로 버티세요! 탠션이 폭증합니다.`
+  - EXHAUSTED → `🐟 탈진!` / `좌클릭 연타로 승부를 보세요! 저항이 없습니다.`
 
-→ 즉, **Tension(BossBar) + 스탯(ActionBar) + 상태(타이틀)** 을 동시에 보여주어
-"지금 물고기가 뭘 하는지 / 줄이 얼마나 위험한지 / 언제 끌어올릴지"를 판단하게 합니다.
+→ 즉, **Tension(BossBar) + 자원(ActionBar) + 상태·할 행동(타이틀/서브타이틀)** 을 동시에 보여주어
+"지금 무엇을 해야 하는가"를 먼저 전달합니다.
 
 ### 6-2. 도입부 연출 (Intro)
 
@@ -179,8 +189,9 @@ Fight는 매 틱(1/20초) 계산되는 "실시간 힘겨루기 시뮬레이션"�
 |------|-------------|
 | 상태/파티클/사운드/스탯/난이도 등 | `fight.yml` → `trophy-fight:` |
 | 실패 원인별 메시지 | `messages.yml` → `fail.*` |
-| HUD·상태 표시 텍스트/색상 | `fight.yml` → `trophy-fight.hud.*` |
+| HUD·상태 표시 텍스트/색상·상태별 가이드 | `fight.yml` → `trophy-fight.hud.*` (state-guide, state-color) |
 | 도입 연출 텍스트/사운드 | `fight.yml` → `trophy-fight.intro.*` |
 | 등급별 최소거리/난이도 배수 | `fight.yml` → `trophy-fight.stats.*` |
+| 줄 엉킴(LINE_TANGLE) 페널티 이벤트 | `fight.yml` → `trophy-fight.line-tangle` (기본 비활성) |
 | 연습모드 / 테스트명령 | GUI · `/fishing testfightmode` |
 

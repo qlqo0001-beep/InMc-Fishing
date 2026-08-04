@@ -32,6 +32,7 @@ public class FightConfig {
     private final StatsConfig stats;
     private final GeneralConfig general;
     private final IntroConfig intro;
+    private final LineTangleConfig lineTangle;
 
     public FightConfig(FileConfiguration config) {
         this.ai = new AiConfig(config);
@@ -40,6 +41,7 @@ public class FightConfig {
         this.stats = new StatsConfig(config);
         this.general = new GeneralConfig(config);
         this.intro = new IntroConfig(config);
+        this.lineTangle = new LineTangleConfig(config);
     }
 
     public AiConfig ai() {
@@ -64,6 +66,30 @@ public class FightConfig {
 
     public IntroConfig intro() {
         return intro;
+    }
+
+    public LineTangleConfig lineTangle() {
+        return lineTangle;
+    }
+
+    // ===================== Line Tangle (줄 엉킴 이벤트) =====================
+
+    /**
+     * LINE_TANGLE(줄 엉킴) 랜덤 페널티 이벤트 설정 (피드백).
+     * 기본 비활성 — 활성 시 상태 전이 확률로 발생하며, 발생 중 좌클릭 효율이 크게
+     * 떨어지고 우클릭으로만 줄을 풀 수 있다.
+     */
+    public static class LineTangleConfig {
+        /** 이벤트 활성화 여부 (기본 false) */
+        public final boolean enabled;
+        /** 상태 전이 시 LINE_TANGLE로 발동할 확률 (0.0 ~ 1.0) */
+        public final double triggerChance;
+
+        public LineTangleConfig(FileConfiguration config) {
+            this.enabled = config.getBoolean("trophy-fight.line-tangle.enabled", false);
+            this.triggerChance = Math.max(0.0, Math.min(1.0, config.getDouble(
+                    "trophy-fight.line-tangle.trigger-chance", 0.05)));
+        }
     }
 
     // ===================== AI =====================
@@ -122,6 +148,13 @@ public class FightConfig {
         /** 상태별 타이틀 색상 — FishState 이름(소문자, _를 -로) → 색상 코드 */
         public final Map<String, String> stateColors;
 
+        /** 상태별 권장 행동 가이드 — FishState → (title, subtitle). config의 state-guide.<state> 로 재정의 가능 */
+        public final Map<FishState, StateGuide> stateGuides;
+
+        /** 상태별 Title/가이드(서브타이틀) 텍스트 쌍. */
+        public record StateGuide(String title, String subtitle) {
+        }
+
         public HudConfig(FileConfiguration config) {
             this.barColorSafe = config.getString("trophy-fight.hud.bar-color-safe", "&a");
             this.barColorWarning = config.getString("trophy-fight.hud.bar-color-warning", "&e");
@@ -133,6 +166,12 @@ public class FightConfig {
             this.stateSubtitleFormat = config.getString("trophy-fight.hud.state-subtitle-format",
                     "&b체력 {stamina}  &8┃  &7{remaining_seconds}초 후 변화  &8┃  &e릴 {reel}");
             this.stateColors = loadStateColors(config);
+            this.stateGuides = loadStateGuides(config);
+        }
+
+        /** 주어진 상태의 권장 행동 가이드(title/subtitle)를 반환한다. 없으면 null. */
+        public StateGuide getStateGuide(FishState state) {
+            return stateGuides.get(state);
         }
 
         private Map<String, String> loadStateColors(FileConfiguration config) {
@@ -143,12 +182,49 @@ public class FightConfig {
             defaults.put("turn", "&e");
             defaults.put("charge", "&6");
             defaults.put("final_struggle", "&c");
+            defaults.put("dive", "&3");
+            defaults.put("exhausted", "&7");
+            defaults.put("circle", "&8");
+            defaults.put("jump", "&e");
+            defaults.put("line_tangle", "&c");
 
             Map<String, String> map = new HashMap<>();
             for (Map.Entry<String, String> entry : defaults.entrySet()) {
                 String key = entry.getKey().replace('_', '-');
                 map.put(entry.getKey(), config.getString(
                         "trophy-fight.hud.state-color." + key, entry.getValue()));
+            }
+            return Collections.unmodifiableMap(map);
+        }
+
+        /**
+         * 상태별 권장 행동 가이드를 로드한다.
+         * config의 {@code trophy-fight.hud.state-guide.<state>.(title|subtitle)} 가 있으면 그 값을 쓰고,
+         * 없으면 하드코딩 기본 가이드를 사용한다 (좌·우클릭 축 기준).
+         */
+        private Map<FishState, StateGuide> loadStateGuides(FileConfiguration config) {
+            Map<FishState, StateGuide> defaults = new HashMap<>();
+            defaults.put(FishState.REST, new StateGuide("&a🐟 휴식", "&2L클릭으로 릴을 감으세요. (최고의 회수 타이밍)"));
+            defaults.put(FishState.SLOW_MOVE, new StateGuide("&e🐟 천천히 이동", "&6가장 많이 끌어올릴 수 있습니다. L클릭!"));
+            defaults.put(FishState.NORMAL_MOVE, new StateGuide("&f🐟 이동", "&7조금씩 릴을 감으세요. 장력을 주시하세요."));
+            defaults.put(FishState.TURN, new StateGuide("&e🐟 방향 전환", "&e장력이 증가합니다. 무리하지 마세요."));
+            defaults.put(FishState.CHARGE, new StateGuide("&6🐟 돌진!", "&6R클릭으로 줄을 풀어 장력을 낮추세요."));
+            defaults.put(FishState.FINAL_STRUGGLE, new StateGuide("&c🐟 최후의 발악!", "&c지금은 버티세요. R클릭으로 줄을 관리하세요."));
+            defaults.put(FishState.DIVE, new StateGuide("&3🐟 잠수!", "&3우클릭 연타로 버티세요! 탠션이 폭증합니다."));
+            defaults.put(FishState.EXHAUSTED, new StateGuide("&7🐟 탈진!", "&2좌클릭 연타로 승부를 보세요! 저항이 없습니다."));
+            defaults.put(FishState.CIRCLE, new StateGuide("&8🐟 원형 유영", "&7좌우 클릭을 번갈아 밸런스를 유지하세요."));
+            defaults.put(FishState.JUMP, new StateGuide("&e🐟 점프!", "&7클릭을 잠시 멈추세요."));
+            defaults.put(FishState.LINE_TANGLE, new StateGuide("&c🐟 줄 엉킴!", "&c우클릭으로 줄을 풀어야 합니다!"));
+
+            Map<FishState, StateGuide> map = new HashMap<>();
+            for (FishState state : FishState.values()) {
+                String key = state.name().toLowerCase().replace('_', '-');
+                StateGuide def = defaults.get(state);
+                String title = config.getString(
+                        "trophy-fight.hud.state-guide." + key + ".title", def != null ? def.title() : "");
+                String subtitle = config.getString(
+                        "trophy-fight.hud.state-guide." + key + ".subtitle", def != null ? def.subtitle() : "");
+                map.put(state, new StateGuide(title, subtitle));
             }
             return Collections.unmodifiableMap(map);
         }

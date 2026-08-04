@@ -96,11 +96,14 @@ public class FightHUD {
      * "&bStamina &f..." 형태로 자바 코드에 하드코딩된 문자열만 표시했다.</p>
      */
     public void updateActionBar(Player player, FightSession session, FightConfig.HudConfig hudConfig) {
+        double maxDistance = session.getMaxDistance();
         Map<String, String> placeholders = new HashMap<>();
         placeholders.put("stamina", String.format("%.0f", session.getStamina()));
         placeholders.put("power", String.format("%.0f", session.getPower()));
         placeholders.put("resistance", String.format("%.0f", session.getResistance()));
         placeholders.put("reel", String.format("%.0f", session.getReelState()));
+        placeholders.put("distance", String.format("%.0f", session.getDistance()));
+        placeholders.put("max_distance", maxDistance > 0 ? String.format("%.0f", maxDistance) : "-");
         String message = Texts.apply(hudConfig.actionBarFormat, placeholders);
         Texts.sendActionBar(player, Texts.colorize(message));
     }
@@ -139,21 +142,23 @@ public class FightHUD {
         String stateKey = state.name().toLowerCase();
         String stateColor = hudConfig.stateColors.getOrDefault(stateKey, "&f");
 
-        Map<String, String> titlePlaceholders = new HashMap<>();
-        titlePlaceholders.put("state_color", stateColor);
-        titlePlaceholders.put("state", state.getDisplayName());
-        String title = Texts.apply(hudConfig.stateTitleFormat, titlePlaceholders);
+        // 상태별 권장 행동 가이드(좌/우클릭 힌트) — config의 state-guide.<state> 또는 하드코딩 기본값.
+        // 가이드가 없으면 기존 generic 포맷(state-*-format)으로 폴백한다.
+        FightConfig.HudConfig.StateGuide guide = hudConfig.getStateGuide(state);
+        String title = guide != null ? guide.title() : hudConfig.stateTitleFormat;
+        String subtitle = guide != null ? guide.subtitle() : hudConfig.stateSubtitleFormat;
 
         double remainingSeconds = Math.max(0, remainingTicks) / 20.0;
-        Map<String, String> subtitlePlaceholders = new HashMap<>();
-        subtitlePlaceholders.put("stamina", String.format("%.0f", stamina));
-        subtitlePlaceholders.put("reel", String.format("%.0f", reelState));
-        subtitlePlaceholders.put("remaining_seconds", String.format("%.1f", remainingSeconds));
-        String subtitle = Texts.apply(hudConfig.stateSubtitleFormat, subtitlePlaceholders);
+        Map<String, String> placeholders = new HashMap<>();
+        placeholders.put("state_color", stateColor);
+        placeholders.put("state", state.getDisplayName());
+        placeholders.put("stamina", String.format("%.0f", stamina));
+        placeholders.put("reel", String.format("%.0f", reelState));
+        placeholders.put("remaining_seconds", String.format("%.1f", remainingSeconds));
 
         player.sendTitle(
-                Texts.colorize(title),
-                Texts.colorize(subtitle),
+                Texts.colorize(Texts.apply(title, placeholders)),
+                Texts.colorize(Texts.apply(subtitle, placeholders)),
                 0, 4, 3
         );
     }

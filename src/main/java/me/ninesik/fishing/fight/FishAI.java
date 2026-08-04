@@ -15,6 +15,18 @@ public class FishAI {
 
     private final Random random = new Random();
 
+    /**
+     * LINE_TANGLE(줄 엉킴) 상태로 전이할 확률 (0.0 ~ 1.0).
+     * config( fight.yml line-tangle.enabled)가 false이면 0.0으로 유지되어 발생하지 않는다.
+     * TrophyFightManager가 Fight 시작 시 설정값을 주입한다.
+     */
+    private double lineTangleChance = 0.0;
+
+    /** LINE_TANGLE 발생 확률을 설정한다 (0.0 = 비활성). */
+    public void setLineTangleChance(double lineTangleChance) {
+        this.lineTangleChance = Math.max(0.0, lineTangleChance);
+    }
+
     private FishState currentState;
     private int stateDurationTicks;
     private int elapsedTicks;
@@ -69,6 +81,11 @@ public class FishAI {
             case TURN -> 50.0;
             case CHARGE -> 80.0;
             case FINAL_STRUGGLE -> 100.0;
+            case DIVE -> 60.0;
+            case EXHAUSTED -> 5.0;
+            case CIRCLE -> 40.0;
+            case JUMP -> 30.0;
+            case LINE_TANGLE -> 50.0;
         };
     }
 
@@ -84,6 +101,11 @@ public class FishAI {
             case TURN -> 50.0;
             case CHARGE -> 70.0;
             case FINAL_STRUGGLE -> 90.0;
+            case DIVE -> 100.0;
+            case EXHAUSTED -> 5.0;
+            case CIRCLE -> 60.0;
+            case JUMP -> 30.0;
+            case LINE_TANGLE -> 80.0;
         };
     }
 
@@ -95,31 +117,46 @@ public class FishAI {
     private void transition(double staminaRatio) {
         FishState next;
 
-        // 밸런스 피드백: 마지막 발악(FINAL_STRUGGLE) 이후에는 무조건 휴식(REST)으로 전이한다.
-        // 발악으로 스태미나를 깎아낸 보상을 "잡아내는 타이밍"(REST는 Power/Resistance가 최저)으로
-        // 자연스럽게 이어주기 위함. 다른 상태에서는 기존 스태미나 기반 랜덤 전이를 쓴다.
-        if (currentState == FishState.FINAL_STRUGGLE) {
-            next = FishState.REST;
+        // LINE_TANGLE(줄 엉킴) 랜덤 페널티 이벤트 — config 확률로만 발생 (기본 비활성)
+        if (lineTangleChance > 0.0 && currentState != FishState.LINE_TANGLE
+                && random.nextDouble() < lineTangleChance) {
+            next = FishState.LINE_TANGLE;
+        } else if (currentState == FishState.FINAL_STRUGGLE) {
+            // 밸런스 피드백: 마지막 발악 이후에는 무조건 "탈진(EXHAUSTED)"으로 전이.
+            // 발악으로 스태미너를 깎아낸 보상을 "좌클릭 몰아치기 타이밍"(Power/Resistance 최저)으로
+            // 자연스럽게 이어준다 → "몰아치기 → 위기 → 다시 몰아치기" 리듬.
+            next = FishState.EXHAUSTED;
+        } else if (currentState == FishState.EXHAUSTED) {
+            // 탈진 구간이 끝나면 물고기가 회복하며 다시 위기 상태로 올라선다.
+            double r = random.nextDouble();
+            if (r < 0.5) next = FishState.SLOW_MOVE;
+            else if (r < 0.75) next = FishState.NORMAL_MOVE;
+            else next = FishState.CHARGE;
         } else {
             double r = random.nextDouble();
 
             if (staminaRatio <= 0.2) {
-                // 지침 상태 — 휴식/천천히 이동 위주
-                if (r < 0.5) next = FishState.REST;
-                else if (r < 0.8) next = FishState.SLOW_MOVE;
-                else next = FishState.NORMAL_MOVE;
+                // 지침 상태 — 휴식/천천히 이동 위주 (가끔 소강 CIRCLE)
+                if (r < 0.45) next = FishState.REST;
+                else if (r < 0.7) next = FishState.SLOW_MOVE;
+                else if (r < 0.85) next = FishState.NORMAL_MOVE;
+                else next = FishState.CIRCLE;
             } else if (staminaRatio <= 0.5) {
-                // 중간 상태 — 일반 이동/방향 전환 위주
-                if (r < 0.3) next = FishState.SLOW_MOVE;
-                else if (r < 0.6) next = FishState.NORMAL_MOVE;
-                else if (r < 0.8) next = FishState.TURN;
+                // 중간 상태 — 이동/방향전환 위주 + 낮은 확률로 JUMP/CIRCLE/CHARGE
+                if (r < 0.2) next = FishState.SLOW_MOVE;
+                else if (r < 0.4) next = FishState.NORMAL_MOVE;
+                else if (r < 0.6) next = FishState.TURN;
+                else if (r < 0.7) next = FishState.JUMP;
+                else if (r < 0.85) next = FishState.CIRCLE;
                 else next = FishState.CHARGE;
             } else {
-                // 초기 상태 — 강한 돌진/발악 위주
+                // 초기 상태 — 강한 돌진/잠수/발악 위주 + 가끔 점프
                 if (r < 0.2) next = FishState.NORMAL_MOVE;
-                else if (r < 0.4) next = FishState.TURN;
-                else if (r < 0.7) next = FishState.CHARGE;
-                else next = FishState.FINAL_STRUGGLE;
+                else if (r < 0.35) next = FishState.TURN;
+                else if (r < 0.6) next = FishState.CHARGE;
+                else if (r < 0.7) next = FishState.DIVE;
+                else if (r < 0.85) next = FishState.FINAL_STRUGGLE;
+                else next = FishState.JUMP;
             }
         }
 
@@ -140,6 +177,11 @@ public class FishAI {
             case TURN -> 15 + random.nextInt(20);       // 0.75~1.75초
             case CHARGE -> 10 + random.nextInt(15);     // 0.5~1.25초
             case FINAL_STRUGGLE -> 5 + random.nextInt(10); // 0.25~0.75초
+            case DIVE -> 8 + random.nextInt(12);        // 0.4~1.0초
+            case EXHAUSTED -> 40 + random.nextInt(20);  // 2~3초
+            case CIRCLE -> 40 + random.nextInt(20);     // 2~3초
+            case JUMP -> 10 + random.nextInt(6);        // 0.5~0.8초
+            case LINE_TANGLE -> 30 + random.nextInt(20); // 1.5~2.5초
         };
     }
 }

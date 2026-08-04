@@ -7,6 +7,7 @@ bin/
 out/
 build_*.txt
 cleanup_build.log
+statebuild.log
 
 # ==========================
 # Build Artifacts
