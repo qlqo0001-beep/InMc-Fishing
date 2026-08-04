@@ -5,6 +5,7 @@ build/
 .gradle/
 bin/
 out/
+build_*.txt
 
 # ==========================
 # Build Artifacts
