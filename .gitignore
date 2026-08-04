@@ -8,6 +8,7 @@ out/
 build_*.txt
 cleanup_build.log
 statebuild.log
+soundbuild.log
 
 # ==========================
 # Build Artifacts

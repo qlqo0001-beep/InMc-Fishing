@@ -246,6 +246,8 @@ public class FightConfig {
         public final String fishExhausted;
         /** 회수 성공 사운드 */
         public final String success;
+        /** 상태별 사운드 — FishState 이름(소문자, _ 를 -로) → 사운드 키. 빈 문자열 = 해당 상태 무음. */
+        public final Map<FishState, String> stateSounds;
 
         public SoundConfig(FileConfiguration config) {
             this.interval = config.getInt("trophy-fight.sound.interval", 2);
@@ -254,6 +256,36 @@ public class FightConfig {
             this.tensionDanger = config.getString("trophy-fight.sound.tension-danger", "");
             this.fishExhausted = config.getString("trophy-fight.sound.fish-exhausted", "");
             this.success = config.getString("trophy-fight.sound.success", "");
+            this.stateSounds = loadStateSounds(config);
+        }
+
+        /** 주어진 물고기 상태에 대응하는 사운드 키를 반환한다 (없으면 빈 문자열 = 무음). */
+        public String getStateSound(FishState state) {
+            return stateSounds.getOrDefault(state, "");
+        }
+
+        /** 상태별 사운드를 로드한다. config의 {@code trophy-fight.sound.state.<state>} 가 있으면 그 값을 쓰고, 없으면 기본값. */
+        private Map<FishState, String> loadStateSounds(FileConfiguration config) {
+            Map<FishState, String> defaults = new HashMap<>();
+            defaults.put(FishState.REST, "");
+            defaults.put(FishState.SLOW_MOVE, "entity.fish.swim");
+            defaults.put(FishState.NORMAL_MOVE, "entity.fish.swim");
+            defaults.put(FishState.TURN, "entity.fish.swim");
+            defaults.put(FishState.CHARGE, "entity.salmon.flop");
+            defaults.put(FishState.FINAL_STRUGGLE, "entity.salmon.flop");
+            defaults.put(FishState.DIVE, "entity.generic.splash");
+            defaults.put(FishState.EXHAUSTED, "");
+            defaults.put(FishState.CIRCLE, "entity.fish.swim");
+            defaults.put(FishState.JUMP, "entity.generic.splash");
+            defaults.put(FishState.LINE_TANGLE, "block.chain.hit");
+
+            Map<FishState, String> map = new HashMap<>();
+            for (FishState state : FishState.values()) {
+                String key = state.name().toLowerCase().replace('_', '-');
+                map.put(state, config.getString(
+                        "trophy-fight.sound.state." + key, defaults.getOrDefault(state, "")));
+            }
+            return Collections.unmodifiableMap(map);
         }
     }
 

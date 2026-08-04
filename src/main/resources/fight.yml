@@ -107,6 +107,21 @@ trophy-fight:
     fish-exhausted: "entity.player.levelup"
     # 힘겨루기 성공
     success: "entity.firework_rocket.twinkle"
+    # --- 상태별 사운드 (피드백: 각 상태에 맞는 효과음, admin 변경 가능) ---
+    # 빈 문자열("") = 해당 상태 무음. 상태 이름은 소문자, _ 는 - 로 사용.
+    # 예: charge="entity.salmon.flop", dive="entity.generic.splash", line-tangle="block.chain.hit"
+    state:
+      rest: ""
+      slow-move: "entity.fish.swim"
+      normal-move: "entity.fish.swim"
+      turn: "entity.fish.swim"
+      charge: "entity.salmon.flop"
+      final-struggle: "entity.salmon.flop"
+      dive: "entity.generic.splash"
+      exhausted: ""
+      circle: "entity.fish.swim"
+      jump: "entity.generic.splash"
+      line-tangle: "block.chain.hit"
 
   # --- 시작 연출/카운트다운 설정 (피드백) ---
   # 트로피 파이트 시작 전 짧은 연출과 카운트다운을 표시합니다.

@@ -9,7 +9,6 @@ import me.ninesik.fishing.util.Sounds;
 import me.ninesik.fishing.util.Texts;
 import org.bukkit.Bukkit;
 import org.bukkit.Particle;
-import org.bukkit.Sound;
 import org.bukkit.entity.Player;
 import org.bukkit.scheduler.BukkitTask;
 
@@ -601,14 +600,11 @@ public class TrophyFightManager {
         }
     }
 
-    /** 물고기 상태에 따라 사운드를 출력한다. */
+    /** 물고기 상태에 따라 사운드를 출력한다 (config sound.state.<상태> 사용, 빈 문자열 = 무음). */
     private void playSounds(Player player, FightSession session) {
         FishState state = session.getFishAI().getCurrentState();
-        switch (state) {
-            case CHARGE -> player.playSound(player.getLocation(), Sound.ENTITY_FISH_SWIM, 0.5f, 1.0f);
-            case FINAL_STRUGGLE -> player.playSound(player.getLocation(), Sound.ENTITY_FISH_SWIM, 1.0f, 0.5f);
-            default -> { /* 기본 상태는 사운드 없음 */ }
-        }
+        String sound = configManager.getFightConfig().sound().getStateSound(state);
+        Sounds.play(player, sound);
     }
 
     /** Fight 시작 시 플레이어 이동을 제한한다. */
