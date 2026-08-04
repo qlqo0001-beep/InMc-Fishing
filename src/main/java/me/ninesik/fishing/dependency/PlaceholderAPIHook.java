@@ -29,11 +29,7 @@ public class PlaceholderAPIHook {
     }
 
     private void registerPlaceholders() {
-        // TODO: PlaceholderAPI 등록 로직 구현
-        // - 낚시 통계 (총 낚시 횟수, 성공률, 등급별 횟수)
-        // - 도감 진행률
-        // - 대회 정보
-        // 구현은 Phase 3 (도감/대회 시스템)에서 진행
+        // TODO(미래 계획): PlaceholderAPI placeholder 등록 — 도감/대회/낚시 통계 연동 시 구현
     }
 
     public void unregister() {
@@ -42,7 +38,7 @@ public class PlaceholderAPIHook {
         }
 
         try {
-            // TODO: PlaceholderAPI unregister 로직 구현
+            // TODO(미래 계획): placeholder 해제 로직 구현
         } catch (Exception e) {
             plugin.getLogger().warning("Failed to unregister PlaceholderAPI placeholders: " + e.getMessage());
         }
@@ -53,7 +49,7 @@ public class PlaceholderAPIHook {
             return "N/A";
         }
 
-        // TODO: 실제 통계 조회 로직 구현
+        // TODO(미래 계획): 실제 통계 조회 구현
         return "0";
     }
 }

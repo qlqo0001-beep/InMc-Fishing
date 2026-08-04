@@ -51,7 +51,7 @@ public class WorldGuardHook {
             
             for (Object region : (Iterable<?>) regions) {
                 var getFlagMethod = region.getClass().getMethod("getFlag", Class.forName("com.sk89q.worldguard.protection.flags.Flag"));
-                // TODO: 실제 플래그 체크 로직 구현
+                // TODO(미래 계획): 지역 플래그(Fishing) 체크 구현
             }
             
             return true;
@@ -65,7 +65,7 @@ public class WorldGuardHook {
             return 1.0;
         }
 
-        // TODO: 지역별 등급 가중치 조회 로직 구현
+        // TODO(미래 계획): 지역별 등급 가중치 조회 구현
         return 1.0;
     }
 }

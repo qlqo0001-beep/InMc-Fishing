@@ -26,8 +26,5 @@ public class ProtocolLibHook {
         return available;
     }
 
-    // TODO: ProtocolLib 패킷 조작 메서드 구현
-    // - 커스텀 애니메이션
-    // - 클라이언트 측 효과
-    // - 패킷 필터링
+    // TODO(미래 계획): ProtocolLib 패킷 조작(커스텀 애니메이션/클라이언트 효과 등) 구현
 }

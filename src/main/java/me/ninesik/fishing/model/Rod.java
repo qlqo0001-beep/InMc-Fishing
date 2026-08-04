@@ -19,9 +19,7 @@ public class Rod {
     private final int maxFatigueBonus;
     private final int fatigueRecoveryBonus;
 
-    // Trophy Fight 시스템(패치예정.md): rod.yml의 options 섹션에서 읽어온 Fight 관련 스탯.
-    // Phase 1에서는 필드만 추가하고 계산에 사용하지 않는다.
-    // Phase 2에서 Fight 계산 구현 시 사용된다.
+    // rod.yml의 options 섹션에서 읽어온 Trophy Fight 관련 스탯.
     private final double reelPower;
     private final double lineStrength;
     private final double reelDurability;

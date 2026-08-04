@@ -9,8 +9,7 @@ import java.util.Random;
  * 각 행동(휴식/이동/독진/발악 등)을 독립된 상태로 정의하고,
  * 상태별 지속 시간과 다음 상태로의 전이 확률을 Config(YML)에서 조정 가능하도록 한다.</p>
  *
- * <p>Phase 2에서는 기본 상태 전이 로직만 구현한다.
- * Config 기반 전이 확률 조정은 Phase 3에서 FightConfig와 연동하여 구체화한다.</p>
+ * <p>상태별 지속 시간과 전이 확률은 현재 하드코딩된 기본값을 사용한다.</p>
  */
 public class FishAI {
 
@@ -60,7 +59,7 @@ public class FishAI {
 
     /**
      * 현재 상태에 따른 Fish Power 값을 반환한다.
-     * (Phase 2: 기본값 — Phase 3에서 FightConfig와 연동하여 조정)
+     * (하드코딩 기본값)
      */
     public double getCurrentPower() {
         return switch (currentState) {
@@ -75,7 +74,7 @@ public class FishAI {
 
     /**
      * 현재 상태에 따른 Fish Resistance 값을 반환한다.
-     * (Phase 2: 기본값 — Phase 3에서 FightConfig와 연동하여 조정)
+     * (하드코딩 기본값)
      */
     public double getCurrentResistance() {
         return switch (currentState) {
@@ -131,7 +130,7 @@ public class FishAI {
 
     /**
      * 상태별 지속 시간(틱)을 랜덤하게 결정한다.
-     * (Phase 2: 기본값 — Phase 3에서 FightConfig와 연동하여 조정)
+     * (하드코딩 기본값)
      */
     private int randomStateDuration(FishState state) {
         return switch (state) {

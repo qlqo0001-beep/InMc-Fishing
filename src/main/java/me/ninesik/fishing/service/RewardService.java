@@ -579,15 +579,6 @@ public class RewardService {
     }
 
     /**
-     * Lore에 사이즈 정보를 추가한다.
-     * 사이즈가 없는 아이템(쓰레기/광물)은 추가하지 않는다.
-     */
-    private void appendSizeLore(Fish fish, List<String> lore, double size) {
-        if (!fish.hasSize()) return;
-        lore.add("§7사이즈: §f" + String.format("%.1f", size) + "cm");
-    }
-
-    /**
      * Lore에 트로피 정보를 추가한다 (사전 판정 결과 사용).
      * 패치예정.md: 트로피 판정은 RollEngine에서 사전 수행되므로, 여기서는 결과만 표시한다.
      */

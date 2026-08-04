@@ -7,9 +7,8 @@ import me.ninesik.fishing.model.RewardEntry;
 /**
  * Trophy Fight 세션.
  *
- * <p>Phase 1에서는 세션 자체만 표현하며, 게임 수치(Stamina/Power/Resistance/Distance/
- * Tension/ReelState)는 포함하지 않는다. 게임 수치는 Phase 2에서 Fight Core가
- * 확정된 후 추가된다.</p>
+ * <p>게임 수치(Stamina/Power/Resistance/Distance/Tension/ReelState)와 낚싯대 스탯을
+ * 세션 단위로 보관한다. Fight 진행 중에는 이 수치가 갱신된다.</p>
  *
  * <p>Trophy Fight 결과(승리 시 보상 지급, 패배 시 보상 폐기)를 위해
  * {@link RewardEntry}를 보관한다. Fight 종료 시 TrophyFightManager가
@@ -32,7 +31,7 @@ public class FightSession {
     private final long startTime;
     private FightState state;
 
-    // ===== 게임 수치 (Phase 2: Fight Core) =====
+    // ===== 게임 수치 =====
     // 패치예정.md: Fight 동안 사용되는 핵심 스탯.
     // 모든 수치는 0 이상으로 clamp되어 유효 범위를 보장한다.
     private double stamina;
@@ -42,7 +41,7 @@ public class FightSession {
     private double tension;
     private double reelState;
 
-    // ===== 낚싯대 스탯 (Phase 2: Fight Core) =====
+    // ===== 낚싯대 스탯 =====
     private double reelPower;
     private double lineStrength;
     private double reelDurability;

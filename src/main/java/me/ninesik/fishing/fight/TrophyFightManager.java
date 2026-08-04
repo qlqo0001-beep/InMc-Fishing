@@ -25,7 +25,7 @@ import java.util.function.Function;
 /**
  * Trophy Fight 세션 관리자.
  *
- * <p>Phase 2: 세션 생성/종료·Tick·Reward 연동을 구현한다.
+ * <p>세션 생성/종료·Tick·Reward 연동을 구현한다.
  * FightConfig는 configManager.getFightConfig()를 통해 매회 조회하여 reload 지원.
  * 낚싯대 스탯은 rodLookup 함수로 실시간 조회 (FishingListener::getRodForFight).
  * Rare Trophy 난이도 배수는 패치예정.md "Rare Trophy가 더 어려움"을 반영해 1.5x 적용
@@ -581,9 +581,7 @@ public class TrophyFightManager {
         }
     }
 
-    /**
-     * Phase 3: 물고기 상태에 따라 파티클을 출력한다.
-     */
+    /** 물고기 상태에 따라 파티클을 출력한다. */
     private void spawnParticles(Player player, FightSession session) {
         FishState state = session.getFishAI().getCurrentState();
         org.bukkit.Location loc = player.getLocation().add(0, 1, 0);
@@ -599,9 +597,7 @@ public class TrophyFightManager {
         }
     }
 
-    /**
-     * Phase 3: 물고기 상태에 따라 사운드를 출력한다.
-     */
+    /** 물고기 상태에 따라 사운드를 출력한다. */
     private void playSounds(Player player, FightSession session) {
         FishState state = session.getFishAI().getCurrentState();
         switch (state) {
@@ -611,9 +607,7 @@ public class TrophyFightManager {
         }
     }
 
-    /**
-     * Phase 3: Fight 시작 시 플레이어 이동을 제한한다.
-     */
+    /** Fight 시작 시 플레이어 이동을 제한한다. */
     private void restrictMovement(Player player) {
         player.setWalkSpeed(0.0f);
         player.setFlySpeed(0.0f);
@@ -621,9 +615,7 @@ public class TrophyFightManager {
         player.setFlying(true);
     }
 
-    /**
-     * Phase 3: Fight 종료 시 플레이어 이동 제한을 해제한다.
-     */
+    /** Fight 종료 시 플레이어 이동 제한을 해제한다. */
     private void releaseMovement(Player player) {
         player.setWalkSpeed(0.2f);
         player.setFlySpeed(0.1f);

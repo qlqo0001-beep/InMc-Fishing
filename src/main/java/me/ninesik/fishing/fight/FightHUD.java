@@ -21,8 +21,7 @@ import java.util.concurrent.ConcurrentHashMap;
  *   <li>ActionBar = Fish Stamina/Power/Resistance/Reel State 표시</li>
  * </ul>
  *
- * <p>Phase 3: 기본 HUD 표시 구현. Phase 4에서 FightConfig와 연동하여
- * 색상/포맷을 config에서 조정 가능하도록 한다.</p>
+ * <p>색상/포맷은 FightConfig(hud 설정)에서 조정할 수 있다.</p>
  */
 public class FightHUD {
 

@@ -6,9 +6,8 @@ package me.ninesik.fishing.fight;
  * <p>패치예정.md 14번: 핵심 수식(Stamina/Tension/Distance/Reel State 계산식)은
  * 구현 단계에서 코드/주석으로 명시한다.</p>
  *
- * <p>Phase 4-5 개정: "클릭 게임"이 아닌 "실시간 힘겨루기 시뮬레이션" 구현을 위해
- * 모든 수식이 Tick 기반 상태 계산을 전제로 한다.
- * 플레이어 입력은 상태 변경만 수행 → Tick에서 결과 계산.</p>
+ * <p>'클릭 게임'이 아닌 '실시간 힘겨루기 시뮬레이션'으로, 모든 수식이 Tick 기반
+ * 상태 계산을 전제로 한다. 플레이어 입력은 상태 변경만 수행하고 Tick에서 결과를 계산한다.</p>
  */
 public class FightCalculator {
 
@@ -128,7 +127,7 @@ public class FightCalculator {
      *   <li>릴을 멈추면 물고기만 도망가 Distance 증가</li>
      * </ul>
      *
-     * <p><b>패치예정.md 피드백 수정 (Phase 5.1):</b> 이전 수식은 {@code reelAmount}가
+     * <p><b>패치예정.md 피드백 수정:</b> 이전 수식은 {@code reelAmount}가
      * 오직 {@code exhaustionFactor}에만 곱해졌기 때문에, Stamina가 가득 찬 Fight
      * 초반에는 {@code exhaustionFactor}가 0에 가까워 아무리 릴을 감아도
      * {@code reelAmount ≈ 0}이 되어 Distance가 계속 늘어나기만 하는 문제가 있었다.
@@ -233,7 +232,7 @@ public class FightCalculator {
      *       단 0 이하로 떨어지지 않는 점근적(asymptotic) 감소</li>
      * </ul>
      *
-     * <p><b>패치예정.md 피드백 수정 (Phase 5.1):</b> 이전 수식은 {@code reelDurability}로
+     * <p><b>패치예정.md 피드백 수정:</b> 이전 수식은 {@code reelDurability}로
      * 직접 나눴기 때문에, 관리자가 items/rod.yml에 조금이라도 의미 있는
      * {@code reel-durability}(수십 단위)를 설정하면 감소량이 사실상 0에 가까워져
      * "릴 상태가 줄어드는 게 없다시피" 하는 문제가 있었다. 나눗셈 대신 점근적

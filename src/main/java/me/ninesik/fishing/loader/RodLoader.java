@@ -63,8 +63,7 @@ public class RodLoader {
                 int maxFatigueBonus = optionsSection != null ? optionsSection.getInt("max-fatigue", 0) : 0;
                 int fatigueRecoveryBonus = optionsSection != null ? optionsSection.getInt("fatigue-recovery", 0) : 0;
 
-                // Trophy Fight 시스템(패치예정.md): options.reel-power / options.line-strength / options.reel-durability.
-                // Phase 1에서는 파싱만 수행하고 계산에 사용하지 않는다.
+                // options.reel-power / options.line-strength / options.reel-durability (Trophy Fight 스탯).
                 double reelPower = optionsSection != null ? optionsSection.getDouble("reel-power", 0.0) : 0.0;
                 double lineStrength = optionsSection != null ? optionsSection.getDouble("line-strength", 0.0) : 0.0;
                 double reelDurability = optionsSection != null ? optionsSection.getDouble("reel-durability", 0.0) : 0.0;

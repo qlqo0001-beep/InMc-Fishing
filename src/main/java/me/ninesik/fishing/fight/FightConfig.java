@@ -22,9 +22,7 @@ import java.util.Map;
  *   └── GeneralConfig   — 일반 설정 (제한 시간, 인터벌 등)
  * </pre>
  *
- * <p>Phase 1에서는 기본값만 제공하며, 실제 값은 config.yml의 trophy-fight 섹션에서
- * 로드된다. 아직 사용되지 않는 설정값도 미리 정의해 두어 이후 Phase에서
- * Config 구조 변경 없이 값을 채우기만 하면 된다.</p>
+ * <p>실제 값은 fight.yml(구 config.yml의 trophy-fight 섹션)에서 로드된다.</p>
  */
 public class FightConfig {
 
@@ -70,10 +68,7 @@ public class FightConfig {
 
     // ===================== AI =====================
 
-    /**
-     * Fish AI 상태 기계 설정.
-     * Phase 2에서 Fish AI 구현 시 사용된다.
-     */
+    /** Fish AI 상태 기계 설정. */
     public static class AiConfig {
         /** AI 업데이트 주기 (틱). 기본값 20 = 매 틱. */
         public final int updateTick;
@@ -89,22 +84,19 @@ public class FightConfig {
         }
 
         private Map<String, int[]> loadStateDurations(FileConfiguration config) {
-            // Phase 2에서 구체화 — 현재는 빈 맵 반환
+            // 상태 지속시간은 FishAI가 하드코딩된 값을 사용하므로 현재는 비워 둔다.
             return Collections.unmodifiableMap(new HashMap<>());
         }
 
         private Map<String, Map<String, Double>> loadTransitionProbabilities(FileConfiguration config) {
-            // Phase 2에서 구체화 — 현재는 빈 맵 반환
+            // 전이 확률은 FishAI가 하드코딩된 값을 사용하므로 현재는 비워 둔다.
             return Collections.unmodifiableMap(new HashMap<>());
         }
     }
 
     // ===================== HUD =====================
 
-    /**
-     * BossBar/ActionBar 표시 설정.
-     * Phase 3에서 HUD 구현 시 사용된다.
-     */
+    /** BossBar/ActionBar 표시 설정. */
     public static class HudConfig {
         /** BossBar 게이지 색상 — 안정/주의/위험 */
         public final String barColorSafe;
@@ -164,10 +156,7 @@ public class FightConfig {
 
     // ===================== Sound =====================
 
-    /**
-     * 사운드 출력 설정.
-     * Phase 3에서 사운드 구현 시 사용된다.
-     */
+    /** 사운드 출력 설정. */
     public static class SoundConfig {
         /** 사운드 출력 인터벌 (틱). 기본값 2. */
         public final int interval;
@@ -194,10 +183,7 @@ public class FightConfig {
 
     // ===================== Stats =====================
 
-    /**
-     * 핵심 스탯 기본값/상한/계수 설정.
-     * Phase 2에서 핵심 계산 구현 시 사용된다.
-     */
+    /** 핵심 스탯 기본값/상한/계수 설정. */
     public static class StatsConfig {
         /** 기본 물고기 스탯값 — 물고기 체력(Stamina). 0이 되면 지쳐서 끌려온다. 등급 난이도·레어 트로피 배수가 곱해진다. */
         public final double defaultStamina;
