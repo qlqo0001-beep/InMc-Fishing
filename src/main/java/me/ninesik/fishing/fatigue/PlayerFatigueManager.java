@@ -142,7 +142,10 @@ public class PlayerFatigueManager {
         Integer value = fatigueCache.remove(uuid);
         locked.remove(uuid);
         if (value != null) {
-            saveFatigue(uuid, value);
+            // 파일 저장은 비동기 (메인 스레드 블로킹 방지 — 접속/퇴장 시 핑·트래픽 급증 원인)
+            UUID u = uuid;
+            int v = value;
+            Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> saveFatigue(u, v));
         }
     }
 

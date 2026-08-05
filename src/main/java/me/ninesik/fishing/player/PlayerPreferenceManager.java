@@ -1,6 +1,7 @@
 package me.ninesik.fishing.player;
 
 import me.ninesik.fishing.InMcFishing;
+import org.bukkit.Bukkit;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
@@ -50,12 +51,16 @@ public class PlayerPreferenceManager {
     public void unloadPlayer(Player player) {
         UUID uuid = player.getUniqueId();
         Boolean enabled = minigameEnabledCache.remove(uuid);
-        if (enabled != null) {
-            saveBoolean(uuid, "minigame-enabled", enabled);
-        }
         Boolean practice = trophyPracticeModeCache.remove(uuid);
-        if (practice != null) {
-            saveBoolean(uuid, "trophy-practice-mode", practice);
+        if (enabled != null || practice != null) {
+            // 파일 저장은 비동기 (메인 스레드 블로킹 방지 — 접속/퇴장 시 핑·트래픽 급증 원인)
+            UUID u = uuid;
+            Boolean e = enabled;
+            Boolean r = practice;
+            Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
+                if (e != null) saveBoolean(u, "minigame-enabled", e);
+                if (r != null) saveBoolean(u, "trophy-practice-mode", r);
+            });
         }
     }
 

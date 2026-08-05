@@ -71,9 +71,11 @@ public final class InMcFishing extends JavaPlugin {
 
         playerPreferenceManager = new PlayerPreferenceManager(this);
         getServer().getPluginManager().registerEvents(
-                new PlayerPreferenceListener(playerPreferenceManager), this);
-        // /reload 등으로 이미 접속해 있던 플레이어도 개인 설정을 적용한다.
-        getServer().getOnlinePlayers().forEach(playerPreferenceManager::loadPlayer);
+                new PlayerPreferenceListener(this, playerPreferenceManager), this);
+        // /reload 등으로 이미 접속해 있던 플레이어도 개인 설정을 적용한다. (파일 로드는 비동기)
+        var reloadPrefPlayers = new java.util.ArrayList<org.bukkit.entity.Player>(getServer().getOnlinePlayers());
+        getServer().getScheduler().runTaskAsynchronously(this,
+                () -> reloadPrefPlayers.forEach(playerPreferenceManager::loadPlayer));
 
         registryManager = new RegistryManager();
         if (!loadRegistries()) {
@@ -98,10 +100,12 @@ public final class InMcFishing extends JavaPlugin {
         // 이미 접속 중인 플레이어(리로드 케이스) 로드, 회복 스케줄러 시작, 물약 리스너 등록을 진행한다.
         me.ninesik.fishing.fatigue.PlayerFatigueManager fatigueManager = fishingService.getFatigueManager();
         getServer().getPluginManager().registerEvents(
-                new me.ninesik.fishing.fatigue.FatigueListener(fatigueManager), this);
+                new me.ninesik.fishing.fatigue.FatigueListener(this, fatigueManager), this);
         getServer().getPluginManager().registerEvents(
                 new me.ninesik.fishing.fatigue.FatiguePotionListener(this, fatigueManager, fishingService.getConfigManager()), this);
-        getServer().getOnlinePlayers().forEach(fatigueManager::loadPlayer);
+        var reloadFatiguePlayers = new java.util.ArrayList<org.bukkit.entity.Player>(getServer().getOnlinePlayers());
+        getServer().getScheduler().runTaskAsynchronously(this,
+                () -> reloadFatiguePlayers.forEach(fatigueManager::loadPlayer));
         fatigueManager.startScheduler();
 
         // 도감 시스템 초기화
@@ -121,7 +125,7 @@ public final class InMcFishing extends JavaPlugin {
         fishingService.getRewardService().setNetManager(netManager);
         collectionManager.setNetManager(netManager);
         getServer().getPluginManager().registerEvents(
-                new me.ninesik.fishing.net.NetListener(netManager), this);
+                new me.ninesik.fishing.net.NetListener(this, netManager), this);
 
         rankingManager = new RankingManager(this, collectionManager);
         rankingManager.load();

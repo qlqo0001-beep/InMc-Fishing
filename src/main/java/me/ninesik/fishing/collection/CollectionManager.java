@@ -10,6 +10,7 @@ import me.ninesik.fishing.ranking.RankingManager;
 import me.ninesik.fishing.registry.FishRegistry;
 import me.ninesik.fishing.service.RewardService;
 import me.ninesik.fishing.util.Sounds;
+import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
@@ -145,7 +146,8 @@ public class CollectionManager {
     public void unloadPlayer(Player player) {
         CollectionData data = cache.remove(player.getUniqueId());
         if (data != null) {
-            storage.save(data);
+            // 파일 저장은 비동기 (메인 스레드 블로킹 방지 — 접속/퇴장 시 핑·트래픽 급증 원인)
+            Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> storage.save(data));
         }
     }
 

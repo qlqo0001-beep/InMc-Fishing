@@ -1,5 +1,7 @@
 package me.ninesik.fishing.net;
 
+import me.ninesik.fishing.InMcFishing;
+import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -19,15 +21,17 @@ import org.bukkit.inventory.ItemStack;
  */
 public class NetListener implements Listener {
 
+    private final InMcFishing plugin;
     private final NetManager netManager;
 
-    public NetListener(NetManager netManager) {
+    public NetListener(InMcFishing plugin, NetManager netManager) {
+        this.plugin = plugin;
         this.netManager = netManager;
     }
 
     @EventHandler
     public void onPlayerJoin(PlayerJoinEvent event) {
-        netManager.loadPlayer(event.getPlayer());
+        Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> netManager.loadPlayer(event.getPlayer()));
     }
 
     @EventHandler

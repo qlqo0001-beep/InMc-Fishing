@@ -1,5 +1,7 @@
 package me.ninesik.fishing.fatigue;
 
+import me.ninesik.fishing.InMcFishing;
+import org.bukkit.Bukkit;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerJoinEvent;
@@ -12,15 +14,17 @@ import org.bukkit.event.player.PlayerQuitEvent;
  */
 public class FatigueListener implements Listener {
 
+    private final InMcFishing plugin;
     private final PlayerFatigueManager fatigueManager;
 
-    public FatigueListener(PlayerFatigueManager fatigueManager) {
+    public FatigueListener(InMcFishing plugin, PlayerFatigueManager fatigueManager) {
+        this.plugin = plugin;
         this.fatigueManager = fatigueManager;
     }
 
     @EventHandler
     public void onPlayerJoin(PlayerJoinEvent event) {
-        fatigueManager.loadPlayer(event.getPlayer());
+        Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> fatigueManager.loadPlayer(event.getPlayer()));
     }
 
     @EventHandler

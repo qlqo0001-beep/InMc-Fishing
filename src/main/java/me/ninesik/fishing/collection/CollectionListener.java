@@ -2,6 +2,7 @@ package me.ninesik.fishing.collection;
 
 import me.ninesik.fishing.InMcFishing;
 import me.ninesik.fishing.event.FishCatchEvent;
+import org.bukkit.Bukkit;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerJoinEvent;
@@ -23,7 +24,7 @@ public class CollectionListener implements Listener {
 
     @EventHandler
     public void onPlayerJoin(PlayerJoinEvent event) {
-        collectionManager.loadPlayer(event.getPlayer());
+        Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> collectionManager.loadPlayer(event.getPlayer()));
     }
 
     @EventHandler

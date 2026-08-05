@@ -1,5 +1,6 @@
 package me.ninesik.fishing.net;
 
+import org.bukkit.Bukkit;
 import me.ninesik.fishing.InMcFishing;
 import me.ninesik.fishing.model.Fish;
 import me.ninesik.fishing.model.RewardEntry;
@@ -65,7 +66,8 @@ public class NetManager {
     public void unloadPlayer(Player player) {
         NetData data = cache.remove(player.getUniqueId());
         if (data != null) {
-            storage.save(data);
+            // 파일 저장은 비동기 (메인 스레드 블로킹 방지 — 접속/퇴장 시 핑·트래픽 급증 원인)
+            Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> storage.save(data));
         }
     }
 
