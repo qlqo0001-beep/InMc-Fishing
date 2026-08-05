@@ -1,3 +1,6 @@
+https://youtu.be/Ee0WdzW7d68?si=-wfvXPS1v8lLs_Dd
+https://youtu.be/PITD6vNV_Ks?si=zttMXrySbcc2v-ne
+
 # 🎣 InMc-Fishing
 
 **InMc-Fishing**은 마인크래프트 서버의 낚시를 즐거운 RPG 활동으로 바꿔주는 플러그인입니다.
