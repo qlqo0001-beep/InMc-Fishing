@@ -289,6 +289,16 @@ public class TrophyFightManager {
                 reelPower, lineStrength, reelDurability);
         session.setDifficulty(difficulty);
 
+        // 행동력(Action Power) 초기화 — 등급별 기본값, 레어 트로피는 2배
+        FightConfig.ActionPowerConfig apConfig = config.actionPower();
+        int maxAP = apConfig.gradeMax.getOrDefault(gradeId, 5);
+        if (reward.isRareTrophy()) {
+            maxAP *= 2;
+        }
+        session.getFishAI().init(maxAP);
+        // 위험 임계값 비율 — config에서 주입 (FishAI 기본 0.3)
+        session.getFishAI().setDangerousThresholdRatio(apConfig.dangerousThresholdRatio);
+
         // Distance 상한 = 기본값 + 낚싯대 line-strength 보너스 (피드백: "낚싯대 옵션에
         // 줄 강도가 높아질수록 거리값이 추가되게 설정해 줘야 해. 디폴트+형태로").
         // 줄이 튼튼할수록(line-strength↑) 물고기가 더 멀리 도망가도 줄이 버틴다.
@@ -427,12 +437,14 @@ public class TrophyFightManager {
 
             // 1. Fish AI 업데이트
             double staminaRatio = session.getStamina() / 100.0;
-            session.getFishAI().tick(staminaRatio);
+            boolean isReeling = session.isReeling();
+            session.getFishAI().tick(staminaRatio, isReeling);
+
+            FishState currentFishState = session.getFishAI().getCurrentState();
 
             // 물고기 상태를 타이틀로 계속 표시 (남은 지속시간 카운트다운 포함).
             // 매 틱 갱신해야 긴 상태(REST 등)에서 타이틀이 중간에 꺼지지 않는다
             // (패치예정.md 피드백: "상태의 유지가 길면 타이틀이 사라지는 문제가 있어").
-            FishState currentFishState = session.getFishAI().getCurrentState();
             hud.updateStateTitle(player, currentFishState, session.getFishAI().getRemainingTicks(),
                     session.getStamina(), session.getReelState(), config.hud());
 
@@ -445,7 +457,6 @@ public class TrophyFightManager {
             session.setResistance(session.getFishAI().getCurrentResistance() * difficulty);
 
             // 4. Player Input 반영 (좌클릭 = 릴 감기 / 우클릭 = 릴 풀기)
-            boolean isReeling = session.isReeling();
             boolean isReleasing = session.isReleasing();
             FishState fishState = session.getFishAI().getCurrentState();
 
@@ -474,8 +485,10 @@ public class TrophyFightManager {
             if (isReleasing) {
                 distanceChange = calculator.calculateReleaseDistanceChange(session.getPower(), fishState);
             } else {
+                double effectiveReelPower = config.stats().defaultReelPower +
+                        session.getRodBonusReelPower() * 0.1;
                 distanceChange = calculator.calculateDistanceChange(
-                        config.stats().defaultReelPower, session.getPower(), session.getResistance(),
+                        effectiveReelPower, session.getPower(), session.getResistance(),
                         staminaRatio, isReeling, fishState);
             }
             session.changeDistance(distanceChange);
@@ -491,12 +504,13 @@ public class TrophyFightManager {
             }
 
             // 7. Tension 계산
-            // 릴 풀기(우클릭): 장력을 능동적으로 낮춘다. 그 외: 기존 계산(상태별 상승 배수).
+            // 릴 풀기(우클릭): 장력을 능동적으로 낮춘다. 그 외: 연속 상승 방식으로 장력이 완만하게 증가.
+            // 행동력 기반 장력 상승: 상태별 지속 상승율(state.getTensionRate()) 적용.
             double tensionChange;
             if (isReleasing) {
                 tensionChange = calculator.calculateReleaseTensionDecrease(session.getReleaseCombo());
             } else {
-                tensionChange = calculator.calculateTensionChange(session.getPower(), isReeling, fishState);
+                tensionChange = calculator.calculateTensionChange(session.getMaxTension(), isReeling, fishState);
             }
             session.changeTension(tensionChange);
 

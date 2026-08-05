@@ -33,6 +33,7 @@ public class FightConfig {
     private final GeneralConfig general;
     private final IntroConfig intro;
     private final LineTangleConfig lineTangle;
+    private final ActionPowerConfig actionPower;
 
     public FightConfig(FileConfiguration config) {
         this.ai = new AiConfig(config);
@@ -42,6 +43,7 @@ public class FightConfig {
         this.general = new GeneralConfig(config);
         this.intro = new IntroConfig(config);
         this.lineTangle = new LineTangleConfig(config);
+        this.actionPower = new ActionPowerConfig(config);
     }
 
     public AiConfig ai() {
@@ -70,6 +72,10 @@ public class FightConfig {
 
     public LineTangleConfig lineTangle() {
         return lineTangle;
+    }
+
+    public ActionPowerConfig actionPower() {
+        return actionPower;
     }
 
     // ===================== Line Tangle (줄 엉킴 이벤트) =====================
@@ -162,7 +168,7 @@ public class FightConfig {
             this.bossBarTitleFormat = config.getString("trophy-fight.hud.bossbar-title-format", "Distance: {distance}");
             this.actionBarFormat = config.getString("trophy-fight.hud.actionbar-format",
                     "Stamina {stamina}% | Power {power} | Resistance {resistance} | Reel {reel}%");
-            this.stateTitleFormat = config.getString("trophy-fight.hud.state-title-format", "{state_color}{state}");
+            this.stateTitleFormat = config.getString("trophy-fight.hud.state-title-format", "{state_color}{state} ({remaining_seconds}초)");
             this.stateSubtitleFormat = config.getString("trophy-fight.hud.state-subtitle-format",
                     "&b체력 {stamina}  &8┃  &7{remaining_seconds}초 후 변화  &8┃  &e릴 {reel}");
             this.stateColors = loadStateColors(config);
@@ -187,6 +193,7 @@ public class FightConfig {
             defaults.put("circle", "&8");
             defaults.put("jump", "&e");
             defaults.put("line_tangle", "&c");
+            defaults.put("stunned", "&7");
 
             Map<String, String> map = new HashMap<>();
             for (Map.Entry<String, String> entry : defaults.entrySet()) {
@@ -215,6 +222,7 @@ public class FightConfig {
             defaults.put(FishState.CIRCLE, new StateGuide("&8🐟 원형 유영", "&7좌우 클릭을 번갈아 밸런스를 유지하세요."));
             defaults.put(FishState.JUMP, new StateGuide("&e🐟 점프!", "&7클릭을 잠시 멈추세요."));
             defaults.put(FishState.LINE_TANGLE, new StateGuide("&c🐟 줄 엉킴!", "&c우클릭으로 줄을 풀어야 합니다!"));
+            defaults.put(FishState.STUNNED, new StateGuide("&7🐟 기절!", "&a거리가 0이 될 때까지 릴을 감으세요."));
 
             Map<FishState, StateGuide> map = new HashMap<>();
             for (FishState state : FishState.values()) {
@@ -278,6 +286,7 @@ public class FightConfig {
             defaults.put(FishState.CIRCLE, "entity.fish.swim");
             defaults.put(FishState.JUMP, "entity.generic.splash");
             defaults.put(FishState.LINE_TANGLE, "block.chain.hit");
+            defaults.put(FishState.STUNNED, "");
 
             Map<FishState, String> map = new HashMap<>();
             for (FishState state : FishState.values()) {
@@ -456,5 +465,39 @@ public class FightConfig {
             this.startSound = config.getString("trophy-fight.intro.start-sound", "entity.player.levelup");
             this.stepSeconds = config.getDouble("trophy-fight.intro.step-seconds", 1.0);
         }
+    }
+
+    // ===================== Action Power (행동력) =====================
+
+    /** 행동력(Action Power) 설정 — 등급별 최대 AP, 상태별 AP 소모량, 장력 증가율 등. */
+    public static class ActionPowerConfig {
+        /** 등급별 최대 행동력 (레어 트로피는 이 값의 2배). */
+        public final Map<String, Integer> gradeMax;
+        /** 위험 임계값 비율 — AP가 이 비율 이하이면 위험 상태로 간주. */
+        public final double dangerousThresholdRatio;
+
+        public ActionPowerConfig(FileConfiguration config) {
+            this.gradeMax = loadGradeMax(config);
+            this.dangerousThresholdRatio = Math.max(0.0, Math.min(1.0, config.getDouble(
+                    "trophy-fight.ai.action-power.dangerous-threshold-ratio", 0.3)));
+        }
+
+        private Map<String, Integer> loadGradeMax(FileConfiguration config) {
+            Map<String, Integer> defaults = new HashMap<>();
+            defaults.put("f", 3);
+            defaults.put("e", 4);
+            defaults.put("d", 5);
+            defaults.put("c", 7);
+            defaults.put("b", 9);
+            defaults.put("a", 12);
+            defaults.put("s", 15);
+            Map<String, Integer> map = new HashMap<>();
+            for (Map.Entry<String, Integer> entry : defaults.entrySet()) {
+                map.put(entry.getKey(), config.getInt(
+                        "trophy-fight.ai.action-power.grade-max." + entry.getKey(), entry.getValue()));
+            }
+            return Collections.unmodifiableMap(map);
+        }
+
     }
 }

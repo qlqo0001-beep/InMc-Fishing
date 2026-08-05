@@ -46,8 +46,6 @@ public class FightSession {
     private double lineStrength;
     private double reelDurability;
     private double rodBonusReelPower;
-    private int actionPower;
-    private int maxActionPower;
 
     // ===== Fight 상태 =====
     private FishAI fishAI;
@@ -209,11 +207,6 @@ public class FightSession {
     public double getRodBonusReelPower() { return rodBonusReelPower; }
 
     public void setRodBonusReelPower(double rodBonusReelPower) { this.rodBonusReelPower = Math.max(0, rodBonusReelPower); }
-    public int getActionPower() { return actionPower; }
-    public void setActionPower(int actionPower) { this.actionPower = Math.max(0, actionPower); }
-    public int getMaxActionPower() { return maxActionPower; }
-    public void setMaxActionPower(int maxActionPower) { this.maxActionPower = Math.max(1, maxActionPower); }
-    public void recoverActionPower() { this.actionPower = this.maxActionPower; }
 
     public double getDifficulty() { return difficulty; }
 
