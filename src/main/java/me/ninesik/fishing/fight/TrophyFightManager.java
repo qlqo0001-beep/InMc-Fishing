@@ -54,6 +54,8 @@ public class TrophyFightManager {
      * 카운트다운 중에는 FightSession이 아직 없으므로 이 맵으로 "파이트 준비 중" 여부를 판단한다.
      */
     private final Map<UUID, List<BukkitTask>> introTasks = new ConcurrentHashMap<>();
+    /** Fight 시작 시 저장한 플레이어 이동/비행 상태 스냅샷 (종료 시 복원용). */
+    private final Map<UUID, MovementSnapshot> movementSnapshots = new ConcurrentHashMap<>();
     private final FightCalculator calculator = new FightCalculator();
     private final FightHUD hud = new FightHUD();
     private BukkitTask tickTask;
@@ -458,14 +460,14 @@ public class TrophyFightManager {
 
             // 4. Player Input 반영 (좌클릭 = 릴 감기 / 우클릭 = 릴 풀기)
             boolean isReleasing = session.isReleasing();
-            FishState fishState = session.getFishAI().getCurrentState();
+            FishState fishState = currentFishState;
 
             // 5. Fish Stamina 계산
             // 릴을 감는 동안에는 감소(상태별 배수), 감지 않는 동안에는 서서히 회복된다
             // (패치예정.md 피드백: "릴을 당기지 않고 내버려두면 스테미나가 천천히 차야 함").
             if (isReeling) {
                 double staminaDecrease = calculator.calculateStaminaDecrease(
-                        session.getReelPower(), session.getReelState() / 100.0, fishState);
+                        session.getReelPower(), session.getReelState() / session.getMaxReelState(), fishState);
                 session.decreaseStamina(staminaDecrease);
             } else {
                 double staminaRegen = calculator.calculateStaminaRegen(
@@ -485,8 +487,7 @@ public class TrophyFightManager {
             if (isReleasing) {
                 distanceChange = calculator.calculateReleaseDistanceChange(session.getPower(), fishState);
             } else {
-                double effectiveReelPower = config.stats().defaultReelPower +
-                        session.getRodBonusReelPower() * 0.1;
+                double effectiveReelPower = config.stats().defaultReelPower;
                 distanceChange = calculator.calculateDistanceChange(
                         effectiveReelPower, session.getPower(), session.getResistance(),
                         staminaRatio, isReeling, fishState);
@@ -621,20 +622,47 @@ public class TrophyFightManager {
         Sounds.play(player, sound);
     }
 
-    /** Fight 시작 시 플레이어 이동을 제한한다. */
+    /** Fight 시작 시 플레이어 이동을 제한한다. (기존 이동/비행 상태를 저장해 두었다가 종료 시 복원) */
     private void restrictMovement(Player player) {
+        UUID uuid = player.getUniqueId();
+        movementSnapshots.put(uuid, new MovementSnapshot(
+                player.getWalkSpeed(), player.getFlySpeed(),
+                player.getAllowFlight(), player.isFlying()));
         player.setWalkSpeed(0.0f);
         player.setFlySpeed(0.0f);
         player.setAllowFlight(true);
         player.setFlying(true);
     }
 
-    /** Fight 종료 시 플레이어 이동 제한을 해제한다. */
+    /** Fight 종료 시 플레이어 이동 제한을 해제하고 저장해 둔 기존 상태를 복원한다. */
     private void releaseMovement(Player player) {
-        player.setWalkSpeed(0.2f);
-        player.setFlySpeed(0.1f);
-        player.setFlying(false);
-        player.setAllowFlight(false);
+        MovementSnapshot snap = movementSnapshots.remove(player.getUniqueId());
+        if (snap != null) {
+            player.setWalkSpeed(snap.walkSpeed);
+            player.setFlySpeed(snap.flySpeed);
+            player.setAllowFlight(snap.allowFlight);
+            player.setFlying(snap.flying);
+        } else {
+            // 스냅샷이 없으면 기본값으로 해제 (폴백)
+            player.setWalkSpeed(0.2f);
+            player.setFlySpeed(0.1f);
+            player.setFlying(false);
+            player.setAllowFlight(false);
+        }
+    }
+
+    /** Fight 시작 전 플레이어의 이동/비행 상태 스냅샷. */
+    private static final class MovementSnapshot {
+        final float walkSpeed;
+        final float flySpeed;
+        final boolean allowFlight;
+        final boolean flying;
+        MovementSnapshot(float walkSpeed, float flySpeed, boolean allowFlight, boolean flying) {
+            this.walkSpeed = walkSpeed;
+            this.flySpeed = flySpeed;
+            this.allowFlight = allowFlight;
+            this.flying = flying;
+        }
     }
 
     /**
@@ -663,6 +691,7 @@ public class TrophyFightManager {
             }
         }
         sessions.clear();
+        movementSnapshots.clear();
         hud.cleanup();
     }
 }
