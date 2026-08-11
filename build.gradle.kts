@@ -26,8 +26,12 @@ dependencies {
     // bStats 메트릭스 — 최종 jar(Shadow)에만 병합된다.
     implementation("org.bstats:bstats-bukkit:3.2.1")
 
-    // SQLite JDBC — 플레이어 데이터 통합 DB
-    implementation("org.xerial:sqlite-jdbc:3.49.1.0")
+    // SQLite JDBC — 플레이어 데이터 통합 DB.
+    // 런타임에는 Paper 라이브러리 로더가 공급한다 (plugin.yml의 libraries:).
+    // implementation으로 두면 shadowJar의 "org.bstats만 병합" 규칙에 걸려 jar에서
+    // 빠지고, 서버가 드라이버를 제공하지 않으면 DatabaseManager.init()이 실패해
+    // 플러그인 전체가 비활성화된다. 그래서 compileOnly + libraries: 조합을 쓴다.
+    compileOnly("org.xerial:sqlite-jdbc:3.49.1.0")
 }
 
 tasks {
