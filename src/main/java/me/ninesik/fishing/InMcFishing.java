@@ -4,6 +4,8 @@ import me.ninesik.fishing.collection.CollectionListener;
 import me.ninesik.fishing.collection.CollectionManager;
 import me.ninesik.fishing.dependency.DependencyManager;
 import me.ninesik.fishing.fight.TrophyFightManager;
+import me.ninesik.fishing.fillet.FilletConfig;
+import me.ninesik.fishing.fillet.FilletManager;
 import me.ninesik.fishing.gui.GuiListener;
 import me.ninesik.fishing.ranking.RankingManager;
 import me.ninesik.fishing.tournament.TournamentListener;
@@ -11,13 +13,20 @@ import me.ninesik.fishing.tournament.TournamentManager;
 import me.ninesik.fishing.loader.FishLoader;
 import me.ninesik.fishing.loader.GradeLoader;
 import me.ninesik.fishing.loader.RodLoader;
+import me.ninesik.fishing.loader.BaitLoader;
 import me.ninesik.fishing.model.Fish;
 import me.ninesik.fishing.model.Grade;
 import me.ninesik.fishing.model.Rod;
+import me.ninesik.fishing.model.Bait;
 import me.ninesik.fishing.player.PlayerPreferenceListener;
 import me.ninesik.fishing.player.PlayerPreferenceManager;
 import me.ninesik.fishing.registry.RegistryManager;
+import me.ninesik.fishing.registry.BaitRegistry;
+import me.ninesik.fishing.registry.FishRegistry;
+import me.ninesik.fishing.registry.GradeRegistry;
+import me.ninesik.fishing.registry.RodRegistry;
 import me.ninesik.fishing.service.FishingService;
+import me.ninesik.fishing.storage.DatabaseManager;
 import me.ninesik.fishing.validator.ValidationReport;
 import me.ninesik.fishing.validator.ValidatorManager;
 import org.bukkit.configuration.file.FileConfiguration;
@@ -41,7 +50,7 @@ import java.util.Map;
  */
 public final class InMcFishing extends JavaPlugin {
 
-    private static final List<String> GRADE_IDS = List.of("f", "e", "d", "c", "b", "a", "s");
+    public static final List<String> GRADE_IDS = List.of("f", "e", "d", "c", "b", "a", "s");
 
     /** bStats 플러그인 ID — https://bstats.org/what-is-my-plugin-id 에서 등록 후 실제 ID로 교체 필요. */
     private static final int METRICS_PLUGIN_ID = 33100;
@@ -56,6 +65,9 @@ public final class InMcFishing extends JavaPlugin {
     private TournamentManager tournamentManager;
     private me.ninesik.fishing.net.NetManager netManager;
     private PlayerPreferenceManager playerPreferenceManager;
+    private me.ninesik.fishing.command.FishingCommand fishingCommand;
+    private DatabaseManager databaseManager;
+    private FilletManager filletManager;
 
     @Override
     public void onEnable() {
@@ -66,10 +78,20 @@ public final class InMcFishing extends JavaPlugin {
 
         saveDefaultResources();
 
+        // SQLite DB 초기화 및 YML 마이그레이션 (최초 1회)
+        databaseManager = new DatabaseManager(this);
+        try {
+            databaseManager.init();
+        } catch (Exception e) {
+            getLogger().log(java.util.logging.Level.SEVERE, "DB 초기화 실패. 플러그인을 비활성화합니다.", e);
+            getServer().getPluginManager().disablePlugin(this);
+            return;
+        }
+
         dependencyManager = new DependencyManager(this);
         dependencyManager.initialize();
 
-        playerPreferenceManager = new PlayerPreferenceManager(this);
+        playerPreferenceManager = new PlayerPreferenceManager(this, databaseManager);
         getServer().getPluginManager().registerEvents(
                 new PlayerPreferenceListener(this, playerPreferenceManager), this);
         // /reload 등으로 이미 접속해 있던 플레이어도 개인 설정을 적용한다. (파일 로드는 비동기)
@@ -90,6 +112,7 @@ public final class InMcFishing extends JavaPlugin {
                 registryManager.getRodRegistry(),
                 registryManager.getGradeRegistry(),
                 registryManager.getFishRegistry(),
+                registryManager.getBaitRegistry(),
                 playerPreferenceManager
         );
         fishingService.initialize();
@@ -142,27 +165,41 @@ public final class InMcFishing extends JavaPlugin {
         getServer().getPluginManager().registerEvents(
                 new TournamentListener(tournamentManager), this);
 
+        // 생선 살 가공 시스템 초기화
+        FilletConfig filletConfig = new FilletConfig(getConfig().getConfigurationSection("fillet"));
+        filletManager = new FilletManager(this, databaseManager, filletConfig,
+                fishingService.getRewardService(), registryManager.getFishRegistry(),
+                registryManager.getGradeRegistry());
+        filletManager.load();
+        filletManager.startScheduler();
+
         // Trophy Fight 시스템은 FishingService.initialize()에서 생성·시작됨.
         // InMcFishing.onEnable() 이후 fishingService.getTrophyFightManager()로 접근 가능.
 
         // 명령어 등록 (fishingService 초기화 후 — NPE 방지)
-        me.ninesik.fishing.command.FishingCommand cmd = new me.ninesik.fishing.command.FishingCommand(this);
-        getCommand("fishing").setExecutor(cmd);
-        getCommand("fishing").setTabCompleter(cmd);
+        fishingCommand = new me.ninesik.fishing.command.FishingCommand(this);
+        getCommand("fishing").setExecutor(fishingCommand);
+        getCommand("fishing").setTabCompleter(fishingCommand);
 
         getLogger().info("InMc-Fishing (alias: IF) enabled.");
     }
 
+    /**
+     * 종료 순서가 중요하다:
+     * <ol>
+     *   <li>스케줄러/서비스 정지 — 종료 도중에 새 저장 작업이 큐에 들어오지 않게 한다.</li>
+     *   <li>saveAll() — DB 전용 스레드에 저장 작업을 큐잉한다.</li>
+     *   <li>shutdownExecutor() — 큐가 빌 때까지 대기 (이 단계가 없으면 대기 중이던 저장이 유실된다).</li>
+     *   <li>shutdown() — WAL 체크포인트 후 커넥션 종료.</li>
+     * </ol>
+     * 이전에는 databaseManager.shutdown()이 filletManager.shutdown()보다 먼저였고,
+     * 큐에 남은 저장을 기다리는 단계도 없었다.
+     */
     @Override
     public void onDisable() {
-        if (playerPreferenceManager != null) {
-            playerPreferenceManager.saveAll();
-        }
-        if (netManager != null) {
-            netManager.saveAll();
-        }
-        if (collectionManager != null) {
-            collectionManager.saveAll();
+        // 1. 스케줄러/서비스 정지
+        if (filletManager != null) {
+            filletManager.shutdown();
         }
         if (rankingManager != null) {
             rankingManager.shutdown();
@@ -176,6 +213,24 @@ public final class InMcFishing extends JavaPlugin {
         if (dependencyManager != null) {
             dependencyManager.shutdown();
         }
+
+        // 2. 저장 작업 큐잉
+        if (playerPreferenceManager != null) {
+            playerPreferenceManager.saveAll();
+        }
+        if (netManager != null) {
+            netManager.saveAll();
+        }
+        if (collectionManager != null) {
+            collectionManager.saveAll();
+        }
+
+        // 3~4. 큐 비우기 → 커넥션 종료
+        if (databaseManager != null) {
+            databaseManager.shutdownExecutor();
+            databaseManager.shutdown();
+        }
+
         instance = null;
         getLogger().info("InMc-Fishing (alias: IF) disabled.");
     }
@@ -203,6 +258,9 @@ public final class InMcFishing extends JavaPlugin {
         YamlConfiguration rodConfig = YamlConfiguration.loadConfiguration(new File(getDataFolder(), "items/rod.yml"));
         Map<String, Rod> rodMap = new RodLoader().load(rodConfig, gradeMap, errors, warnings);
 
+        YamlConfiguration baitConfig = YamlConfiguration.loadConfiguration(new File(getDataFolder(), "items/bait.yml"));
+        Map<String, Bait> baitMap = new BaitLoader().load(baitConfig, gradeMap, errors, warnings);
+
         ValidationReport report = new ValidatorManager().validate(fishMap, gradeMap, rodMap);
         report.setTotalFishLoaded(fishMap.size());
         for (String warning : warnings) {
@@ -217,7 +275,7 @@ public final class InMcFishing extends JavaPlugin {
             return false;
         }
 
-        registryManager.load(fishMap, gradeMap, rodMap);
+        registryManager.load(fishMap, gradeMap, rodMap, baitMap);
         return true;
     }
 
@@ -229,6 +287,7 @@ public final class InMcFishing extends JavaPlugin {
         saveResource("tournaments.yml", false);
         saveResource("collections.yml", false);
         saveResource("messages.yml", false);
+        saveResource("item-format.yml", false);
         saveResource("fight.yml", false);
         saveResource("fatigue.yml", false);
         saveResource("items/rod.yml", false);
@@ -240,6 +299,8 @@ public final class InMcFishing extends JavaPlugin {
         saveResource("items/b-grade.yml", false);
         saveResource("items/a-grade.yml", false);
         saveResource("items/s-grade.yml", false);
+        saveResource("items/bait.yml", false);
+        saveResource("items/fillet-items.yml", false);
         saveResource("mmoitems-example.yml", false);
     }
 
@@ -254,8 +315,29 @@ public final class InMcFishing extends JavaPlugin {
         return loadRegistries();
     }
 
+    /**
+     * /fishing reload 시 새로 교체된 Registry를 플러그인이 소유한 관리자(GUI·도감·어망·명령어)에 재주입한다.
+     * (RollEngine/FishingListener 등 FishingService 소유 컴포넌트는 fishingService.refreshRegistries로 처리)
+     */
+    public void refreshRegistries(RodRegistry rodRegistry, GradeRegistry gradeRegistry,
+                                     FishRegistry fishRegistry, BaitRegistry baitRegistry) {
+        if (collectionManager != null) {
+            collectionManager.setFishRegistry(fishRegistry);
+        }
+        if (netManager != null) {
+            netManager.setFishRegistry(fishRegistry);
+        }
+        if (fishingCommand != null) {
+            fishingCommand.setRegistries(gradeRegistry, fishRegistry, rodRegistry);
+        }
+    }
+
     public static InMcFishing getInstance() {
         return instance;
+    }
+
+    public DatabaseManager getDatabaseManager() {
+        return databaseManager;
     }
 
     public DependencyManager getDependencyManager() {
@@ -280,6 +362,10 @@ public final class InMcFishing extends JavaPlugin {
 
     public TournamentManager getTournamentManager() {
         return tournamentManager;
+    }
+
+    public FilletManager getFilletManager() {
+        return filletManager;
     }
 
     public me.ninesik.fishing.net.NetManager getNetManager() {

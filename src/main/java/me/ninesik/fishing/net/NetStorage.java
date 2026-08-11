@@ -1,116 +1,110 @@
 package me.ninesik.fishing.net;
 
-import org.bukkit.configuration.file.FileConfiguration;
-import org.bukkit.configuration.file.YamlConfiguration;
+import me.ninesik.fishing.storage.DatabaseManager;
 
-import java.io.File;
-import java.io.IOException;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.List;
 import java.util.UUID;
 
 /**
- * 플레이어별 어망 데이터를 YAML로 저장/로드한다.
- * 파일 위치: plugins/InMc-Fishing/net/<uuid>.yml
+ * 플레이어별 어망 데이터를 SQLite로 저장/로드한다.
+ *
+ * <p>CollectionStorage와 같은 이유로 로드 실패를 삼키지 않는다 —
+ * 빈 어망을 캐시에 올리면 퇴장 시 저장이 실제 보관 물고기를 지워버린다.</p>
  */
 public class NetStorage {
 
     private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
-    private final File dataFolder;
+    private final DatabaseManager db;
 
-    public NetStorage(File dataFolder) {
-        this.dataFolder = new File(dataFolder, "net");
-        if (!this.dataFolder.exists()) {
-            this.dataFolder.mkdirs();
-        }
+    public NetStorage(DatabaseManager db) {
+        this.db = db;
     }
 
-    public NetData load(UUID playerUuid, int maxSize) {
-        File file = getFile(playerUuid);
-        NetData data = new NetData(playerUuid, maxSize);
-
-        if (!file.exists()) {
-            return data;
-        }
-
-        FileConfiguration config = YamlConfiguration.loadConfiguration(file);
-        if (config.isList("entries")) {
-            for (Object obj : config.getList("entries", java.util.List.of())) {
-                if (!(obj instanceof java.util.Map<?, ?> map)) continue;
-                String fishId = String.valueOf(map.get("fish-id"));
-                double size = map.get("size") instanceof Number n ? n.doubleValue() : 0.0;
-                String gradeId = String.valueOf(map.get("grade-id"));
-                LocalDateTime caughtAt = parseDateTime(String.valueOf(map.get("caught-at")));
-                if (caughtAt == null) {
-                    caughtAt = LocalDateTime.now();
+    /**
+     * 어망 데이터를 로드한다.
+     *
+     * @throws SQLException 조회 실패 시 — 호출자는 이 데이터를 캐시에 넣으면 안 된다.
+     */
+    public NetData load(UUID playerUuid, int maxSize) throws SQLException {
+        return db.readOrThrow(c -> {
+            NetData data = new NetData(playerUuid, maxSize);
+            try (PreparedStatement ps = c.prepareStatement(
+                    "SELECT * FROM net_entries WHERE uuid = ? ORDER BY idx")) {
+                ps.setString(1, playerUuid.toString());
+                try (ResultSet rs = ps.executeQuery()) {
+                    while (rs.next()) {
+                        LocalDateTime caughtAt = parseDateTime(rs.getString("caught_at"));
+                        if (caughtAt == null) caughtAt = LocalDateTime.now();
+                        data.add(new NetEntry(
+                                rs.getString("fish_id"),
+                                rs.getDouble("size"),
+                                rs.getString("grade_id"),
+                                caughtAt,
+                                rs.getInt("is_trophy") != 0,
+                                rs.getInt("is_rare_trophy") != 0));
+                    }
                 }
-                boolean isTrophy = parseBool(map.get("is-trophy"));
-                boolean isRareTrophy = parseBool(map.get("is-rare-trophy"));
-                data.add(new NetEntry(fishId, size, gradeId, caughtAt, isTrophy, isRareTrophy));
             }
-        }
-
-        return data;
+            return data;
+        });
     }
 
-    public void save(NetData data) {
-        File file = getFile(data.getPlayerUuid());
-        FileConfiguration config = new YamlConfiguration();
-
-        config.set("player-uuid", data.getPlayerUuid().toString());
-        config.set("max-size", data.getMaxSize());
-
-        java.util.List<java.util.Map<String, Object>> entryList = new java.util.ArrayList<>();
-        for (NetEntry entry : data.getEntries()) {
-            java.util.Map<String, Object> map = new java.util.HashMap<>();
-            map.put("fish-id", entry.getFishId());
-            map.put("size", entry.getSize());
-            map.put("grade-id", entry.getGradeId());
-            map.put("caught-at", entry.getCaughtAt().format(DATE_FORMAT));
-            map.put("is-trophy", entry.isTrophy() ? 1 : 0);
-            map.put("is-rare-trophy", entry.isRareTrophy() ? 1 : 0);
-            entryList.add(map);
+    /**
+     * 어망 데이터를 저장한다. DELETE → INSERT 전체가 하나의 트랜잭션이어야 하므로
+     * 호출자가 {@code db.write()/writeAsync()}로 감싸서 Connection을 넘긴다.
+     */
+    public void save(Connection c, NetData data) throws SQLException {
+        UUID uuid = data.getPlayerUuid();
+        try (PreparedStatement ps = c.prepareStatement("DELETE FROM net_entries WHERE uuid = ?")) {
+            ps.setString(1, uuid.toString());
+            ps.executeUpdate();
         }
-        config.set("entries", entryList);
-
-        try {
-            config.save(file);
-        } catch (IOException e) {
-            throw new RuntimeException("Failed to save net data: " + file.getAbsolutePath(), e);
-        }
-    }
-
-    public void delete(UUID playerUuid) {
-        File file = getFile(playerUuid);
-        if (file.exists()) {
-            file.delete();
+        try (PreparedStatement ps = c.prepareStatement(
+                "INSERT INTO net_entries (uuid,idx,fish_id,size,grade_id,caught_at,is_trophy,is_rare_trophy) VALUES (?,?,?,?,?,?,?,?)")) {
+            List<NetEntry> entries = data.getEntries();
+            for (int i = 0; i < entries.size(); i++) {
+                NetEntry e = entries.get(i);
+                ps.setString(1, uuid.toString());
+                ps.setInt(2, i);
+                ps.setString(3, e.getFishId());
+                ps.setDouble(4, e.getSize());
+                ps.setString(5, e.getGradeId());
+                ps.setString(6, e.getCaughtAt().format(DATE_FORMAT));
+                ps.setInt(7, e.isTrophy() ? 1 : 0);
+                ps.setInt(8, e.isRareTrophy() ? 1 : 0);
+                ps.addBatch();
+            }
+            ps.executeBatch();
         }
     }
 
-    public boolean exists(UUID playerUuid) {
-        return getFile(playerUuid).exists();
+    public void delete(UUID uuid) {
+        db.write("어망 삭제 (" + uuid + ")", c -> {
+            try (PreparedStatement ps = c.prepareStatement("DELETE FROM net_entries WHERE uuid = ?")) {
+                ps.setString(1, uuid.toString());
+                ps.executeUpdate();
+            }
+        });
     }
 
-    private File getFile(UUID playerUuid) {
-        return new File(dataFolder, playerUuid + ".yml");
+    public boolean exists(UUID uuid) {
+        return db.read("어망 존재 확인 (" + uuid + ")", c -> {
+            try (PreparedStatement ps = c.prepareStatement(
+                    "SELECT 1 FROM net_entries WHERE uuid = ? LIMIT 1")) {
+                ps.setString(1, uuid.toString());
+                try (ResultSet rs = ps.executeQuery()) { return rs.next(); }
+            }
+        }, false);
     }
 
-    private LocalDateTime parseDateTime(String value) {
-        if (value == null || value.isEmpty() || "null".equals(value)) {
-            return null;
-        }
-        try {
-            return LocalDateTime.parse(value, DATE_FORMAT);
-        } catch (Exception e) {
-            return null;
-        }
-    }
-
-    private static boolean parseBool(Object value) {
-        if (value instanceof Boolean b) return b;
-        if (value instanceof Number n) return n.intValue() != 0;
-        if (value == null) return false;
-        String s = String.valueOf(value);
-        return "true".equalsIgnoreCase(s) || "1".equals(s);
+    private LocalDateTime parseDateTime(String v) {
+        if (v == null || v.isEmpty() || "null".equals(v)) return null;
+        try { return LocalDateTime.parse(v, DATE_FORMAT); } catch (Exception e) { return null; }
     }
 }

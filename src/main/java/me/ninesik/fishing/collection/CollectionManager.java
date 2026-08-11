@@ -32,9 +32,10 @@ import java.util.concurrent.ConcurrentHashMap;
 public class CollectionManager {
 
     private final InMcFishing plugin;
-    private final FishRegistry fishRegistry;
+    private FishRegistry fishRegistry;
     private final RewardService rewardService;
     private final CollectionStorage storage;
+    private final me.ninesik.fishing.storage.DatabaseManager db;
     private final CollectionRewardService collectionRewardService;
     private FileConfiguration collectionsConfig;
     private RankingManager rankingManager;
@@ -56,7 +57,8 @@ public class CollectionManager {
         this.plugin = plugin;
         this.fishRegistry = fishRegistry;
         this.rewardService = rewardService;
-        this.storage = new CollectionStorage(plugin.getDataFolder());
+        this.db = plugin.getDatabaseManager();
+        this.storage = new CollectionStorage(this.db);
         this.collectionsConfig = loadCollectionsConfig();
         this.collectionRewardService = new CollectionRewardService(plugin, this);
 
@@ -65,6 +67,11 @@ public class CollectionManager {
         this.showInactiveFish = collectionsConfig.getBoolean("settings.show-inactive-fish", true);
         this.registerSound = collectionsConfig.getString("settings.register-sound", "");
         loadUnlockConfig();
+    }
+
+    /** 리로드 시 새로 교체된 FishRegistry를 재주입한다. */
+    public void setFishRegistry(FishRegistry fishRegistry) {
+        this.fishRegistry = fishRegistry;
     }
 
     /**
@@ -134,10 +141,26 @@ public class CollectionManager {
      */
     public void loadPlayer(Player player) {
         if (!enabled) return;
-        CollectionData data = storage.load(player.getUniqueId());
+        UUID uuid = player.getUniqueId();
+        CollectionData data;
+        try {
+            data = storage.load(uuid);
+        } catch (java.sql.SQLException e) {
+            // 로드 실패 시 캐시에 넣지 않는다. 빈 데이터를 캐시에 올리면 퇴장 시 save()가
+            // DB의 진짜 도감을 덮어써서 기록이 통째로 사라진다(캐시에 없으면 저장도 안 된다).
+            plugin.getLogger().log(java.util.logging.Level.SEVERE,
+                    "도감 로드 실패 — 이번 접속에서는 저장을 차단합니다: " + player.getName(), e);
+            Bukkit.getScheduler().runTask(plugin, () -> {
+                if (player.isOnline()) {
+                    player.sendMessage("§c도감 데이터를 불러오지 못했습니다. 관리자에게 문의하세요.");
+                    player.sendMessage("§7(데이터 보호를 위해 이번 접속에서는 도감이 저장되지 않습니다)");
+                }
+            });
+            return;
+        }
         data.setPlayerName(player.getName());
         syncWithRegistry(data);
-        cache.put(player.getUniqueId(), data);
+        cache.put(uuid, data);
     }
 
     /**
@@ -146,8 +169,9 @@ public class CollectionManager {
     public void unloadPlayer(Player player) {
         CollectionData data = cache.remove(player.getUniqueId());
         if (data != null) {
-            // 파일 저장은 비동기 (메인 스레드 블로킹 방지 — 접속/퇴장 시 핑·트래픽 급증 원인)
-            Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> storage.save(data));
+            // DB 저장은 전용 단일 스레드에 큐잉한다 (메인 스레드 블로킹 방지 +
+            // "퇴장 저장 → 재접속 로드" 순서 보장 — Bukkit 비동기 풀은 순서를 보장하지 않는다)
+            db.writeAsync("도감 저장 (" + data.getPlayerUuid() + ")", c -> storage.save(c, data));
         }
     }
 
@@ -445,7 +469,7 @@ public class CollectionManager {
 
     public void saveAll() {
         for (CollectionData data : cache.values()) {
-            storage.save(data);
+            db.writeAsync("도감 저장 (" + data.getPlayerUuid() + ")", c -> storage.save(c, data));
         }
     }
 
@@ -465,7 +489,7 @@ public class CollectionManager {
             ItemStack item = inventory.getItem(i);
             if (item == null || item.getType().isAir()) continue;
             if (isSameFishItem(item, expected, fish)) {
-                double size = extractSizeFromLore(item);
+                double size = extractSizeFromItem(item);
                 int amount = item.getAmount();
                 if (amount > 1) {
                     item.setAmount(amount - 1);
@@ -476,6 +500,22 @@ public class CollectionManager {
             }
         }
         return -1;
+    }
+
+    /**
+     * 인벤토리 물고기 아이템에서 등록할 실제 사이즈를 추출한다.
+     *
+     * <p>우선 PDC에 저장된 실제 사이즈를 읽는다 (인벤토리 아이템은 사이즈 로어가 없고
+     * PDC에만 저장되므로 — 피드백: "어망 외 사이즈 미표시"). PDC가 없는 레거시 아이템은
+     * Lore에서 폴백으로 읽는다.</p>
+     * @return 사이즈 (cm), 없으면 0.0
+     */
+    private double extractSizeFromItem(ItemStack item) {
+        var data = rewardService.readFishItemData(item);
+        if (data != null && data.size() > 0) {
+            return data.size();
+        }
+        return extractSizeFromLore(item);
     }
 
     /**

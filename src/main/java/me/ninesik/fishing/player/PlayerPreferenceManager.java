@@ -1,93 +1,112 @@
 package me.ninesik.fishing.player;
 
 import me.ninesik.fishing.InMcFishing;
-import org.bukkit.Bukkit;
-import org.bukkit.configuration.file.FileConfiguration;
-import org.bukkit.configuration.file.YamlConfiguration;
+import me.ninesik.fishing.storage.DatabaseManager;
 import org.bukkit.entity.Player;
 
-import java.io.File;
-import java.io.IOException;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
-/**
- * 플레이어별 낚시 설정 (미니게임 ON/OFF 등)을 관리한다.
- */
 public class PlayerPreferenceManager {
 
     private final InMcFishing plugin;
-    private final File preferencesDir;
+    private final DatabaseManager db;
     private final Map<UUID, Boolean> minigameEnabledCache = new ConcurrentHashMap<>();
-    /** 트로피 파이트 연습모드 여부 (유저 개인 설정 — 피드백: 유저 전용 연습 토글) */
     private final Map<UUID, Boolean> trophyPracticeModeCache = new ConcurrentHashMap<>();
-
-    /** 피로도 시스템 (선택적 — null이면 피로도 제한 없음) */
     private FatigueManager fatigueManager;
 
-    public PlayerPreferenceManager(InMcFishing plugin) {
+    public PlayerPreferenceManager(InMcFishing plugin, DatabaseManager db) {
         this.plugin = plugin;
-        this.preferencesDir = new File(plugin.getDataFolder(), "preferences");
-        if (!preferencesDir.exists()) {
-            preferencesDir.mkdirs();
-        }
+        this.db = db;
     }
+
+    public void setFatigueManager(FatigueManager fatigueManager) { this.fatigueManager = fatigueManager; }
 
     /**
-     * 피로도 시스템을 연결한다. (InMcFishing.onEnable에서 호출)
+     * 개인 설정을 로드한다. (접속 시 비동기 호출)
+     *
+     * <p>조회에 실패하면 캐시에 넣지 않는다 — 기본값을 캐시에 올리면 퇴장 시 저장이
+     * 플레이어가 설정해 둔 값을 기본값으로 덮어쓴다. 캐시가 비어 있으면 조회 시
+     * 기본값으로 동작하고 저장은 일어나지 않는다.</p>
      */
-    public void setFatigueManager(FatigueManager fatigueManager) {
-        this.fatigueManager = fatigueManager;
-    }
-
     public void loadPlayer(Player player) {
         UUID uuid = player.getUniqueId();
-        FileConfiguration config = loadConfig(uuid);
-        minigameEnabledCache.put(uuid, config.getBoolean("minigame-enabled", true));
-        trophyPracticeModeCache.put(uuid, config.getBoolean("trophy-practice-mode", false));
+        boolean[] loaded;
+        try {
+            loaded = db.readOrThrow(c -> {
+                boolean[] result = { true, false };
+                try (PreparedStatement ps = c.prepareStatement(
+                        "SELECT minigame_enabled, trophy_practice_mode FROM player_data WHERE uuid = ?")) {
+                    ps.setString(1, uuid.toString());
+                    try (ResultSet rs = ps.executeQuery()) {
+                        if (rs.next()) {
+                            result[0] = rs.getInt("minigame_enabled") != 0;
+                            result[1] = rs.getInt("trophy_practice_mode") != 0;
+                        }
+                    }
+                }
+                return result;
+            });
+        } catch (SQLException e) {
+            plugin.getLogger().log(java.util.logging.Level.SEVERE,
+                    "개인 설정 로드 실패 — 이번 접속에서는 저장을 차단합니다: " + player.getName(), e);
+            return;
+        }
+        minigameEnabledCache.put(uuid, loaded[0]);
+        trophyPracticeModeCache.put(uuid, loaded[1]);
     }
 
     public void unloadPlayer(Player player) {
         UUID uuid = player.getUniqueId();
         Boolean enabled = minigameEnabledCache.remove(uuid);
         Boolean practice = trophyPracticeModeCache.remove(uuid);
-        if (enabled != null || practice != null) {
-            // 파일 저장은 비동기 (메인 스레드 블로킹 방지 — 접속/퇴장 시 핑·트래픽 급증 원인)
-            UUID u = uuid;
-            Boolean e = enabled;
-            Boolean r = practice;
-            Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
-                if (e != null) saveBoolean(u, "minigame-enabled", e);
-                if (r != null) saveBoolean(u, "trophy-practice-mode", r);
-            });
-        }
+        if (enabled != null) saveBoolean(uuid, "minigame_enabled", enabled);
+        if (practice != null) saveBoolean(uuid, "trophy_practice_mode", practice);
     }
 
     public void saveAll() {
-        for (Map.Entry<UUID, Boolean> entry : minigameEnabledCache.entrySet()) {
-            saveBoolean(entry.getKey(), "minigame-enabled", entry.getValue());
-        }
-        for (Map.Entry<UUID, Boolean> entry : trophyPracticeModeCache.entrySet()) {
-            saveBoolean(entry.getKey(), "trophy-practice-mode", entry.getValue());
-        }
+        for (Map.Entry<UUID, Boolean> e : minigameEnabledCache.entrySet()) saveBoolean(e.getKey(), "minigame_enabled", e.getValue());
+        for (Map.Entry<UUID, Boolean> e : trophyPracticeModeCache.entrySet()) saveBoolean(e.getKey(), "trophy_practice_mode", e.getValue());
+    }
+
+    /**
+     * 설정 값을 DB 전용 스레드에 큐잉해 저장한다.
+     * (GUI/명령어에서 호출되므로 메인 스레드에서 DB를 직접 건드리지 않는다)
+     *
+     * @param col 컬럼명 — 호출부에서만 지정하는 상수 문자열이며 외부 입력이 아니다.
+     */
+    private void saveBoolean(UUID uuid, String col, boolean value) {
+        db.writeAsync("개인 설정 저장 (" + uuid + "." + col + ")", c -> {
+            try (PreparedStatement ps = c.prepareStatement(
+                    "UPDATE player_data SET " + col + " = ? WHERE uuid = ?")) {
+                ps.setInt(1, value ? 1 : 0);
+                ps.setString(2, uuid.toString());
+                if (ps.executeUpdate() > 0) return;
+            }
+            // 행이 없으면 생성 후 재시도 (같은 트랜잭션 안에서 처리)
+            db.ensurePlayerData(c, uuid, null);
+            try (PreparedStatement ps = c.prepareStatement(
+                    "UPDATE player_data SET " + col + " = ? WHERE uuid = ?")) {
+                ps.setInt(1, value ? 1 : 0);
+                ps.setString(2, uuid.toString());
+                ps.executeUpdate();
+            }
+        });
     }
 
     public boolean isMinigameEnabled(Player player) {
-        // 피로도 ≤ 0 이면 미니게임 강제 ON (자동 낚시 불가)
-        if (fatigueManager != null && fatigueManager.isAutoCatchBlocked(player)) {
-            return true;
-        }
+        if (fatigueManager != null && fatigueManager.isAutoCatchBlocked(player)) return true;
         return minigameEnabledCache.getOrDefault(player.getUniqueId(), true);
     }
 
     public void setMinigameEnabled(Player player, boolean enabled) {
-        // 피로도 ≤ 0 이면 미니게임 OFF로 변경 불가 (자동 낚시 제한)
-        if (!enabled && fatigueManager != null && fatigueManager.isAutoCatchBlocked(player)) {
-            return;
-        }
+        if (!enabled && fatigueManager != null && fatigueManager.isAutoCatchBlocked(player)) return;
         minigameEnabledCache.put(player.getUniqueId(), enabled);
-        saveBoolean(player.getUniqueId(), "minigame-enabled", enabled);
+        saveBoolean(player.getUniqueId(), "minigame_enabled", enabled);
     }
 
     public boolean toggleMinigame(Player player) {
@@ -96,44 +115,18 @@ public class PlayerPreferenceManager {
         return next;
     }
 
-    /** 트로피 파이트 연습모드가 켜져 있는지 반환한다. */
     public boolean isTrophyPracticeMode(Player player) {
         return Boolean.TRUE.equals(trophyPracticeModeCache.getOrDefault(player.getUniqueId(), false));
     }
 
-    /** 트로피 파이트 연습모드를 설정한다. */
     public void setTrophyPracticeMode(Player player, boolean enabled) {
         trophyPracticeModeCache.put(player.getUniqueId(), enabled);
-        saveBoolean(player.getUniqueId(), "trophy-practice-mode", enabled);
+        saveBoolean(player.getUniqueId(), "trophy_practice_mode", enabled);
     }
 
-    /** 트로피 파이트 연습모드를 토글하고 변경된 값을 반환한다. */
     public boolean toggleTrophyPracticeMode(Player player) {
         boolean next = !isTrophyPracticeMode(player);
         setTrophyPracticeMode(player, next);
         return next;
-    }
-
-    private FileConfiguration loadConfig(UUID uuid) {
-        File file = preferenceFile(uuid);
-        if (!file.exists()) {
-            return new YamlConfiguration();
-        }
-        return YamlConfiguration.loadConfiguration(file);
-    }
-
-    private void saveBoolean(UUID uuid, String key, boolean value) {
-        File file = preferenceFile(uuid);
-        FileConfiguration config = loadConfig(uuid);
-        config.set(key, value);
-        try {
-            config.save(file);
-        } catch (IOException e) {
-            plugin.getLogger().warning("플레이어 설정 저장 실패 (" + uuid + "): " + e.getMessage());
-        }
-    }
-
-    private File preferenceFile(UUID uuid) {
-        return new File(preferencesDir, uuid + ".yml");
     }
 }

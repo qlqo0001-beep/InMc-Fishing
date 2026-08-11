@@ -26,9 +26,10 @@ import java.util.concurrent.ConcurrentHashMap;
 public class NetManager {
 
     private final InMcFishing plugin;
-    private final FishRegistry fishRegistry;
+    private FishRegistry fishRegistry;
     private final RewardService rewardService;
     private final NetStorage storage;
+    private final me.ninesik.fishing.storage.DatabaseManager db;
 
     /** 플레이어별 어망 데이터 캐시 */
     private final Map<UUID, NetData> cache = new ConcurrentHashMap<>();
@@ -39,8 +40,14 @@ public class NetManager {
         this.plugin = plugin;
         this.fishRegistry = fishRegistry;
         this.rewardService = rewardService;
-        this.storage = new NetStorage(plugin.getDataFolder());
+        this.db = plugin.getDatabaseManager();
+        this.storage = new NetStorage(this.db);
         this.maxSize = plugin.getConfig().getInt("net.max-size", 100);
+    }
+
+    /** 리로드 시 새로 교체된 FishRegistry를 재주입한다. */
+    public void setFishRegistry(FishRegistry fishRegistry) {
+        this.fishRegistry = fishRegistry;
     }
 
     public int getMaxSize() {
@@ -52,12 +59,30 @@ public class NetManager {
     }
 
     /**
-     * 플레이어의 어망 데이터를 로드한다.
+     * 플레이어의 어망 데이터를 로드한다. (접속 시 비동기 호출)
+     *
+     * <p>로드에 실패하면 캐시에 넣지 않고 null을 반환한다. 빈 어망을 캐시에 올리면
+     * 퇴장 시 저장이 DB의 실제 보관 물고기를 지워버리기 때문이다.</p>
+     *
+     * @return 로드된 데이터, 실패 시 null
      */
     public NetData loadPlayer(Player player) {
-        NetData data = storage.load(player.getUniqueId(), maxSize);
-        cache.put(player.getUniqueId(), data);
-        return data;
+        UUID uuid = player.getUniqueId();
+        try {
+            NetData data = storage.load(uuid, maxSize);
+            cache.put(uuid, data);
+            return data;
+        } catch (java.sql.SQLException e) {
+            plugin.getLogger().log(java.util.logging.Level.SEVERE,
+                    "어망 로드 실패 — 이번 접속에서는 저장을 차단합니다: " + player.getName(), e);
+            Bukkit.getScheduler().runTask(plugin, () -> {
+                if (player.isOnline()) {
+                    player.sendMessage(ChatColor.RED + "어망 데이터를 불러오지 못했습니다. 관리자에게 문의하세요.");
+                    player.sendMessage(ChatColor.GRAY + "(데이터 보호를 위해 이번 접속에서는 어망이 저장되지 않습니다)");
+                }
+            });
+            return null;
+        }
     }
 
     /**
@@ -66,8 +91,9 @@ public class NetManager {
     public void unloadPlayer(Player player) {
         NetData data = cache.remove(player.getUniqueId());
         if (data != null) {
-            // 파일 저장은 비동기 (메인 스레드 블로킹 방지 — 접속/퇴장 시 핑·트래픽 급증 원인)
-            Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> storage.save(data));
+            // DB 저장은 전용 단일 스레드에 큐잉 (메인 스레드 블로킹 방지 +
+            // "퇴장 저장 → 재접속 로드" 순서 보장)
+            db.writeAsync("어망 저장 (" + data.getPlayerUuid() + ")", c -> storage.save(c, data));
         }
     }
 
@@ -84,9 +110,13 @@ public class NetManager {
      * @return 어망에 저장 성공 여부 (꽉 찼으면 false → 인벤토리 폴백)
      */
     public boolean addFish(Player player, RewardEntry reward) {
+        // 캐시에 없으면(접속 직후 비동기 로드가 아직 안 끝났거나 로드에 실패한 경우)
+        // 여기서 동기 DB 로드를 하지 않는다 — 메인 스레드가 멈출 뿐 아니라, 진행 중이던
+        // 비동기 로드가 나중에 완료되면서 방금 추가한 물고기를 덮어쓰기 때문이다.
+        // false를 반환하면 RewardService가 기존 "어망 가득참" 폴백대로 인벤토리에 지급한다.
         NetData data = cache.get(player.getUniqueId());
         if (data == null) {
-            data = loadPlayer(player);
+            return false;
         }
 
         int amount = reward.getAmount(); // double이면 2
@@ -121,11 +151,9 @@ public class NetManager {
             return false;
         }
 
+        // addFish와 같은 이유로 동기 로드를 하지 않는다 (덮어쓰기 방지).
         NetData net = cache.get(player.getUniqueId());
-        if (net == null) {
-            net = loadPlayer(player);
-        }
-        if (!net.hasSpace(1)) {
+        if (net == null || !net.hasSpace(1)) {
             return false;
         }
 
@@ -212,9 +240,11 @@ public class NetManager {
      * 어망 GUI를 연다.
      */
     public void openNetGui(Player player) {
-        NetData data = cache.get(player.getUniqueId());
-        if (data == null) {
-            data = loadPlayer(player);
+        // 캐시에 없으면 아직 로드 중(또는 로드 실패)이다. 여기서 동기 DB 조회를 하면
+        // 메인 스레드가 멈추고, 진행 중인 비동기 로드와 경쟁해 데이터가 덮어써진다.
+        if (cache.get(player.getUniqueId()) == null) {
+            player.sendMessage(ChatColor.YELLOW + "어망 데이터를 불러오는 중입니다. 잠시 후 다시 시도해 주세요.");
+            return;
         }
         new NetGui(player, this, rewardService, fishRegistry).open();
     }
@@ -224,7 +254,7 @@ public class NetManager {
      */
     public void saveAll() {
         for (NetData data : cache.values()) {
-            storage.save(data);
+            db.writeAsync("어망 저장 (" + data.getPlayerUuid() + ")", c -> storage.save(c, data));
         }
     }
 
