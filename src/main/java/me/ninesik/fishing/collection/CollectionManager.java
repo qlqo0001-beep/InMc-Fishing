@@ -44,6 +44,18 @@ public class CollectionManager {
     // 메모리 캐시: 접속 중인 플레이어의 도감 데이터
     private final Map<UUID, CollectionData> cache = new ConcurrentHashMap<>();
 
+    /**
+     * 도감 데이터 로드가 끝나기 전에 낚은 물고기를 잠시 담아두는 큐.
+     *
+     * <p>접속 직후 로드는 비동기라 완료까지 짧은 공백이 있는데, 그 사이 낚은
+     * 물고기는 캐시가 비어 있다는 이유로 조용히 버려지고 있었다. 여기에 담았다가
+     * 로드가 끝나면 메인 스레드에서 그대로 반영한다.</p>
+     */
+    private final Map<UUID, List<PendingCatch>> pendingCatches = new ConcurrentHashMap<>();
+
+    /** 로드 완료 전에 잡은 물고기 1건. */
+    private record PendingCatch(String fishId, double size) {}
+
     private int defaultMaxSlots;
     private boolean enabled;
     private boolean showInactiveFish;
@@ -148,6 +160,7 @@ public class CollectionManager {
         } catch (java.sql.SQLException e) {
             // 로드 실패 시 캐시에 넣지 않는다. 빈 데이터를 캐시에 올리면 퇴장 시 save()가
             // DB의 진짜 도감을 덮어써서 기록이 통째로 사라진다(캐시에 없으면 저장도 안 된다).
+            pendingCatches.remove(uuid);
             plugin.getLogger().log(java.util.logging.Level.SEVERE,
                     "도감 로드 실패 — 이번 접속에서는 저장을 차단합니다: " + player.getName(), e);
             Bukkit.getScheduler().runTask(plugin, () -> {
@@ -161,12 +174,24 @@ public class CollectionManager {
         data.setPlayerName(player.getName());
         syncWithRegistry(data);
         cache.put(uuid, data);
+
+        // 로드를 기다리는 동안 낚은 물고기를 반영한다.
+        // collectionRewardService가 보상 지급·메시지·사운드를 수행하므로 메인 스레드에서.
+        List<PendingCatch> pending = pendingCatches.remove(uuid);
+        if (pending != null && !pending.isEmpty()) {
+            Bukkit.getScheduler().runTask(plugin, () -> {
+                for (PendingCatch queued : pending) {
+                    recordCatch(player, queued.fishId(), queued.size());
+                }
+            });
+        }
     }
 
     /**
      * 플레이어 퇴장 시 데이터를 저장하고 캐시에서 제거한다.
      */
     public void unloadPlayer(Player player) {
+        pendingCatches.remove(player.getUniqueId());
         CollectionData data = cache.remove(player.getUniqueId());
         if (data != null) {
             // DB 저장은 전용 단일 스레드에 큐잉한다 (메인 스레드 블로킹 방지 +
@@ -207,8 +232,16 @@ public class CollectionManager {
      */
     public void recordCatch(Player player, String fishId, double size) {
         if (!enabled) return;
-        CollectionData data = cache.get(player.getUniqueId());
-        if (data == null) return;
+        UUID uuid = player.getUniqueId();
+        CollectionData data = cache.get(uuid);
+        if (data == null) {
+            // 접속 직후라 비동기 로드가 아직 안 끝났다. 이전에는 여기서 그냥 return해
+            // 이 구간에 낚은 물고기가 도감에 남지 않았다. 큐에 담아 두었다가
+            // loadPlayer()가 끝나면 반영한다.
+            pendingCatches.computeIfAbsent(uuid, k -> new java.util.concurrent.CopyOnWriteArrayList<>())
+                    .add(new PendingCatch(fishId, size));
+            return;
+        }
 
         Fish fish = fishRegistry.getById(fishId);
         if (fish == null) return;

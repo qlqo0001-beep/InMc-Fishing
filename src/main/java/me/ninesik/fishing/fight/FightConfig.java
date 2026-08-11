@@ -258,7 +258,9 @@ public class FightConfig {
         public final Map<FishState, String> stateSounds;
 
         public SoundConfig(FileConfiguration config) {
-            this.interval = config.getInt("trophy-fight.sound.interval", 2);
+            // 하한 1 — TrophyFightManager.tick()이 tickCount % interval 로 쓰기 때문에
+            // 0을 넣으면 매 틱 ArithmeticException이 나서 모든 파이트가 붕괴한다.
+            this.interval = Math.max(1, config.getInt("trophy-fight.sound.interval", 2));
             this.charge = config.getString("trophy-fight.sound.charge", "");
             this.reelOverload = config.getString("trophy-fight.sound.reel-overload", "");
             this.tensionDanger = config.getString("trophy-fight.sound.tension-danger", "");
@@ -425,7 +427,8 @@ public class FightConfig {
         public GeneralConfig(FileConfiguration config) {
             this.enabled = config.getBoolean("trophy-fight.enabled", true);
             this.maxTimeSeconds = config.getInt("trophy-fight.max-time-seconds", 120);
-            this.particleInterval = config.getInt("trophy-fight.particle-interval", 2);
+            // 하한 1 — sound.interval과 같은 이유 (tickCount % particleInterval)
+            this.particleInterval = Math.max(1, config.getInt("trophy-fight.particle-interval", 2));
         }
     }
 

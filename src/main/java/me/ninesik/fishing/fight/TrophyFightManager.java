@@ -450,7 +450,14 @@ public class TrophyFightManager {
             }
 
             // 1. Fish AI 업데이트
-            double staminaRatio = session.getStamina() / 100.0;
+            // Stamina 비율은 반드시 세션의 maxStamina 기준이어야 한다.
+            // initStats에서 maxStamina = defaultStamina(100) × difficulty 이므로,
+            // 100.0으로 나누면 difficulty가 1.0인 D등급에서만 맞았다. F등급(0.5)은
+            // 시작부터 비율 0.5로 계산돼 항상 "지친 물고기" 분기를 탔고, S등급(2.5)은
+            // 비율 2.5에서 시작해 FINAL_STRUGGLE(≤0.2)이 사실상 발동하지 않았다.
+            // (바로 아래 Reel State가 이미 getMaxReelState() 기준으로 계산하고 있다)
+            double maxStamina = session.getMaxStamina();
+            double staminaRatio = maxStamina > 0 ? session.getStamina() / maxStamina : 0.0;
             boolean isReeling = session.isReeling();
             session.getFishAI().tick(staminaRatio, isReeling);
 
