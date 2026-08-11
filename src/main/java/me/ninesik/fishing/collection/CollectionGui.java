@@ -1,6 +1,7 @@
 package me.ninesik.fishing.collection;
 
 import me.ninesik.fishing.gui.AbstractGui;
+import me.ninesik.fishing.gui.GuiItems;
 import me.ninesik.fishing.model.Fish;
 import me.ninesik.fishing.service.RewardService;
 import org.bukkit.ChatColor;
@@ -60,7 +61,7 @@ public class CollectionGui extends AbstractGui {
             boolean active = tabs[i].equals(currentTab);
             ChatColor color = active ? ChatColor.GREEN : colors[i];
             Material material = tabs[i].equals("RANK") ? Material.GOLDEN_SWORD : Material.PAPER;
-            ItemStack item = createIcon(material, color + "[" + tabs[i] + "]",
+            ItemStack item = GuiItems.createIcon(material, color + "[" + tabs[i] + "]",
                     List.of(active ? ChatColor.YELLOW + "현재 탭" : ChatColor.GRAY + "클릭하여 이동"));
             setItem(TAB_ROW * 9 + i, item);
         }
@@ -106,7 +107,7 @@ public class CollectionGui extends AbstractGui {
     private void renderBottom() {
         // 이전 페이지
         if (page > 0) {
-            setItem(45, createIcon(Material.ARROW, ChatColor.YELLOW + "이전 페이지", List.of()));
+            setItem(45, GuiItems.createIcon(Material.ARROW, ChatColor.YELLOW + "이전 페이지", List.of()));
         }
 
         // 전체수령
@@ -115,11 +116,11 @@ public class CollectionGui extends AbstractGui {
         List<String> claimLore = pendingCount > 0
                 ? List.of(ChatColor.WHITE + "대기 중인 보상: " + pendingCount + "개")
                 : List.of(ChatColor.GRAY + "대기 중인 보상이 없습니다.");
-        setItem(49, createIcon(Material.CHEST, ChatColor.GOLD + "전체수령", claimLore));
+         setItem(49, GuiItems.createIcon(Material.CHEST, ChatColor.GOLD + "전체수령", claimLore));
 
         if (data != null) {
             double progress = calculateProgress(data);
-            setItem(PROGRESS_SLOT, createIcon(Material.BOOK,
+            setItem(PROGRESS_SLOT, GuiItems.createIcon(Material.BOOK,
                     ChatColor.GOLD + "도감 진행도: " + String.format("%.1f", progress * 100) + "%",
                     List.of(
                             ChatColor.GRAY + buildProgressBar(progress),
@@ -129,7 +130,7 @@ public class CollectionGui extends AbstractGui {
         }
 
         if (isGradeTab()) {
-            setItem(REGISTER_ALL_SLOT, createIcon(Material.HOPPER, ChatColor.AQUA + currentTab + "등급 모두 등록",
+            setItem(REGISTER_ALL_SLOT, GuiItems.createIcon(Material.HOPPER, ChatColor.AQUA + currentTab + "등급 모두 등록",
                     List.of(
                             ChatColor.GRAY + "인벤토리와 어망의 물고기를 등록합니다.",
                             ChatColor.GRAY + "물고기별 최대 슬롯까지 채워집니다.",
@@ -137,19 +138,19 @@ public class CollectionGui extends AbstractGui {
                     )));
         } else if ("ALL".equals(currentTab)) {
             // 피드백: ALL 탭에서도 모든 등급을 일괄 등록할 수 있다.
-            setItem(REGISTER_ALL_SLOT, createIcon(Material.HOPPER, ChatColor.GREEN + "모든 등급 일괄 등록",
+            setItem(REGISTER_ALL_SLOT, GuiItems.createIcon(Material.HOPPER, ChatColor.GREEN + "모든 등급 일괄 등록",
                     List.of(
                             ChatColor.GRAY + "인벤토리와 어망의 모든 물고기를 등록합니다.",
                             ChatColor.GRAY + "물고기별 최대 슬롯까지 채워집니다.",
                             ChatColor.YELLOW + "클릭: 모든 등급 일괄 등록"
                     )));
         } else {
-            setItem(REGISTER_ALL_SLOT, createIcon(Material.PAPER, ChatColor.GRAY + "등급 일괄 등록",
+            setItem(REGISTER_ALL_SLOT, GuiItems.createIcon(Material.PAPER, ChatColor.GRAY + "등급 일괄 등록",
                     List.of(ChatColor.GRAY + "등급 탭을 선택하면 사용할 수 있습니다.")));
         }
 
         // 피드백: 각 GUI 창에는 메인 GUI로 돌아오는 버튼을 둔다.
-        setItem(BACK_SLOT, createIcon(Material.OAK_DOOR, ChatColor.GOLD + "메인 GUI로",
+        setItem(BACK_SLOT, GuiItems.createIcon(Material.OAK_DOOR, ChatColor.GOLD + "메인 GUI로",
                 List.of(ChatColor.GRAY + "낚시 메인메뉴로 돌아갑니다.")));
 
         // 다음 페이지
@@ -157,7 +158,7 @@ public class CollectionGui extends AbstractGui {
         int pageSize = CONTENT_END - CONTENT_START + 1;
         int totalPages = Math.max(1, (fishes.size() + pageSize - 1) / pageSize);
         if (page < totalPages - 1) {
-            setItem(53, createIcon(Material.ARROW, ChatColor.YELLOW + "다음 페이지", List.of()));
+            setItem(53, GuiItems.createIcon(Material.ARROW, ChatColor.YELLOW + "다음 페이지", List.of()));
         }
     }
 
@@ -396,17 +397,6 @@ public class CollectionGui extends AbstractGui {
         }
 
         refresh();
-    }
-
-    private ItemStack createIcon(Material material, String name, List<String> lore) {
-        ItemStack item = new ItemStack(material, 1);
-        ItemMeta meta = item.getItemMeta();
-        if (meta != null) {
-            meta.setDisplayName(name);
-            meta.setLore(lore);
-            item.setItemMeta(meta);
-        }
-        return item;
     }
 
     private boolean isGradeTab() {

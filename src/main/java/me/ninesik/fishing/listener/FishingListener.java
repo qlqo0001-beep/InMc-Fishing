@@ -8,10 +8,12 @@ import me.ninesik.fishing.fatigue.PlayerFatigueManager;
 import me.ninesik.fishing.minigame.FishingMiniGame;
 import me.ninesik.fishing.minigame.MiniGameManager;
 import me.ninesik.fishing.minigame.MiniGame;
+import me.ninesik.fishing.model.Bait;
 import me.ninesik.fishing.model.Fish;
 import me.ninesik.fishing.model.RewardEntry;
 import me.ninesik.fishing.model.Rod;
 import me.ninesik.fishing.player.PlayerPreferenceManager;
+import me.ninesik.fishing.registry.BaitRegistry;
 import me.ninesik.fishing.registry.FishRegistry;
 import me.ninesik.fishing.registry.RodRegistry;
 import me.ninesik.fishing.reward.RollEngine;
@@ -49,8 +51,9 @@ import java.util.UUID;
 public class FishingListener implements Listener {
     private final me.ninesik.fishing.InMcFishing plugin;
     private final DependencyManager dependencyManager;
-    private final RodRegistry rodRegistry;
-    private final FishRegistry fishRegistry;
+    private RodRegistry rodRegistry;
+    private FishRegistry fishRegistry;
+    private BaitRegistry baitRegistry;
     private final FishingSessionManager sessionManager;
     private final MiniGameManager miniGameManager;
     private final RollEngine rollEngine;
@@ -81,7 +84,7 @@ public class FishingListener implements Listener {
 
     public FishingListener(me.ninesik.fishing.InMcFishing plugin,
                            DependencyManager dependencyManager, RodRegistry rodRegistry,
-                           FishRegistry fishRegistry,
+                           FishRegistry fishRegistry, BaitRegistry baitRegistry,
                            FishingSessionManager sessionManager, MiniGameManager miniGameManager,
                            RollEngine rollEngine, ConfigManager configManager,
                            FishingMiniGame fishingMiniGame, RewardService rewardService,
@@ -92,6 +95,7 @@ public class FishingListener implements Listener {
         this.dependencyManager = dependencyManager;
         this.rodRegistry = rodRegistry;
         this.fishRegistry = fishRegistry;
+        this.baitRegistry = baitRegistry;
         this.sessionManager = sessionManager;
         this.miniGameManager = miniGameManager;
         this.rollEngine = rollEngine;
@@ -218,21 +222,30 @@ public class FishingListener implements Listener {
                 blockFishing(event, player);
                 return;
             }
-            // 29.1: rod.yml에 없어도 낚시는 정상 진행, 모든 등급 보너스 0
             rod = UNREGISTERED_VANILLA_ROD;
         } else {
-            // UnregisteredMmoItemRod (MMOItems ROD인데 rod.yml에 미등록 — 우회 악용 방지) 또는 NotARod
             blockFishing(event, player);
             return;
         }
 
+        // 미끼 확인 — 왼손(오프핸드)에서 lookup, 있으면 이후 1개 소모
+        Bait bait = lookupBait(player);
+
         boolean minigameEnabled = playerPreferenceManager.isMinigameEnabled(player);
         RollResult result = minigameEnabled
-                ? rollEngine.roll(player, rod)
-                : rollEngine.roll(player, rod, configManager.getMinigameOffAllowedGrades());
+                ? rollEngine.roll(player, rod, null, bait)
+                : rollEngine.roll(player, rod, configManager.getMinigameOffAllowedGrades(), bait);
         if (result == null || result.getFish() == null) {
             event.setCancelled(true);
             return;
+        }
+
+        // 미끼 소모 — 왼손 아이템 1개 감소
+        if (bait != null) {
+            ItemStack offhand = player.getInventory().getItemInOffHand();
+            if (offhand != null && offhand.getAmount() > 0) {
+                offhand.setAmount(offhand.getAmount() - 1);
+            }
         }
 
         // 입질 취소 (자동 낚시 방지)
@@ -593,6 +606,50 @@ public class FishingListener implements Listener {
 
         return new RodLookupResult.NotARod();
     }
+    /**
+     * 왼손(오프핸드)에 든 아이템으로 등록된 미끼를 조회한다.
+     * lookupRod()와 동일한 패턴 — MMOItems 우선, 바닐라 name 매칭.
+     *
+     * @return 매칭된 Bait, 없으면 null
+     */
+    private Bait lookupBait(Player player) {
+        if (baitRegistry == null) return null;
+        ItemStack item = player.getInventory().getItemInOffHand();
+        if (item == null || item.getType() == Material.AIR) return null;
+
+        // MMOItems 확인
+        if (dependencyManager.getMMOItems().isAvailable() &&
+            dependencyManager.getMMOItems().isMMOItem(item)) {
+            String mmoItemId = dependencyManager.getMMOItems().getMMOItemId(item);
+            if (mmoItemId != null) {
+                for (Bait bait : baitRegistry.getAll().values()) {
+                    if ("mmoitems".equalsIgnoreCase(bait.getUseType())
+                            && mmoItemId.equals(bait.getMmoitemsId())) {
+                        return bait;
+                    }
+                }
+            }
+            return null;
+        }
+
+        // 바닐라 name 매칭
+        ItemMeta meta = item.hasItemMeta() ? item.getItemMeta() : null;
+        String displayName = (meta != null && meta.hasDisplayName()) ? meta.getDisplayName() : null;
+        if (displayName != null) {
+            for (Bait bait : baitRegistry.getAll().values()) {
+                if (!"vanilla".equalsIgnoreCase(bait.getUseType())) continue;
+                String cfgName = bait.getVanillaName();
+                if (cfgName == null || cfgName.isEmpty()) continue;
+                String translated = ChatColor.translateAlternateColorCodes('&', cfgName);
+                if (translated.equals(displayName)) {
+                    return bait;
+                }
+            }
+        }
+
+        return null;
+    }
+
 
     /**
      * 손에 든 아이템이 피로도 회복 물약인지 확인한다.
@@ -666,6 +723,13 @@ public class FishingListener implements Listener {
             return matched.rod();
         }
         return null;
+    }
+
+    /** 리로드 시 새로 교체된 RodRegistry/FishRegistry/BaitRegistry를 재주입한다. */
+    public void setRegistries(RodRegistry rodRegistry, FishRegistry fishRegistry, BaitRegistry baitRegistry) {
+        this.rodRegistry = rodRegistry;
+        this.fishRegistry = fishRegistry;
+        this.baitRegistry = baitRegistry;
     }
 
     public TrophyFightManager getTrophyFightManager() {

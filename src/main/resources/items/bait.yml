@@ -1,0 +1,149 @@
+# ============================================================
+#  미끼(Bait) 설정 파일
+#  왼손(오프핸드)에 장착, 낚시 입질 시 1개 소모
+# ============================================================
+#
+# [use-type]
+#   vanilla   - 바닐라 아이템 + 커스텀 이름/로어 (기본)
+#   mmoitems  - MMOItems 연동
+#
+# [속성]
+#   grade-bonus:   등급별 확률 가산치 (Rod bonus와 동일한 덧셈 방식)
+#   size-bonus-percent:  사이즈 % 증가 (예: 10 → +10%)
+#   size-bonus-fixed:    사이즈 고정값 증가 (적용 순서: % → 고정값)
+#
+#   ※ 미끼가 커지게 한 사이즈는 어드민이 정한 최대크기(max-size)를 초과할 수 있다.
+# ============================================================
+
+baits:
+
+  # 기본 미끼 — 효과 없음 (기준점)
+  basic_bait:
+    id: "basic_bait"
+    use-type: vanilla
+    vanilla-material: STRING
+    vanilla-name: "&7기본 미끼"
+    vanilla-lore:
+      - "&7평범한 미끼입니다."
+      - "&7특별한 효과는 없습니다."
+
+  # ── 사이즈 증가 전용 (4종) ──
+
+  worm_bait:
+    id: "worm_bait"
+    use-type: vanilla
+    vanilla-material: STRING
+    vanilla-name: "&a지렁이 미끼"
+    vanilla-lore:
+      - "&7신선한 지렁이 미끼입니다."
+      - "&7물고기 크기 +5%"
+    size-bonus-percent: 5.0
+
+  dough_bait:
+    id: "dough_bait"
+    use-type: vanilla
+    vanilla-material: SLIME_BALL
+    vanilla-name: "&e떡밥"
+    vanilla-lore:
+      - "&7잘 뭉쳐진 떡밥입니다."
+      - "&7물고기 크기 +10%"
+    size-bonus-percent: 10.0
+
+  frozen_shrimp_bait:
+    id: "frozen_shrimp_bait"
+    use-type: vanilla
+    vanilla-material: COOKED_COD
+    vanilla-name: "&b냉동 새우 미끼"
+    vanilla-lore:
+      - "&7차갑게 얼린 새우 미끼입니다."
+      - "&7물고기 크기 +15%"
+    size-bonus-percent: 15.0
+
+  golden_worm_bait:
+    id: "golden_worm_bait"
+    use-type: vanilla
+    vanilla-material: GLOWSTONE_DUST
+    vanilla-name: "&6골든 지렁이 미끼"
+    vanilla-lore:
+      - "&7희귀한 황금 지렁이 미끼입니다."
+      - "&7물고기 크기 +20%"
+    size-bonus-percent: 20.0
+
+  # ── 등급 조정 전용 (3종) ──
+
+  silver_bait:
+    id: "silver_bait"
+    use-type: vanilla
+    vanilla-material: IRON_NUGGET
+    vanilla-name: "&7은빛 미끼"
+    vanilla-lore:
+      - "&7은빛으로 반짝이는 미끼입니다."
+      - "&7D등급 +5% · C등급 +3%"
+    grade-bonus:
+      d: 5
+      c: 3
+
+  big_fish_lure:
+    id: "big_fish_lure"
+    use-type: vanilla
+    vanilla-material: GOLD_NUGGET
+    vanilla-name: "&6대어의 유혹"
+    vanilla-lore:
+      - "&7대어를 유혹하는 특별한 미끼입니다."
+      - "&7B등급 +3% · A등급 +2%"
+    grade-bonus:
+      b: 3
+      a: 2
+
+  deep_sea_bait:
+    id: "deep_sea_bait"
+    use-type: vanilla
+    vanilla-material: PRISMARINE_CRYSTALS
+    vanilla-name: "&3심해 미끼"
+    vanilla-lore:
+      - "&7심해에서만 찾을 수 있는 미끼입니다."
+      - "&7A등급 +2% · S등급 +1%"
+    grade-bonus:
+      a: 2
+      s: 1
+
+  # ── 복합형: 사이즈 + 등급 (3종) ──
+
+  premium_bait:
+    id: "premium_bait"
+    use-type: vanilla
+    vanilla-material: EXPERIENCE_BOTTLE
+    vanilla-name: "&d프리미엄 미끼"
+    vanilla-lore:
+      - "&7고급 재료로 만든 미끼입니다."
+      - "&7크기 +10% · C등급 +3% · B등급 +2%"
+    size-bonus-percent: 10.0
+    grade-bonus:
+      c: 3
+      b: 2
+
+  legendary_bait:
+    id: "legendary_bait"
+    use-type: vanilla
+    vanilla-material: NETHER_STAR
+    vanilla-name: "&c전설의 미끼"
+    vanilla-lore:
+      - "&7전설적인 낚시꾼만이 사용할 수 있는 미끼입니다."
+      - "&7크기 +20% · A등급 +2% · S등급 +1%"
+    size-bonus-percent: 20.0
+    grade-bonus:
+      a: 2
+      s: 1
+
+  master_fisher_bait:
+    id: "master_fisher_bait"
+    use-type: vanilla
+    vanilla-material: ENDER_EYE
+    vanilla-name: "&5마스터 피셔의 미끼"
+    vanilla-lore:
+      - "&7낚시 마스터의 비법이 담긴 미끼입니다."
+      - "&7크기 +15% · B등급 +4% · A등급 +2%"
+    size-bonus-percent: 15.0
+    grade-bonus:
+      b: 4
+      a: 2

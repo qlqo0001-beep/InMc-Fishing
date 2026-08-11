@@ -3,11 +3,14 @@ package me.ninesik.fishing.command;
 import me.ninesik.fishing.InMcFishing;
 import me.ninesik.fishing.collection.CollectionManager;
 import me.ninesik.fishing.config.ConfigManager;
+import me.ninesik.fishing.config.ItemFormatConfig;
 import me.ninesik.fishing.fatigue.FatiguePotionItem;
 import me.ninesik.fishing.fatigue.PlayerFatigueManager;
 import me.ninesik.fishing.fight.FightSession;
 import me.ninesik.fishing.fight.TrophyFightManager;
+import me.ninesik.fishing.fillet.FilletGui;
 import me.ninesik.fishing.minigame.FishingMiniGame;
+import me.ninesik.fishing.model.Bait;
 import me.ninesik.fishing.model.Fish;
 import me.ninesik.fishing.model.Grade;
 import me.ninesik.fishing.model.RewardEntry;
@@ -37,6 +40,7 @@ import org.bukkit.inventory.meta.ItemMeta;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -53,9 +57,9 @@ public class FishingCommand implements CommandExecutor, TabCompleter {
     private final FishingService fishingService;
     private final ConfigManager configManager;
     private final FishingSessionManager sessionManager;
-    private final GradeRegistry gradeRegistry;
-    private final FishRegistry fishRegistry;
-    private final RodRegistry rodRegistry;
+    private GradeRegistry gradeRegistry;
+    private FishRegistry fishRegistry;
+    private RodRegistry rodRegistry;
     private final RewardService rewardService;
     private final FishingMiniGame fishingMiniGame;
     private final RollEngine rollEngine;
@@ -85,6 +89,13 @@ public class FishingCommand implements CommandExecutor, TabCompleter {
         this.logger = plugin.getLogger();
     }
 
+    /** 리로드 시 새로 교체된 Grade/Fish/Rod Registry를 재주입한다. */
+    public void setRegistries(GradeRegistry gradeRegistry, FishRegistry fishRegistry, RodRegistry rodRegistry) {
+        this.gradeRegistry = gradeRegistry;
+        this.fishRegistry = fishRegistry;
+        this.rodRegistry = rodRegistry;
+    }
+
     @Override
     public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command,
                              @NotNull String label, @NotNull String[] args) {
@@ -112,6 +123,7 @@ public class FishingCommand implements CommandExecutor, TabCompleter {
             case "show", "자랑" -> handleShow(sender);
             case "stats", "스탯" -> handleStats(sender);
             case "menu", "gui", "메인" -> handleMenu(sender);
+            case "fillet", "필렛", "가공" -> handleFillet(sender, args);
             default -> {
                 sender.sendMessage("§e[InMc-Fishing] §7알 수 없는 명령어: " + args[0]);
                 handleHelp(sender);
@@ -138,15 +150,17 @@ public class FishingCommand implements CommandExecutor, TabCompleter {
         sender.sendMessage("§e/fishing minigame <on|off> §7- 개인 L/R 클릭 미니게임을 켜거나 끕니다.");
         sender.sendMessage("§e/fishing fatigue §7- 내 자동 낚시 피로도를 확인합니다.");
         sender.sendMessage("§e/fishing show §7- 손에 든 물고기를 서버 전체에 자랑합니다.");
+        sender.sendMessage("§e/fishing fillet §7(§e/fishing 필렛§7) §f- 생선 살 가공 GUI를 엽니다.");
 
         if (isAdmin) {
             sender.sendMessage("§c§l[관리자 전용]");
             sender.sendMessage("§e/fishing reload §7- config/도감/대회 등 설정 파일을 다시 불러옵니다. (등급·물고기·낚싯대 Registry는 미포함)");
             sender.sendMessage("§e/fishing debug §7- 등급/물고기/낚싯대 로드 현황을 확인합니다.");
             sender.sendMessage("§e/fishing simulate <횟수> [등급] §7- 등급/보상 확률을 대량 시뮬레이션하여 검증합니다.");
-            sender.sendMessage("§e/fishing give <플레이어> <net|fish|trophy|potion|rod> ... §7- 플레이어에게 물고기/트로피/피로회복 물약/낚싯대를 지급합니다.");
+            sender.sendMessage("§e/fishing give <플레이어> <net|fish|trophy|potion|rod|bait|fillet> ... §7- 플레이어에게 물고기/트로피/피로회복 물약/낚싯대/미끼/생선살을 지급합니다.");
             sender.sendMessage("§e/fishing fatigue <add|set> <플레이어> <수치> §7- 플레이어의 피로도를 증감/설정합니다.");
             sender.sendMessage("§e/fishing testfightmode <on|off|toggle|status> §7- 기본 L/R 미니게임을 끄고, 잡는 물고기를 트로피 파이트로 바로 진입시킵니다. (테스트용)");
+            sender.sendMessage("§e/fishing fillet setSlots <플레이어> <set|add> <30> §7- 플레이어의 생선 살 가공 슬롯 수를 설정/증가합니다.");
         }
         sender.sendMessage("§b§m                                                §r");
     }
@@ -156,7 +170,7 @@ public class FishingCommand implements CommandExecutor, TabCompleter {
                                       @NotNull String alias, @NotNull String[] args) {
         if (args.length == 1) {
             List<String> subs = new ArrayList<>();
-            for (String sub : new String[]{"help", "reload", "debug", "simulate", "info", "collection", "rank", "tournament", "give", "list", "net", "minigame", "fatigue", "testfight", "testfightmode", "show", "stats", "menu"}) {
+            for (String sub : new String[]{"help", "reload", "debug", "simulate", "info", "collection", "rank", "tournament", "give", "list", "net", "minigame", "fatigue", "testfight", "testfightmode", "show", "stats", "menu", "fillet"}) {
                 if (sub.startsWith(args[0].toLowerCase())) {
                     subs.add(sub);
                 }
@@ -181,6 +195,17 @@ public class FishingCommand implements CommandExecutor, TabCompleter {
             return List.of("on", "off", "toggle", "status").stream()
                     .filter(value -> value.startsWith(args[1].toLowerCase()))
                     .toList();
+        }
+        if (args.length >= 2 && (args[0].equalsIgnoreCase("fillet")
+                || args[0].equalsIgnoreCase("필렛") || args[0].equalsIgnoreCase("가공"))) {
+            if (args.length == 2)
+                return List.of("setSlots").stream().filter(s -> s.startsWith(args[1].toLowerCase())).toList();
+            if (args.length == 3 && "setslots".equalsIgnoreCase(args[1]))
+                return Bukkit.getOnlinePlayers().stream().map(Player::getName)
+                        .filter(n -> n.toLowerCase().startsWith(args[2].toLowerCase())).toList();
+            if (args.length == 4 && "setslots".equalsIgnoreCase(args[1]))
+                return List.of("set", "add").stream().filter(s -> s.startsWith(args[3].toLowerCase())).toList();
+            return List.of();
         }
         if (args.length == 2 && (args[0].equalsIgnoreCase("testfightmode")
                 || args[0].equalsIgnoreCase("tfm"))) {
@@ -602,6 +627,74 @@ public class FishingCommand implements CommandExecutor, TabCompleter {
         }
         me.ninesik.fishing.gui.MainGui.open(player);
     }
+    /** /fishing fillet (필렛/가공) — GUI 열기 or setSlots */
+    private void handleFillet(CommandSender sender, String[] args) {
+        var fm = plugin.getFilletManager();
+        if (fm == null) {
+            sender.sendMessage("§c생선 살 가공 시스템이 초기화되지 않았습니다.");
+            return;
+        }
+
+        // setSlots — 어드민 전용 (set|add)
+        if (args.length >= 2 && "setslots".equalsIgnoreCase(args[1])) {
+            if (!sender.hasPermission("infishing.admin")) {
+                sender.sendMessage("§c권한이 없습니다.");
+                return;
+            }
+            if (args.length < 4) {
+                sender.sendMessage("§c사용법: /fishing fillet setSlots <플레이어> <set|add> <수>");
+                return;
+            }
+            Player target = plugin.getServer().getPlayerExact(args[2]);
+            if (target == null) {
+                sender.sendMessage("§c플레이어를 찾을 수 없습니다: " + args[2]);
+                return;
+            }
+
+            String mode = "set";
+            String countArg;
+            if (args.length >= 5 && ("set".equalsIgnoreCase(args[3]) || "add".equalsIgnoreCase(args[3]))) {
+                mode = args[3].toLowerCase();
+                countArg = args[4];
+            } else {
+                countArg = args[3];
+            }
+
+            int count;
+            try { count = Integer.parseInt(countArg); } catch (NumberFormatException e) {
+                sender.sendMessage("§c수는 숫자여야 합니다."); return;
+            }
+            if ("add".equals(mode) && count < 1) {
+                sender.sendMessage("§cadd 모드는 1 이상의 양수만 가능합니다."); return;
+            }
+
+            int prev = fm.getMaxSlots(target);
+            int slots = "add".equals(mode) ? prev + count : count;
+            slots = Math.max(1, Math.min(slots, 35));
+            fm.setMaxSlots(target, slots);
+
+            if ("add".equals(mode)) {
+                sender.sendMessage("§a" + target.getName() + "의 가공 슬롯을 " + prev + " → " + slots + "개로 증가했습니다.");
+                logger.info(sender.getName() + " added " + count + " fillet slots to " + target.getName() + " (" + prev + " → " + slots + ")");
+            } else {
+                sender.sendMessage("§a" + target.getName() + "의 가공 슬롯을 " + slots + "개로 설정했습니다.");
+                logger.info(sender.getName() + " set fillet slots of " + target.getName() + " to " + slots);
+            }
+            return;
+        }
+
+        // 기본: GUI 열기
+        if (!sender.hasPermission("infishing.user")) {
+            sender.sendMessage("§c권한이 없습니다.");
+            return;
+        }
+        if (!(sender instanceof Player player)) {
+            sender.sendMessage("§c플레이어만 사용할 수 있습니다.");
+            return;
+        }
+        new FilletGui(player, fm).open();
+    }
+
 
     /**
      * /fishing fatigue — 인자 없으면 본인 피로도 확인, add/set은 관리자 전용.
@@ -825,7 +918,7 @@ public class FishingCommand implements CommandExecutor, TabCompleter {
             return;
         }
         if (args.length < 2) {
-            sender.sendMessage("§c사용법: /fishing give <net|fish|trophy|potion|rod> <플레이어> ...");
+            sender.sendMessage("§c사용법: /fishing give <net|fish|trophy|potion|rod|bait|fillet> <플레이어> ...");
             return;
         }
 
@@ -840,8 +933,12 @@ public class FishingCommand implements CommandExecutor, TabCompleter {
             givePotion(sender, args);
         } else if ("rod".equals(type)) {
             giveRod(sender, args);
+        } else if ("bait".equals(type)) {
+            giveBait(sender, args);
+        } else if ("fillet".equals(type)) {
+            giveFillet(sender, args);
         } else {
-            sender.sendMessage("§c지원하지 않는 종류입니다: net, fish, trophy, potion, rod");
+            sender.sendMessage("§c지원하지 않는 종류입니다: net, fish, trophy, potion, rod, bait, fillet");
         }
     }
 
@@ -1036,59 +1133,191 @@ public class FishingCommand implements CommandExecutor, TabCompleter {
         item.setItemMeta(meta);
         return item;
     }
+    /** /fishing give bait <플레이어> <baitId> [개수] */
+    private void giveBait(CommandSender sender, String[] args) {
+        if (args.length < 4) {
+            sender.sendMessage("§c사용법: /fishing give bait <플레이어> <baitId> [개수]");
+            return;
+        }
+        Player target = plugin.getServer().getPlayerExact(args[2]);
+        if (target == null) {
+            sender.sendMessage("§c플레이어를 찾을 수 없습니다: " + args[2]);
+            return;
+        }
+        var baitReg = plugin.getRegistryManager().getBaitRegistry();
+        Bait bait = baitReg != null ? baitReg.getById(args[3]) : null;
+        if (bait == null) {
+            sender.sendMessage("§c존재하지 않는 미끼 ID입니다: " + args[3]);
+            return;
+        }
+        int amount = parseAmount(sender, args, 4, 1);
+        if (amount < 1) return;
 
-    /**
-     * 낚싯대의 능력 정보를 lore에 세련되게 추가한다 (피드백).
-     * - 등급 확률 보너스: 0이 아닌 등급만 표시 (불편함 해소)
-     * - 더블/대어 확률: +N%
-     * - 파이팅 스탯(릴/줄/내구): 추가값(덧셈)으로 +N
-     * - 피로도 max-fatigue/회복: +N
-     */
-    private void appendRodLore(List<String> lore, Rod rod) {
-        List<String> bonusLines = new ArrayList<>();
-        for (Map.Entry<Grade, Integer> e : rod.getBonus().entrySet()) {
-            if (e.getValue() == null || e.getValue() == 0 || e.getKey() == null) continue;
-            bonusLines.add(e.getKey().getColor() + e.getKey().getId().toUpperCase()
-                    + "&7 " + (e.getValue() > 0 ? "&a+" : "&c") + e.getValue());
-        }
+        ItemStack item = createBaitItem(bait);
+        for (int i = 0; i < amount; i++) target.getInventory().addItem(item.clone());
+        sender.sendMessage("§a" + target.getName() + "에게 " + bait.getId() + " 미끼 " + amount + "개를 지급했습니다.");
+        logger.info(sender.getName() + " gave " + amount + " bait " + bait.getId() + " to " + target.getName());
+    }
 
-        boolean any = false;
-        if (!bonusLines.isEmpty()) {
-            startRodAbility(lore);
-            lore.add("&7 등급 확률 보너스: &r" + String.join("&7   ", bonusLines));
-            any = true;
+    /** /fishing give fillet <플레이어> <등급> <normal|trophy|rare> [개수] */
+    private void giveFillet(CommandSender sender, String[] args) {
+        if (args.length < 5) {
+            sender.sendMessage("§c사용법: /fishing give fillet <플레이어> <등급(f~s)> <normal|trophy|rare> [개수]");
+            return;
         }
-        if (rod.getDoubleChanceBonus() > 0) {
-            if (!any) startRodAbility(lore);
-            lore.add("&7 더블 확률: &a+" + trimNumber(rod.getDoubleChanceBonus()) + "%");
-            any = true;
+        Player target = plugin.getServer().getPlayerExact(args[2]);
+        if (target == null) {
+            sender.sendMessage("§c플레이어를 찾을 수 없습니다: " + args[2]);
+            return;
         }
-        if (rod.getBigFishChanceBonus() > 0) {
-            if (!any) startRodAbility(lore);
-            lore.add("&7 대어 확률: &a+" + trimNumber(rod.getBigFishChanceBonus()) + "%");
-            any = true;
+        String gradeId = args[3].toLowerCase();
+        if (gradeRegistry.getById(gradeId) == null) {
+            sender.sendMessage("§c존재하지 않는 등급입니다: " + args[3] + " (f~s)");
+            return;
         }
-        if (rod.getReelPower() > 0 || rod.getLineStrength() > 0 || rod.getReelDurability() > 0) {
-            if (!any) startRodAbility(lore);
-            StringBuilder sb = new StringBuilder();
-            if (rod.getReelPower() > 0) sb.append("&7 릴 파워 &a+").append(trimNumber(rod.getReelPower()));
-            if (rod.getLineStrength() > 0) sb.append("&7   줄 강도 &a+").append(trimNumber(rod.getLineStrength()));
-            if (rod.getReelDurability() > 0) sb.append("&7   릴 내구도 &a+").append(trimNumber(rod.getReelDurability()));
-            lore.add(sb.toString());
-            any = true;
+        String trophyType = args[4].toLowerCase();
+        if (!"normal".equals(trophyType) && !"trophy".equals(trophyType) && !"rare".equals(trophyType)) {
+            sender.sendMessage("§c올바른 타입이 아닙니다: normal, trophy, rare 중 하나");
+            return;
         }
-        if (rod.getMaxFatigueBonus() > 0 || rod.getFatigueRecoveryBonus() > 0) {
-            if (!any) startRodAbility(lore);
-            StringBuilder sb = new StringBuilder();
-            if (rod.getMaxFatigueBonus() > 0) sb.append("&7 최대 피로도 &a+").append(rod.getMaxFatigueBonus());
-            if (rod.getFatigueRecoveryBonus() > 0) sb.append("&7   피로 회복 &a+").append(rod.getFatigueRecoveryBonus());
-            lore.add(sb.toString());
+        int amount = parseAmount(sender, args, 5, 1);
+        if (amount < 1) return;
+
+        var fm = plugin.getFilletManager();
+        if (fm == null) {
+            sender.sendMessage("§c생선 살 가공 시스템이 초기화되지 않았습니다.");
+            return;
+        }
+        ItemStack item = fm.createFilletItem(gradeId, trophyType, amount);
+        if (item != null) {
+            target.getInventory().addItem(item);
+            sender.sendMessage("§a" + target.getName() + "에게 " + gradeId.toUpperCase() + "급 "
+                    + trophyType + " 생선살 " + amount + "개를 지급했습니다.");
+            logger.info(sender.getName() + " gave " + amount + " fillet " + gradeId + "/" + trophyType + " to " + target.getName());
+        } else {
+            sender.sendMessage("§c생선 살 아이템 생성에 실패했습니다.");
         }
     }
 
-    private void startRodAbility(List<String> lore) {
-        lore.add("&8&m━━━━━━━━━━━━━━");
-        lore.add("&6✦ 낚싯대 능력 ✦");
+    /** 미끼 아이템 생성 (바닐라 전용 — createRodItem과 동일 패턴) */
+    private ItemStack createBaitItem(Bait bait) {
+        Material mat = Material.matchMaterial(bait.getVanillaMaterial());
+        if (mat == null) mat = Material.STRING;
+        ItemStack item = new ItemStack(mat, 1);
+        ItemMeta meta = item.getItemMeta();
+        if (meta == null) return item;
+        if (bait.getVanillaName() != null && !bait.getVanillaName().isEmpty()) {
+            meta.setDisplayName(Texts.colorize(bait.getVanillaName()));
+        }
+        if (bait.getVanillaLore() != null && !bait.getVanillaLore().isEmpty()) {
+            meta.setLore(bait.getVanillaLore().stream().map(Texts::colorize).toList());
+        }
+        item.setItemMeta(meta);
+        return item;
+    }
+
+
+    /**
+     * 낚싯대의 능력 정보를 lore에 섹션별로 정리해 추가한다 (피드백 기반 포맷 개편).
+     * 포맷(구분선/제목/접두사/색상/라벨)은 item-format.yml에서 관리한다.
+     * - 등급 보너스: 등급별 한 줄 (0 아닌 등급만 or show-zero), 양수=등급 색, 음수=§c
+     * - 낚시 옵션: 더블/대어 확률
+     * - 트로피 파이트 옵션: 릴 파워/줄 강도/릴 내구도
+     * - 피로도: 최대 피로도/피로 회복
+     */
+    private void appendRodLore(List<String> lore, Rod rod) {
+        ItemFormatConfig fmt = configManager.getItemFormat();
+        if (fmt == null) return;
+
+        List<List<String>> sections = new ArrayList<>();
+
+        // 등급 보너스
+        ItemFormatConfig.GradeBonusConfig gb = fmt.getGradeBonus();
+        if (gb != null && gb.isEnabled()) {
+            List<String> lines = new ArrayList<>();
+            List<Map.Entry<Grade, Integer>> sortedEntries = new ArrayList<>(rod.getBonus().entrySet());
+            sortedEntries.sort(Comparator.comparingInt(e -> {
+                int idx = InMcFishing.GRADE_IDS.indexOf(e.getKey().getId().toLowerCase());
+                return idx >= 0 ? idx : Integer.MAX_VALUE;
+            }));
+            for (Map.Entry<Grade, Integer> e : sortedEntries) {
+                if (e.getKey() == null || e.getValue() == null) continue;
+                int v = e.getValue();
+                if (!gb.isShowZero() && v == 0) continue;
+                String color = v > 0
+                        ? (gb.isUseGradeColorPositive() ? e.getKey().getColor() : gb.getPositiveColor())
+                        : gb.getNegativeColor();
+                lines.add(gb.getLinePrefix() + e.getKey().getId().toUpperCase() + " 등급"
+                        + gb.getValueSeparator() + color + (v > 0 ? "+" : "") + v);
+            }
+            if (!lines.isEmpty()) sections.add(block(gb.getTitle(), lines));
+        }
+
+        // 낚시 옵션
+        ItemFormatConfig.SectionConfig fo = fmt.getFishingOptions();
+        if (fo != null && fo.isEnabled()) {
+            List<String> lines = new ArrayList<>();
+            if (rod.getDoubleChanceBonus() > 0)
+                lines.add(stat(fo, 0, "더블 확률", trimNumber(rod.getDoubleChanceBonus()) + "%"));
+            if (rod.getBigFishChanceBonus() > 0)
+                lines.add(stat(fo, 1, "대어 확률", trimNumber(rod.getBigFishChanceBonus()) + "%"));
+            if (!lines.isEmpty()) sections.add(block(fo.getTitle(), lines));
+        }
+
+        // 트로피 파이트 옵션
+        ItemFormatConfig.SectionConfig fp = fmt.getFightOptions();
+        if (fp != null && fp.isEnabled()) {
+            List<String> lines = new ArrayList<>();
+            if (rod.getReelPower() > 0) lines.add(stat(fp, 0, "릴 파워", trimNumber(rod.getReelPower())));
+            if (rod.getLineStrength() > 0) lines.add(stat(fp, 1, "줄 강도", trimNumber(rod.getLineStrength())));
+            if (rod.getReelDurability() > 0) lines.add(stat(fp, 2, "릴 내구도", trimNumber(rod.getReelDurability())));
+            if (!lines.isEmpty()) sections.add(block(fp.getTitle(), lines));
+        }
+
+        // 피로도
+        ItemFormatConfig.SectionConfig ft = fmt.getFatigue();
+        if (ft != null && ft.isEnabled()) {
+            List<String> lines = new ArrayList<>();
+            if (rod.getMaxFatigueBonus() > 0)
+                lines.add(stat(ft, 0, "최대 피로도", String.valueOf(rod.getMaxFatigueBonus())));
+            if (rod.getFatigueRecoveryBonus() > 0)
+                lines.add(stat(ft, 1, "피로 회복", String.valueOf(rod.getFatigueRecoveryBonus())));
+            if (!lines.isEmpty()) sections.add(block(ft.getTitle(), lines));
+        }
+
+        if (sections.isEmpty()) {
+            return;
+        }
+
+        // 조립: 맨 위 구분선 → 섹션(빈줄로 구분) → 맨 아래 구분선 (선택)
+        lore.add(fmt.getDivider());
+        for (int i = 0; i < sections.size(); i++) {
+            if (i > 0 && fmt.isSectionGap()) {
+                lore.add("");
+            }
+            lore.addAll(sections.get(i));
+        }
+        if (fmt.isFooterDivider()) {
+            lore.add("");
+            lore.add(fmt.getDivider());
+        }
+    }
+
+    /** 섹션 제목 + 내용 줄 목록을 하나의 블록으로 만든다. */
+    private static List<String> block(String title, List<String> lines) {
+        List<String> b = new ArrayList<>();
+        b.add(title);
+        b.addAll(lines);
+        return b;
+    }
+
+    /** 공통 옵션 섹션의 값 한 줄을 만든다. */
+    private static String stat(ItemFormatConfig.SectionConfig sec, int labelIndex, String fallbackLabel, String value) {
+        String label = (sec.getLabels() != null && sec.getLabels().length > labelIndex
+                && sec.getLabels()[labelIndex] != null)
+                ? sec.getLabels()[labelIndex] : fallbackLabel;
+        return sec.getLinePrefix() + label + sec.getValueSeparator()
+                + sec.getPositiveColor() + "+" + value;
     }
 
     private static String trimNumber(double v) {
@@ -1150,7 +1379,7 @@ public class FishingCommand implements CommandExecutor, TabCompleter {
 
     private List<String> completeGive(String[] args) {
         if (args.length == 2) {
-            return java.util.stream.Stream.of("net", "fish", "trophy", "potion", "rod")
+            return java.util.stream.Stream.of("net", "fish", "trophy", "potion", "rod", "bait", "fillet")
                     .filter(s -> s.startsWith(args[1].toLowerCase())).toList();
         }
         if (args.length == 3) {
@@ -1186,6 +1415,26 @@ public class FishingCommand implements CommandExecutor, TabCompleter {
                 }
             }
             return ids;
+        }
+        if (args.length == 4 && "bait".equalsIgnoreCase(args[1])) {
+            var baitReg = plugin.getRegistryManager().getBaitRegistry();
+            if (baitReg == null) return List.of();
+            List<String> ids = new ArrayList<>();
+            for (String id : baitReg.getAll().keySet()) {
+                if (id.toLowerCase().startsWith(args[3].toLowerCase())) ids.add(id);
+            }
+            return ids;
+        }
+        if (args.length == 4 && "fillet".equalsIgnoreCase(args[1])) {
+            List<String> grades = new ArrayList<>();
+            for (String id : gradeRegistry.getAll().keySet()) {
+                if (id.toLowerCase().startsWith(args[3].toLowerCase())) grades.add(id.toLowerCase());
+            }
+            return grades;
+        }
+        if (args.length == 5 && "fillet".equalsIgnoreCase(args[1])) {
+            return java.util.stream.Stream.of("normal", "trophy", "rare")
+                    .filter(s -> s.startsWith(args[4].toLowerCase())).toList();
         }
         return List.of();
     }

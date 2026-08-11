@@ -10,13 +10,18 @@ import java.util.List;
 
 public class RewardRoller {
     private final RandomService randomService;
-    private final FishRegistry fishRegistry;
+    private FishRegistry fishRegistry;
     private final DependencyManager dependencyManager;
 
     public RewardRoller(RandomService randomService, FishRegistry fishRegistry, DependencyManager dependencyManager) {
         this.randomService = randomService;
         this.fishRegistry = fishRegistry;
         this.dependencyManager = dependencyManager;
+    }
+
+    /** 리로드 시 새로 교체된 FishRegistry를 재주입한다. */
+    public void setFishRegistry(FishRegistry fishRegistry) {
+        this.fishRegistry = fishRegistry;
     }
 
     public Fish rollReward(Player player, Grade grade) {

@@ -1,6 +1,7 @@
 package me.ninesik.fishing.tournament;
 
 import me.ninesik.fishing.InMcFishing;
+import me.ninesik.fishing.config.ConfigManager;
 import me.ninesik.fishing.dependency.VaultHook;
 import me.ninesik.fishing.event.FishCatchEvent;
 import me.ninesik.fishing.model.Fish;
@@ -437,13 +438,9 @@ public class TournamentManager {
             }
         }
 
-        String message = ChatColor.YELLOW + "[낚시 대회] " + ChatColor.WHITE + ChatColor.stripColor(tournament.getName())
-                + "이(가) 시작되었습니다! ";
-        if (tournament.getEntryFee() > 0) {
-            message += ChatColor.GOLD + "(참가비: " + tournament.getEntryFee() + ")";
-        }
-        message += ChatColor.GRAY + " 사전 신청자는 자동 참여되었습니다.";
-        Bukkit.broadcastMessage(message);
+        // 대회 시작 공지 — messages.yml `tournament.start`/`tournament.start-fee` 설정 사용 (피드백: 설정 값 + 색상 변환)
+        // 설정이 없으면 기존 하드코딩 문구로 폴백.
+        Bukkit.broadcastMessage(formatStartMessage(tournament));
 
         // duration-minutes 후 자동 종료 예약
         long durationTicks = 20L * 60L * tournament.getDurationMinutes();
@@ -463,6 +460,35 @@ public class TournamentManager {
             plugin.getLogger().info("Tournament " + tournament.getId() + " auto-started");
         }
         return true;
+    }
+
+    /**
+     * 대회 시작 공지를 messages.yml 설정값으로 구성한다 (피드백: 색상 변환 + 설정 값).
+     * key: 참가비 있으면 `tournament.start-fee`, 없으면 `tournament.start`.
+     * 설정이 비어 있으면 기존 하드코딩 문구로 폴백한다.
+     */
+    private String formatStartMessage(Tournament tournament) {
+        ConfigManager config = plugin.getFishingService().getConfigManager();
+        String name = ChatColor.stripColor(tournament.getName());
+        Map<String, String> ph = new java.util.HashMap<>();
+        ph.put("name", name != null ? name : tournament.getId());
+        ph.put("fee", String.valueOf(tournament.getEntryFee()));
+
+        boolean hasFee = tournament.getEntryFee() > 0;
+        String msg = config.formatMessage(hasFee ? "tournament.start-fee" : "tournament.start", ph);
+        if (msg != null && !msg.isEmpty()) {
+            return msg;
+        }
+
+        // 폴백 — 기존 하드코딩 문구 (백업 안전장치)
+        StringBuilder fallback = new StringBuilder()
+                .append(ChatColor.YELLOW).append("[낚시 대회] ").append(ChatColor.WHITE)
+                .append(name != null ? name : tournament.getId()).append("이(가) 시작되었습니다! ");
+        if (hasFee) {
+            fallback.append(ChatColor.GOLD).append("(참가비: ").append(tournament.getEntryFee()).append(") ");
+        }
+        fallback.append(ChatColor.GRAY).append("사전 신청자는 자동 참여되었습니다.");
+        return fallback.toString();
     }
 
     private void finishTournament(Tournament tournament, boolean isShutdown) {

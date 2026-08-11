@@ -33,7 +33,7 @@ public class FishingMiniGame implements MiniGame {
     private final FishingSessionManager sessionManager;
     private final RewardService rewardService;
     private final ConfigManager configManager;
-    private final GradeRegistry gradeRegistry;
+    private GradeRegistry gradeRegistry;
     private final PlayerFatigueManager fatigueManager;
     private TrophyFightManager trophyFightManager;
 
@@ -76,6 +76,11 @@ public class FishingMiniGame implements MiniGame {
      */
     public void setTrophyFightManager(TrophyFightManager trophyFightManager) {
         this.trophyFightManager = trophyFightManager;
+    }
+
+    /** 리로드 시 새로 교체된 GradeRegistry를 재주입한다. */
+    public void setGradeRegistry(GradeRegistry gradeRegistry) {
+        this.gradeRegistry = gradeRegistry;
     }
 
     /**

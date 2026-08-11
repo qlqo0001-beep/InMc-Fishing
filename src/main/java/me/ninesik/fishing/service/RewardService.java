@@ -215,7 +215,7 @@ public class RewardService {
      * 미니게임 실패/타임아웃 시 호출. 일반 실패 메시지({@code messages.fail})를 사용한다.
      */
     public void handleFail(Player player) {
-        handleFail(player, "fail");
+        handleFail(player, "fail.fail");
     }
 
     /**

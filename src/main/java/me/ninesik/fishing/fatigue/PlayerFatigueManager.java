@@ -39,7 +39,7 @@ public class PlayerFatigueManager {
 
     private final InMcFishing plugin;
     private final ConfigManager configManager;
-    private final RodRegistry rodRegistry;
+    private RodRegistry rodRegistry;
     private final DependencyManager dependencyManager;
     private final PlayerPreferenceManager playerPreferenceManager;
     private final File dataDir;
@@ -64,6 +64,11 @@ public class PlayerFatigueManager {
         if (!dataDir.exists()) {
             dataDir.mkdirs();
         }
+    }
+
+    /** 리로드 시 새로 교체된 RodRegistry를 재주입한다. */
+    public void setRodRegistry(RodRegistry rodRegistry) {
+        this.rodRegistry = rodRegistry;
     }
 
     /**

@@ -33,6 +33,7 @@ public class ConfigManager {
     private FileConfiguration fight;
     private FileConfiguration fatigue;
     private FileConfiguration potions;
+    private ItemFormatConfig itemFormat;
 
     public ConfigManager(InMcFishing plugin) {
         this.plugin = plugin;
@@ -40,7 +41,7 @@ public class ConfigManager {
     }
 
     /**
-     * 모든 설정 파일(config/modifiers/messages/fight/fatigue/items-potions)을 (재)로드한다.
+     * 모든 설정 파일(config/modifiers/messages/fight/fatigue/items-potions/item-format)을 (재)로드한다.
      * /fishing reload 및 서버 리로드 시 호출된다 (피드백: "리로드가 지금 yml의 모든 값을 리로드해야 함").
      */
     public void load() {
@@ -50,6 +51,7 @@ public class ConfigManager {
         this.fatigue = loadResource("fatigue.yml");
         this.potions = loadResource("items/potions.yml");
         this.modifiers = loadResource("modifiers.yml");
+        this.itemFormat = new ItemFormatConfig(loadResource("item-format.yml"));
     }
 
     /** 리소스를 데이터 폴더에 최초 1회 저장하고 로드해서 반환한다. */
@@ -63,6 +65,11 @@ public class ConfigManager {
 
     public double getBigFishChance() {
         return config.getDouble("rates.big-fish-chance", 1.0);
+    }
+
+    /** 낚싯대 아이템 로어 포맷 설정을 반환한다 (item-format.yml). */
+    public ItemFormatConfig getItemFormat() {
+        return itemFormat;
     }
 
     public double getDoubleChance() {
@@ -95,18 +102,21 @@ public class ConfigManager {
      * placeholder 치환은 하지 않는다 — {@link #formatMessage(String, Map)} 사용.
      */
     public String getMessage(String key) {
+        if (messages.isConfigurationSection(key)) return "";
         String raw = messages.getString(key, "");
         return Texts.colorize(raw);
     }
 
-    /** messages.yml 에서 key(전체 경로)로 읽되, 없으면 default 값을 색상 변환하여 반환한다. (타이틀 등 기본값 보장용) */
+    /** messages.yml 에서 key(전체 경로)로 읽되, 없으면 default 값을 색상 변환하여 반환한다. */
     public String getMessage(String key, String def) {
+        if (messages.isConfigurationSection(key)) return Texts.colorize(def);
         String raw = messages.getString(key, def);
         return Texts.colorize(raw);
     }
 
-    /** messages.yml 의 raw 문자열을 그대로 반환한다 (색상 변환 안 함). 없으면 def 반환. (도감 보상 사유 등) */
+    /** messages.yml 의 raw 문자열을 그대로 반환한다 (색상 변환 안 함). 없으면 def 반환. */
     public String getMessageRaw(String key, String def) {
+        if (messages.isConfigurationSection(key)) return def;
         return messages.getString(key, def);
     }
 
@@ -120,6 +130,7 @@ public class ConfigManager {
      * {prefix}는 messages.yml의 prefix 값으로 자동 치환된다.
      */
     public String formatMessage(String key, Map<String, String> placeholders) {
+        if (messages.isConfigurationSection(key)) return "";
         String raw = messages.getString(key, "");
         if (raw == null || raw.isEmpty()) {
             return "";

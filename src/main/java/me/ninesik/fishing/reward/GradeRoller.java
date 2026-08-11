@@ -1,6 +1,7 @@
 package me.ninesik.fishing.reward;
 
 import me.ninesik.fishing.dependency.DependencyManager;
+import me.ninesik.fishing.model.Bait;
 import me.ninesik.fishing.model.Grade;
 import me.ninesik.fishing.registry.GradeRegistry;
 import org.bukkit.entity.Player;
@@ -11,7 +12,7 @@ import java.util.Set;
 public class GradeRoller {
     private final RandomService randomService;
     private final WeightCalculator weightCalculator;
-    private final GradeRegistry gradeRegistry;
+    private GradeRegistry gradeRegistry;
 
     public GradeRoller(RandomService randomService, WeightCalculator weightCalculator, GradeRegistry gradeRegistry) {
         this.randomService = randomService;
@@ -19,11 +20,20 @@ public class GradeRoller {
         this.gradeRegistry = gradeRegistry;
     }
 
+    public void setGradeRegistry(GradeRegistry gradeRegistry) {
+        this.gradeRegistry = gradeRegistry;
+    }
+
     public Grade rollGrade(Player player, me.ninesik.fishing.model.Rod rod) {
-        return rollGrade(player, rod, null);
+        return rollGrade(player, rod, null, null);
     }
 
     public Grade rollGrade(Player player, me.ninesik.fishing.model.Rod rod, Set<String> allowedGradeIds) {
+        return rollGrade(player, rod, allowedGradeIds, null);
+    }
+
+    public Grade rollGrade(Player player, me.ninesik.fishing.model.Rod rod,
+                           Set<String> allowedGradeIds, Bait bait) {
         java.util.Map<String, Grade> allGrades = gradeRegistry.getAll();
         if (allGrades.isEmpty()) {
             return null;
@@ -31,14 +41,13 @@ public class GradeRoller {
 
         double totalWeight = 0;
 
-        // 각 등급의 최종 가중치 계산
         for (Grade grade : allGrades.values()) {
             if (allowedGradeIds != null && !allowedGradeIds.isEmpty()
                     && !allowedGradeIds.contains(grade.getId().toLowerCase())) {
                 continue;
             }
             double baseWeight = grade.getWeight();
-            double finalWeight = weightCalculator.calculateFinalWeight(player, grade, baseWeight, rod);
+            double finalWeight = weightCalculator.calculateFinalWeight(player, grade, baseWeight, rod, bait);
             totalWeight += finalWeight;
         }
 
@@ -46,18 +55,16 @@ public class GradeRoller {
             return null;
         }
 
-        // 랜덤 값 생성 (0 ~ totalWeight)
         double randomValue = randomService.nextDouble() * totalWeight;
         double cumulative = 0;
 
-        // 등급 선택
         for (Grade grade : allGrades.values()) {
             if (allowedGradeIds != null && !allowedGradeIds.isEmpty()
                     && !allowedGradeIds.contains(grade.getId().toLowerCase())) {
                 continue;
             }
             double baseWeight = grade.getWeight();
-            double finalWeight = weightCalculator.calculateFinalWeight(player, grade, baseWeight, rod);
+            double finalWeight = weightCalculator.calculateFinalWeight(player, grade, baseWeight, rod, bait);
             cumulative += finalWeight;
 
             if (randomValue <= cumulative) {
@@ -65,7 +72,6 @@ public class GradeRoller {
             }
         }
 
-        // 기본값: 허용된 첫 번째 등급
         for (Grade grade : allGrades.values()) {
             if (allowedGradeIds == null || allowedGradeIds.isEmpty()
                     || allowedGradeIds.contains(grade.getId().toLowerCase())) {

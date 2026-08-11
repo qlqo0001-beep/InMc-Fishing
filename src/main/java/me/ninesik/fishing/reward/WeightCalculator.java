@@ -2,6 +2,7 @@ package me.ninesik.fishing.reward;
 
 import me.ninesik.fishing.config.ConfigManager;
 import me.ninesik.fishing.dependency.DependencyManager;
+import me.ninesik.fishing.model.Bait;
 import me.ninesik.fishing.model.Grade;
 import me.ninesik.fishing.model.Rod;
 import org.bukkit.entity.Player;
@@ -16,6 +17,10 @@ public class WeightCalculator {
     }
 
     public double calculateFinalWeight(Player player, Grade grade, double baseWeight, Rod rod) {
+        return calculateFinalWeight(player, grade, baseWeight, rod, null);
+    }
+
+    public double calculateFinalWeight(Player player, Grade grade, double baseWeight, Rod rod, Bait bait) {
         double finalWeight = baseWeight;
 
         // 1. World Modifier
@@ -33,15 +38,19 @@ public class WeightCalculator {
         // 5. Permission Modifier
         finalWeight *= getPermissionModifier(player, grade);
 
-        // 6. Rod Modifier (29.2: rod bonus는 등급 weight에만 가산 적용)
+        // 6. Rod bonus (덧셈)
         if (rod != null) {
             finalWeight += rod.getBonusForGrade(grade);
         }
 
-        // 7. Buff Modifier (미구현 — 아래 getBuffModifier 주석 참고)
+        // 6-2. Bait bonus (Rod와 동일한 덧셈 방식)
+        if (bait != null) {
+            finalWeight += bait.getGradeBonus(grade);
+        }
+
+        // 7. Buff Modifier (미구현)
         finalWeight *= getBuffModifier(player, grade);
 
-        // 항상 0 이상으로 clamp
         return Math.max(0, finalWeight);
     }
 

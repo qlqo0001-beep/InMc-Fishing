@@ -1,0 +1,191 @@
+# ============================================================
+#  생선 살(Fish Fillet) 아이템 정의
+#  총 21종 (7등급 × 일반/트로피/레어트로피)
+# ============================================================
+# 바닐라 아이템 기반, 등급+트로피 여부에 따라 다른 재질/이름 사용.
+# 생선 살의 실제 용도(판매가, 제작 등)는 추후 확장 예정.
+# ============================================================
+
+fillets:
+  # ── F 등급 ──
+  f_normal:
+    grade: "f"
+    trophy-type: "normal"
+    material: COD
+    name: "&7F급 생선살"
+    lore:
+      - "&7가장 기본적인 생선 살입니다."
+
+  f_trophy:
+    grade: "f"
+    trophy-type: "trophy"
+    material: COOKED_COD
+    name: "&7F급 트로피 생선살"
+    lore:
+      - "&7F급 트로피 물고기에서 얻은 생선 살입니다."
+
+  f_rare:
+    grade: "f"
+    trophy-type: "rare"
+    material: COOKED_COD
+    name: "&7F급 레어 트로피 생선살"
+    lore:
+      - "&7F급 레어 트로피 물고기에서 얻은"
+      - "&7특별한 생선 살입니다."
+
+  # ── E 등급 ──
+  e_normal:
+    grade: "e"
+    trophy-type: "normal"
+    material: SALMON
+    name: "&aE급 생선살"
+    lore:
+      - "&7E급 물고기의 생선 살입니다."
+
+  e_trophy:
+    grade: "e"
+    trophy-type: "trophy"
+    material: COOKED_SALMON
+    name: "&aE급 트로피 생선살"
+    lore:
+      - "&7E급 트로피 물고기에서 얻은 생선 살입니다."
+
+  e_rare:
+    grade: "e"
+    trophy-type: "rare"
+    material: COOKED_SALMON
+    name: "&aE급 레어 트로피 생선살"
+    lore:
+      - "&7E급 레어 트로피 물고기에서 얻은"
+      - "&7특별한 생선 살입니다."
+
+  # ── D 등급 ──
+  d_normal:
+    grade: "d"
+    trophy-type: "normal"
+    material: TROPICAL_FISH
+    name: "&bD급 생선살"
+    lore:
+      - "&7D급 물고기의 생선 살입니다."
+
+  d_trophy:
+    grade: "d"
+    trophy-type: "trophy"
+    material: PUFFERFISH
+    name: "&bD급 트로피 생선살"
+    lore:
+      - "&7D급 트로피 물고기에서 얻은 생선 살입니다."
+
+  d_rare:
+    grade: "d"
+    trophy-type: "rare"
+    material: PUFFERFISH
+    name: "&bD급 레어 트로피 생선살"
+    lore:
+      - "&7D급 레어 트로피 물고기에서 얻은"
+      - "&7특별한 생선 살입니다."
+
+  # ── C 등급 ──
+  c_normal:
+    grade: "c"
+    trophy-type: "normal"
+    material: COD
+    name: "&dC급 생선살"
+    lore:
+      - "&7C급 물고기의 생선 살입니다."
+
+  c_trophy:
+    grade: "c"
+    trophy-type: "trophy"
+    material: COOKED_COD
+    name: "&dC급 트로피 생선살"
+    lore:
+      - "&7C급 트로피 물고기에서 얻은 생선 살입니다."
+
+  c_rare:
+    grade: "c"
+    trophy-type: "rare"
+    material: COOKED_COD
+    name: "&dC급 레어 트로피 생선살"
+    lore:
+      - "&7C급 레어 트로피 물고기에서 얻은"
+      - "&7특별한 생선 살입니다."
+
+  # ── B 등급 ──
+  b_normal:
+    grade: "b"
+    trophy-type: "normal"
+    material: SALMON
+    name: "&6B급 생선살"
+    lore:
+      - "&7B급 물고기의 생선 살입니다."
+
+  b_trophy:
+    grade: "b"
+    trophy-type: "trophy"
+    material: COOKED_SALMON
+    name: "&6B급 트로피 생선살"
+    lore:
+      - "&7B급 트로피 물고기에서 얻은 생선 살입니다."
+
+  b_rare:
+    grade: "b"
+    trophy-type: "rare"
+    material: COOKED_SALMON
+    name: "&6B급 레어 트로피 생선살"
+    lore:
+      - "&7B급 레어 트로피 물고기에서 얻은"
+      - "&7특별한 생선 살입니다."
+
+  # ── A 등급 ──
+  a_normal:
+    grade: "a"
+    trophy-type: "normal"
+    material: TROPICAL_FISH
+    name: "&eA급 생선살"
+    lore:
+      - "&7A급 물고기의 생선 살입니다."
+
+  a_trophy:
+    grade: "a"
+    trophy-type: "trophy"
+    material: PUFFERFISH
+    name: "&eA급 트로피 생선살"
+    lore:
+      - "&7A급 트로피 물고기에서 얻은 생선 살입니다."
+
+  a_rare:
+    grade: "a"
+    trophy-type: "rare"
+    material: PUFFERFISH
+    name: "&eA급 레어 트로피 생선살"
+    lore:
+      - "&7A급 레어 트로피 물고기에서 얻은"
+      - "&7특별한 생선 살입니다."
+
+  # ── S 등급 ──
+  s_normal:
+    grade: "s"
+    trophy-type: "normal"
+    material: COD
+    name: "&cS급 생선살"
+    lore:
+      - "&7S급 물고기의 귀중한 생선 살입니다."
+
+  s_trophy:
+    grade: "s"
+    trophy-type: "trophy"
+    material: COOKED_COD
+    name: "&cS급 트로피 생선살"
+    lore:
+      - "&7S급 트로피 물고기에서 얻은"
+      - "&7매우 귀중한 생선 살입니다."
+
+  s_rare:
+    grade: "s"
+    trophy-type: "rare"
+    material: COOKED_COD
+    name: "&cS급 레어 트로피 생선살"
+    lore:
+      - "&7S급 레어 트로피 물고기에서 얻은"
+      - "&7극히 희귀한 생선 살입니다."

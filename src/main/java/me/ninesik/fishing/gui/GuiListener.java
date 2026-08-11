@@ -1,5 +1,6 @@
 package me.ninesik.fishing.gui;
 
+import me.ninesik.fishing.fillet.FilletGui;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.InventoryClickEvent;
@@ -13,8 +14,6 @@ public class GuiListener implements Listener {
 
     @EventHandler
     public void onInventoryClick(InventoryClickEvent event) {
-        if (event.getClickedInventory() == null) return;
-
         InventoryHolder holder = event.getInventory().getHolder();
         if (!(holder instanceof AbstractGui gui)) return;
 
@@ -25,8 +24,8 @@ public class GuiListener implements Listener {
     @EventHandler
     public void onInventoryClose(InventoryCloseEvent event) {
         InventoryHolder holder = event.getInventory().getHolder();
-        if (!(holder instanceof AbstractGui gui)) return;
-
-        // TODO: GUI 닫힘 시 추가 처리 필요 시 구현
+        if (holder instanceof FilletGui gui) {
+            gui.onClose();
+        }
     }
 }

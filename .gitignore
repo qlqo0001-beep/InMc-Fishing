@@ -27,6 +27,7 @@ soundbuild.log
 # Claude / AI
 # ==========================
 .clinerules/
+.kilo/
 
 # ==========================
 # Documentation

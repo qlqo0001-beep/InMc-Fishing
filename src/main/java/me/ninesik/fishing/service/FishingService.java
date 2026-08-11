@@ -8,6 +8,7 @@ import me.ninesik.fishing.listener.FishingListener;
 import me.ninesik.fishing.minigame.FishingMiniGame;
 import me.ninesik.fishing.minigame.MiniGameManager;
 import me.ninesik.fishing.player.PlayerPreferenceManager;
+import me.ninesik.fishing.registry.BaitRegistry;
 import me.ninesik.fishing.registry.FishRegistry;
 import me.ninesik.fishing.registry.GradeRegistry;
 import me.ninesik.fishing.registry.RodRegistry;
@@ -22,6 +23,7 @@ public class FishingService {
     private final RodRegistry rodRegistry;
     private final GradeRegistry gradeRegistry;
     private final FishRegistry fishRegistry;
+    private final BaitRegistry baitRegistry;
     private final ConfigManager configManager;
     private final FishingSessionManager sessionManager;
     private final MiniGameManager miniGameManager;
@@ -35,13 +37,14 @@ public class FishingService {
 
     public FishingService(JavaPlugin plugin, DependencyManager dependencyManager,
                           RodRegistry rodRegistry, GradeRegistry gradeRegistry,
-                          FishRegistry fishRegistry,
+                          FishRegistry fishRegistry, BaitRegistry baitRegistry,
                           PlayerPreferenceManager playerPreferenceManager) {
         this.plugin = plugin;
         this.dependencyManager = dependencyManager;
         this.rodRegistry = rodRegistry;
         this.gradeRegistry = gradeRegistry;
         this.fishRegistry = fishRegistry;
+        this.baitRegistry = baitRegistry;
         this.configManager = new ConfigManager((me.ninesik.fishing.InMcFishing) plugin);
         this.sessionManager = new FishingSessionManager();
         this.miniGameManager = new MiniGameManager();
@@ -92,6 +95,7 @@ public class FishingService {
                 dependencyManager,
                 rodRegistry,
                 fishRegistry,
+                baitRegistry,
                 sessionManager,
                 miniGameManager,
                 rollEngine,

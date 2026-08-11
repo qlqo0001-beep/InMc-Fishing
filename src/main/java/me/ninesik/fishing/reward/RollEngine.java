@@ -2,6 +2,7 @@ package me.ninesik.fishing.reward;
 
 import me.ninesik.fishing.config.ConfigManager;
 import me.ninesik.fishing.dependency.DependencyManager;
+import me.ninesik.fishing.model.Bait;
 import me.ninesik.fishing.model.Fish;
 import me.ninesik.fishing.model.Grade;
 import me.ninesik.fishing.model.Rod;
@@ -19,8 +20,8 @@ public class RollEngine {
     private final RewardRoller rewardRoller;
     private final WeightCalculator weightCalculator;
     private final ConfigManager configManager;
-    private final GradeRegistry gradeRegistry;
-    private final FishRegistry fishRegistry;
+    private GradeRegistry gradeRegistry;
+    private FishRegistry fishRegistry;
 
     public RollEngine(RandomService randomService, GradeRegistry gradeRegistry, FishRegistry fishRegistry, DependencyManager dependencyManager, ConfigManager configManager) {
         this.randomService = randomService;
@@ -32,13 +33,28 @@ public class RollEngine {
         this.rewardRoller = new RewardRoller(randomService, fishRegistry, dependencyManager);
     }
 
+    /**
+     * 리로드 시 새로 교체된 GradeRegistry/FishRegistry를 재주입하고,
+     * 내부 GradeRoller/RewardRoller에도 전파한다.
+     */
+    public void setRegistries(GradeRegistry gradeRegistry, FishRegistry fishRegistry) {
+        this.gradeRegistry = gradeRegistry;
+        this.fishRegistry = fishRegistry;
+        this.gradeRoller.setGradeRegistry(gradeRegistry);
+        this.rewardRoller.setFishRegistry(fishRegistry);
+    }
+
     public RollResult roll(Player player, Rod rod) {
-        return roll(player, rod, null);
+        return roll(player, rod, null, null);
     }
 
     public RollResult roll(Player player, Rod rod, java.util.Set<String> allowedGradeIds) {
-        // 1. 등급 롤
-        Grade rolledGrade = gradeRoller.rollGrade(player, rod, allowedGradeIds);
+        return roll(player, rod, allowedGradeIds, null);
+    }
+
+    public RollResult roll(Player player, Rod rod, java.util.Set<String> allowedGradeIds, Bait bait) {
+        // 1. 등급 롤 (Bait의 등급 보정 적용)
+        Grade rolledGrade = gradeRoller.rollGrade(player, rod, allowedGradeIds, bait);
         if (rolledGrade == null) {
             return null;
         }
@@ -74,8 +90,17 @@ public class RollEngine {
             isDouble = true;
         }
 
-        // 5. 물고기 사이즈 산정 (세션 18)
+        // 5. 물고기 사이즈 산정
         double size = calculateSize(rewardFish);
+
+        // 5-2. 미끼 사이즈 보정 (트로피 판정 전, % → 고정값 순서)
+        // 미끼가 커지게 한 사이즈는 어드민이 정한 최대크기를 초과할 수 있다.
+        if (bait != null && bait.hasSizeEffect()) {
+            if (bait.getSizeBonusPercent() != 0.0) {
+                size *= (1.0 + bait.getSizeBonusPercent() / 100.0);
+            }
+            size += bait.getSizeBonusFixed();
+        }
 
         // 6. 트로피 사전 판정 (패치예정.md: RollEngine이 RewardEntry를 생성하는 시점에 미리 판정)
         // 단일 임계값 사용: Fight 전용 임계값을 별도로 두지 않고 기존 트로피 임계값을 공유.

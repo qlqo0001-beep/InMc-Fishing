@@ -42,6 +42,18 @@ import java.util.function.Function;
 public class TrophyFightManager {
 
     private static final double RARE_TROPHY_DIFFICULTY_MULTIPLIER = 1.5;
+    /**
+     * 낚싯대 Reel Power 보너스가 거리 회수(Distance 감소)에 반영되는 비율.
+     *
+     * <p>피드백: "낚싯대 등으로 추가적인 reelPower가 증가하는 분에 대해서 *0.1을 해서
+     * 거리 감소에 추가해줘야 해. 지금 거리 감소가 너무 안 되는 문제가 있어."
+     * 기본 reelPower(기본 30)는 그대로 고정 기준으로 쓰고, 낚싯대 보너스
+     * (session.getReelPower() - defaultReelPower)만 이 계수(0.1)를 곱해 추가해
+     * 낚싯대가 좋을수록 조금 더 빨리 거리를 회수할 수 있게 한다.
+     * (이전에 제거된 {@code defaultReelPower + rodBonusReelPower*0.1} 공식을
+     * 죽은 필드 대신 실제 낚싯대 보너스로 복원한 것 — PROGRESS.md 참고)</p>
+     */
+    private static final double ROD_BONUS_DISTANCE_RATIO = 0.1;
 
     private final InMcFishing plugin;
     private final ConfigManager configManager;
@@ -480,14 +492,23 @@ public class TrophyFightManager {
             // 그 외(릴 감기/idle): FightCalculator.calculateDistanceChange()가 내부에서
             //   isReeling 분기를 처리한다 (릴을 안 감아도 물고기가 도망가며 Distance가 늘어난다).
             // 피드백: "릴 파워 값이 거리에 영향을 주는 거지? 거리에 영향을 안주게 만들고
-            // 기본값인 30만 적용되게 해줘." 낚싯대의 실제 Reel Power(session.getReelPower())
-            // 대신 config 기본값(defaultReelPower)을 고정으로 넘겨, 낚싯대가 좋아져도
-            // 거리 회수 속도는 항상 동일하게 유지한다 (Stamina 감소 속도에는 계속 영향을 준다).
+            // 기본값인 30만 적용되게 해줘." 기본적으로 낚싯대의 Reel Power를 Distance에
+            // 직접 반영하지 않고 config 기본값(defaultReelPower)을 기준으로 삼는다.
+            // 다만 이후 피드백: "추가적인 reelPower 증가분에 대해 *0.1을 해서 거리 감소에
+            // 추가해줘. 지금 거리 감소가 너무 안 되는 문제가 있어." → 낚싯대 보너스
+            // (session.getReelPower() - defaultReelPower)만 0.1 계수로 곱해 추가한다.
+            // 이로써 기본 낚싯대(보너스 0)는 기존 30 그대로, 좋은 낚싯대는 약간 더 빠르게
+            // 거리를 회수한다 (Stamina 감소 속도에는 session.getReelPower()가 그대로 반영).
             double distanceChange;
+            double effectiveReelPower;
+            {
+                double defaultReelPower = config.stats().defaultReelPower;
+                double rodBonus = Math.max(0, session.getReelPower() - defaultReelPower);
+                effectiveReelPower = defaultReelPower + rodBonus * ROD_BONUS_DISTANCE_RATIO;
+            }
             if (isReleasing) {
                 distanceChange = calculator.calculateReleaseDistanceChange(session.getPower(), fishState);
             } else {
-                double effectiveReelPower = config.stats().defaultReelPower;
                 distanceChange = calculator.calculateDistanceChange(
                         effectiveReelPower, session.getPower(), session.getResistance(),
                         staminaRatio, isReeling, fishState);

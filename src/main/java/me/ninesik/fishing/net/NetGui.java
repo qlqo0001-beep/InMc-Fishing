@@ -1,6 +1,7 @@
 package me.ninesik.fishing.net;
 
 import me.ninesik.fishing.gui.AbstractGui;
+import me.ninesik.fishing.gui.GuiItems;
 import me.ninesik.fishing.model.Fish;
 import me.ninesik.fishing.registry.FishRegistry;
 import me.ninesik.fishing.service.RewardService;
@@ -74,7 +75,7 @@ public class NetGui extends AbstractGui {
     private void renderBottom() {
         // 이전 페이지
         if (page > 0) {
-            setItem(45, createIcon(Material.ARROW, ChatColor.YELLOW + "이전 페이지", List.of()));
+            setItem(45, GuiItems.createIcon(Material.ARROW, ChatColor.YELLOW + "이전 페이지", List.of()));
         }
 
         // 정렬 토글
@@ -83,33 +84,33 @@ public class NetGui extends AbstractGui {
             case SIZE -> "사이즈";
             case GRADE -> "등급";
         };
-        setItem(49, createIcon(Material.HOPPER, ChatColor.GOLD + "정렬: " + sortName,
+         setItem(49, GuiItems.createIcon(Material.HOPPER, ChatColor.GOLD + "정렬: " + sortName,
                 List.of(ChatColor.GRAY + "클릭하여 변경 (이름순 → 사이즈 → 등급)")));
 
         // 다음 페이지
         NetData data = netManager.getNetData(player);
         int totalPages = data != null ? Math.max(1, (data.size() + PAGE_SIZE - 1) / PAGE_SIZE) : 1;
         if (page < totalPages - 1) {
-            setItem(53, createIcon(Material.ARROW, ChatColor.YELLOW + "다음 페이지", List.of()));
+            setItem(53, GuiItems.createIcon(Material.ARROW, ChatColor.YELLOW + "다음 페이지", List.of()));
         }
 
         // 사용량 표시
         if (data != null) {
-            setItem(47, createIcon(Material.CHEST,
+            setItem(47, GuiItems.createIcon(Material.CHEST,
                     ChatColor.GOLD + "어망 사용량: " + data.size() + "/" + data.getMaxSize(),
                     List.of(ChatColor.GRAY + "위 물고기 클릭 시 인벤토리로 꺼냅니다.",
                             ChatColor.GRAY + "아래 인벤토리의 물고기 클릭 시 어망에 넣습니다.")));
         }
 
         // 전체 꺼내기 (인벤토리 빈자리만큼)
-        setItem(51, createIcon(Material.HOPPER_MINECART, ChatColor.AQUA + "전체 꺼내기",
+        setItem(51, GuiItems.createIcon(Material.HOPPER_MINECART, ChatColor.AQUA + "전체 꺼내기",
                 List.of(
                         ChatColor.GRAY + "인벤토리에 빈자리가 있는 만큼",
                         ChatColor.GRAY + "어망의 물고기를 순서대로 꺼냅니다."
                 )));
 
         // 피드백: 어망에서 도감 일괄 등록 (인벤토리/어망의 물고기를 도감 슬롯에 등록)
-        setItem(REGISTER_SLOT, createIcon(Material.BOOK, ChatColor.GREEN + "도감 일괄 등록",
+        setItem(REGISTER_SLOT, GuiItems.createIcon(Material.BOOK, ChatColor.GREEN + "도감 일괄 등록",
                 List.of(
                         ChatColor.GRAY + "어망과 인벤토리의 물고기를",
                         ChatColor.GRAY + "도감에 일괄 등록합니다.",
@@ -117,7 +118,7 @@ public class NetGui extends AbstractGui {
                 )));
 
         // 피드백: 각 GUI 창에는 메인 GUI로 돌아오는 버튼을 둔다.
-        setItem(BACK_SLOT, createIcon(Material.OAK_DOOR, ChatColor.GOLD + "메인 GUI로",
+        setItem(BACK_SLOT, GuiItems.createIcon(Material.OAK_DOOR, ChatColor.GOLD + "메인 GUI로",
                 List.of(ChatColor.GRAY + "낚시 메인메뉴로 돌아갑니다.")));
 
     }
@@ -254,16 +255,5 @@ public class NetGui extends AbstractGui {
 
         netManager.removeFish(player, index);
         refresh();
-    }
-
-    private ItemStack createIcon(Material material, String name, List<String> lore) {
-        ItemStack item = new ItemStack(material, 1);
-        ItemMeta meta = item.getItemMeta();
-        if (meta != null) {
-            meta.setDisplayName(name);
-            meta.setLore(lore);
-            item.setItemMeta(meta);
-        }
-        return item;
     }
 }

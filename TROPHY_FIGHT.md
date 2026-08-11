@@ -75,14 +75,19 @@ Fight는 매 틱(1/20초) 계산되는 "실시간 힘겨루기 시뮬레이션"�
 - **Distance 감소 (거리 회수)**:
   `fishEscape − (baseReel + bonusReel)`
   - `fishEscape = Power × 0.004` (물고기 도망)
-  - `baseReel = 30 × 0.036 × 저항계수 × (SLOW_MOVE면 1.5)` — 릴만 감으면 항상 최소 회수
-  - `bonusReel = 30 × 0.105 × 지침계수 × 저항계수` — 물고기가 지칠수록 커짐
+  - `baseReel = 유효ReelPower × 0.036 × 저항계수 × (SLOW_MOVE면 1.5)` — 릴만 감으면 항상 최소 회수
+  - `bonusReel = 유효ReelPower × 0.105 × 지침계수 × 저항계수` — 물고기가 지칠수록 커짐
   - `저항계수 = 100/(100+Resistance)` — Power/Resistance 클수록 회수 어려움
-  - ⚠️ **밸런스 포인트**: Distance 계산엔 낚싯대 실제 ReelPower가 아니라 **고정 기본값 30**을 사용
-    (피드백: "릴 파워가 거리에 영향 안 주게"). 대신 **Stamina 감소 속도**에는 실제 ReelPower가 그대로 반영.
+  - `유효ReelPower = 기본값 30 + (낚싯대 보너스) × 0.1`
+  - ⚠️ **밸런스 포인트**: Distance 계산엔 낚싯대 실제 ReelPower를 그대로 쓰지 않고
+    **기본값 30**을 기준으로, 낚싯대 Reel Power 보너스만 **0.1로 할인**해 반영한다
+    (기본 30 고정 → 낚싯대가 좋아져도 거리 회수는 서서히만 빨라짐).
+    피드백: "릴 파워가 거리에 영향 안 주게" + "추가 reelPower는 *0.1로 거리 감소에 추가해줘.
+    지금 거리 감소가 너무 안 되는 문제가 있어." 대신 **Stamina 감소 속도**에는 실제 ReelPower가 그대로 반영.
   - **SLOW_MOVE 상태**에서 릴을 감으면 거리 회수를 1.5배 — "천천히 가는 물고기를 당길 때" 전략적 보너스
 - **Tension 상승**: `Power × 0.05 × 상태배수` — `TURN ×1.5`, `CHARGE/FINAL_STRUGGLE ×2.0`
-- **Reel State 감소**: `−(Power+Resistance) × 0.01 × 내구계수`, `내구계수=100/(100+reelDurability)`
+- **Reel State 감소**: `−(Power+Resistance) × 0.006 × 내구계수`, `내구계수=100/(100+reelDurability)`
+  (좌클릭 소모 계수를 0.01 → 0.006으로 하향 — 피드백 "릴 내구성도 빠르게 닳아서". 회복은 유지)
 
 ### 3-2. 우클릭 = 릴 풀기 (회복/완화)
 

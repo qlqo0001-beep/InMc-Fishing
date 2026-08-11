@@ -96,6 +96,40 @@ net:
   max-size: 100
 
 # ============================================================
+#  [fillet] 생선 살 가공 시스템 설정
+#  물고기를 생선 살로 가공할 때의 산출량과 소요 시간을 조정합니다.
+# ============================================================
+fillet:
+  # 기본 산출량 (공식: round(기준값 × (등급 최대weight / 해당 fish weight)))
+  base-yield: 3
+
+  # 기본 가공 슬롯 수
+  default-slots: 3
+
+  # true=동시 작업, false=순차 작업
+  concurrent-mode: true
+
+  # 등급별 기본 가공 시간(초)
+  grade-times:
+    f: 10
+    e: 20
+    d: 40
+    c: 60
+    b: 90
+    a: 120
+    s: 180
+
+  # 트로피/레어트로피 배율 (가공 시간에 곱함)
+  trophy-multiplier: 1.5
+  rare-trophy-multiplier: 2.0
+
+  # 희귀도 계수 사용 여부 (true=희귀할수록 가공 시간 증가)
+  use-rarity-factor: true
+
+  # 슬롯에 투입된 물고기 1마리당 추가되는 가공 시간(초)
+  time-per-item: 5
+
+# ============================================================
 #  [sounds] 효과음 설정
 #  각 상황에 재생될 소리를 지정합니다.
 #  사용 가능한 소리는 https://hub.spigotmc.org/javadocs/spigot/org/bukkit/Sound.html

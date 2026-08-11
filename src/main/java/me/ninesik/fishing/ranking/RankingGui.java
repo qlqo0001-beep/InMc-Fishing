@@ -1,6 +1,7 @@
 package me.ninesik.fishing.ranking;
 
 import me.ninesik.fishing.gui.AbstractGui;
+import me.ninesik.fishing.gui.GuiItems;
 import me.ninesik.fishing.model.Fish;
 import me.ninesik.fishing.registry.FishRegistry;
 import org.bukkit.ChatColor;
@@ -53,9 +54,9 @@ public class RankingGui extends AbstractGui {
         // SIZE 탭 2단계에서는 뒤로가기 버튼을 탭 영역 마지막에 표시
         if ("SIZE".equals(currentTab) && selectedFishId != null) {
             for (int i = 0; i < 8; i++) {
-                setItem(TAB_ROW * 9 + i, createIcon(Material.GRAY_STAINED_GLASS_PANE, " ", List.of()));
+                 setItem(TAB_ROW * 9 + i, GuiItems.createIcon(Material.GRAY_STAINED_GLASS_PANE, " ", List.of()));
             }
-            setItem(TAB_ROW * 9 + 8, createIcon(Material.BARRIER, ChatColor.RED + "[뒤로가기]",
+            setItem(TAB_ROW * 9 + 8, GuiItems.createIcon(Material.BARRIER, ChatColor.RED + "[뒤로가기]",
                     List.of(ChatColor.GRAY + "물고기 목록으로 돌아가기")));
             return;
         }
@@ -72,7 +73,7 @@ public class RankingGui extends AbstractGui {
                 case "TROPHY" -> Material.GOLDEN_SWORD;
                 default -> Material.PAPER;
             };
-            ItemStack item = createIcon(material, color + "[" + tabs[i] + "]",
+            ItemStack item = GuiItems.createIcon(material, color + "[" + tabs[i] + "]",
                     List.of(active ? ChatColor.YELLOW + "현재 탭" : ChatColor.GRAY + "클릭하여 이동"));
             setItem(TAB_ROW * 9 + i, item);
         }
@@ -164,7 +165,7 @@ public class RankingGui extends AbstractGui {
 
     private void renderBottom() {
         if (page > 0) {
-            setItem(45, createIcon(Material.ARROW, ChatColor.YELLOW + "이전 페이지", List.of()));
+            setItem(45, GuiItems.createIcon(Material.ARROW, ChatColor.YELLOW + "이전 페이지", List.of()));
         }
 
         int totalSize = switch (currentTab) {
@@ -178,12 +179,12 @@ public class RankingGui extends AbstractGui {
         int pageSize = CONTENT_END - CONTENT_START + 1;
         int totalPages = Math.max(1, (totalSize + pageSize - 1) / pageSize);
         if (page < totalPages - 1) {
-            setItem(53, createIcon(Material.ARROW, ChatColor.YELLOW + "다음 페이지", List.of()));
+            setItem(53, GuiItems.createIcon(Material.ARROW, ChatColor.YELLOW + "다음 페이지", List.of()));
         }
 
-        setItem(49, createIcon(Material.BARRIER, ChatColor.RED + "닫기", List.of()));
+        setItem(49, GuiItems.createIcon(Material.BARRIER, ChatColor.RED + "닫기", List.of()));
         // 피드백: 각 GUI 창에는 메인 GUI로 돌아오는 버튼을 둔다.
-        setItem(50, createIcon(Material.OAK_DOOR, ChatColor.GOLD + "메인 GUI로",
+        setItem(50, GuiItems.createIcon(Material.OAK_DOOR, ChatColor.GOLD + "메인 GUI로",
                 List.of(ChatColor.GRAY + "낚시 메인메뉴로 돌아갑니다.")));
     }
 
@@ -227,7 +228,7 @@ public class RankingGui extends AbstractGui {
             }
         }
 
-        return createIcon(material, name, lore);
+        return GuiItems.createIcon(material, name, lore);
     }
 
     private List<RankingEntry> getTopBySize(int count) {
@@ -317,16 +318,5 @@ public class RankingGui extends AbstractGui {
         int index = page * pageSize + (slot - CONTENT_START);
         if (index < 0 || index >= fishes.size()) return null;
         return fishes.get(index);
-    }
-
-    private ItemStack createIcon(Material material, String name, List<String> lore) {
-        ItemStack item = new ItemStack(material, 1);
-        ItemMeta meta = item.getItemMeta();
-        if (meta != null) {
-            meta.setDisplayName(name);
-            meta.setLore(lore);
-            item.setItemMeta(meta);
-        }
-        return item;
     }
 }

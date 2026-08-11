@@ -5,7 +5,6 @@ import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.inventory.ItemStack;
-import org.bukkit.inventory.meta.ItemMeta;
 
 import java.util.List;
 
@@ -31,39 +30,39 @@ public class TrophyHelpGui extends AbstractGui {
     @Override
     public void initialize() {
         inventory.clear();
-        ItemStack pane = createIcon(Material.GRAY_STAINED_GLASS_PANE, " ", List.of());
+        ItemStack pane = GuiItems.createIcon(Material.GRAY_STAINED_GLASS_PANE, " ", List.of());
         for (int i = 0; i < inventory.getSize(); i++) {
             inventory.setItem(i, pane.clone());
         }
 
-        setItem(SLOT_GOAL, createIcon(Material.TARGET, ChatColor.GOLD + "[ 목표 ]",
+        setItem(SLOT_GOAL, GuiItems.createIcon(Material.TARGET, ChatColor.GOLD + "[ 목표 ]",
                 List.of(
                         ChatColor.WHITE + "1. 물고기 스테미너를 0으로",
                         ChatColor.WHITE + "2. 이후 거리(Distance)를 0으로",
                         ChatColor.GRAY + "둘 다 0이 되면 승리!")));
 
-        setItem(SLOT_CONTROL, createIcon(Material.IRON_SWORD, ChatColor.GOLD + "[ 조작법 ]",
+        setItem(SLOT_CONTROL, GuiItems.createIcon(Material.IRON_SWORD, ChatColor.GOLD + "[ 조작법 ]",
                 List.of(
                         ChatColor.YELLOW + "좌클릭: 릴 감기 (제압)",
                         ChatColor.GRAY + "→ 거리 회수, 장력 상승, 물고기 스테미너 소모",
                         ChatColor.YELLOW + "우클릭: 릴 풀기 (회복)",
                         ChatColor.GRAY + "→ 장력 감소, 릴 상태 회복 (거리가 늘어남)")));
 
-        setItem(SLOT_STATE, createIcon(Material.SPIDER_EYE, ChatColor.GOLD + "[ 물고기 상태 ]",
+        setItem(SLOT_STATE, GuiItems.createIcon(Material.SPIDER_EYE, ChatColor.GOLD + "[ 물고기 상태 ]",
                 List.of(
                         ChatColor.GREEN + "휴식: 저항 낮음 — 릴을 감기 좋은 타이밍",
                         ChatColor.YELLOW + "이동/방향전환: 보통 저항",
                         ChatColor.RED + "강한 돌진: 저항과 스테미너 소모 큼",
                         ChatColor.DARK_RED + "마지막 발악: 최고 저항, 이후 휴식")));
 
-        setItem(SLOT_FAIL, createIcon(Material.BARRIER, ChatColor.RED + "[ 실패 조건 ]",
+        setItem(SLOT_FAIL, GuiItems.createIcon(Material.BARRIER, ChatColor.RED + "[ 실패 조건 ]",
                 List.of(
                         ChatColor.RED + "장력 ≥ 줄 강도 (줄 끊김)",
                         ChatColor.RED + "거리 ≥ 상한 (도망)",
                         ChatColor.RED + "릴 상태 ≤ 0 (파손)",
                         ChatColor.RED + "제한 시간 초과")));
 
-        setItem(SLOT_BACK, createIcon(Material.OAK_DOOR, ChatColor.GOLD + "메인 GUI로",
+        setItem(SLOT_BACK, GuiItems.createIcon(Material.OAK_DOOR, ChatColor.GOLD + "메인 GUI로",
                 List.of(ChatColor.GRAY + "낚시 메인메뉴로 돌아갑니다.")));
     }
 
@@ -76,16 +75,5 @@ public class TrophyHelpGui extends AbstractGui {
         if (slot == SLOT_BACK) {
             MainGui.open(player);
         }
-    }
-
-    private ItemStack createIcon(Material material, String name, List<String> lore) {
-        ItemStack item = new ItemStack(material, 1);
-        ItemMeta meta = item.getItemMeta();
-        if (meta != null) {
-            meta.setDisplayName(name);
-            meta.setLore(lore);
-            item.setItemMeta(meta);
-        }
-        return item;
     }
 }

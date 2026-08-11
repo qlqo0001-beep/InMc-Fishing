@@ -60,6 +60,17 @@ public class FightCalculator {
      * <p>위 {@link #BASE_REEL_COEFFICIENT}와 동일한 이유로 재계산: {@code 0.35 × (30/100) = 0.105}.</p>
      */
     private static final double BONUS_REEL_COEFFICIENT = 0.105;
+    /**
+     * 기절(STUNNED) 상태에서 릴 감기 시 Distance 감소 계수.
+     *
+     * <p>피드백: "물고기가 기절하면 끌려오는 거리가 너무 많이 끌려와서 별로다."
+     * STUNNED는 Power/Resistance가 모두 0인 유일한 상태라 calculateDistanceChange()의
+     * resistanceFactor·exhaustionFactor가 항상 이론적 최댓값(1.0)에 도달해, 전체 상태 중
+     * 가장 빠르게 Distance가 줄어드는 상태가 되어버렸다. baseReel/bonusReel 합산 구조에서
+     * 완전히 분리해 이 계수 하나로만 감소 속도를 제어한다.
+     * (초기값 — 테스트 후 조정 가능)</p>
+     */
+    private static final double STUNNED_PULL_COEFFICIENT = 0.03;
 
     /**
      * Fish Stamina 감소량을 계산한다.
@@ -82,16 +93,16 @@ public class FightCalculator {
         if (reelPower <= 0) return 0.0;
         double reelEfficiency = Math.max(0.0, Math.min(1.0, reelStateRatio));
         double base = reelPower * 0.01 * reelEfficiency;
-        double stateMultiplier = switch (state) {
-            case CHARGE -> 1.5;        // 돌진 — 스태미너를 더 많이 줄인다
-            case FINAL_STRUGGLE -> 0.4; // 발악 — 스태미너가 잘 안 줄어든다
-            case EXHAUSTED -> 2.0;     // 탈진 — 좌클릭 몰아치기 최적 (스태미너 가장 잘 깎임)
-            case DIVE -> 1.2;          // 잠수 — 좌클릭 시 스태미너가 조금 더 깎임
-            case CIRCLE -> 1.0;        // 원형 유영 — 보통
-            case JUMP -> 0.3;          // 점프 — 클릭 효과 약화
-            case LINE_TANGLE -> 0.2;   // 줄 엉킴 — 좌클릭 무효
-            default -> 1.0;
-        };
+         double stateMultiplier = switch (state) {
+             case CHARGE -> 1.5;        // 돌진 — 스태미너를 더 많이 줄인다
+             case FINAL_STRUGGLE -> 0.0; // 발악 — 스태미너가 줄어들지 않는다
+             case EXHAUSTED -> 2.0;     // 탈진 — 좌클릭 몰아치기 최적 (스태미너 가장 잘 깎임)
+             case DIVE -> 0.0;          // 잠수 — 스태미너가 줄어들지 않는다
+             case CIRCLE -> 1.0;        // 원형 유영 — 보통
+             case JUMP -> 0.3;          // 점프 — 클릭 효과 약화
+             case LINE_TANGLE -> 0.2;   // 줄 엉킴 — 좌클릭 무효
+             default -> 1.0;
+         };
         return base * stateMultiplier;
     }
 
@@ -112,12 +123,12 @@ public class FightCalculator {
      */
     public double calculateStaminaRegen(FishState state, double maxStamina) {
         double ratio = switch (state) {
-            case REST -> 0.0015;
+             case REST -> 0.0016;
             case SLOW_MOVE -> 0.0008;
             case NORMAL_MOVE -> 0.0004;
             case TURN -> 0.0002;
             case CIRCLE -> 0.0002;     // 원형 유영(소강) — 완만하게 약간 회복
-            case CHARGE, FINAL_STRUGGLE, DIVE, JUMP, LINE_TANGLE, EXHAUSTED -> 0.0;
+            case CHARGE, FINAL_STRUGGLE, DIVE, JUMP, LINE_TANGLE, EXHAUSTED, STUNNED -> 0.0;
         };
         return Math.max(0.0, maxStamina) * ratio;
     }
@@ -144,13 +155,22 @@ public class FightCalculator {
      * <p><b>피드백 수정:</b> "릴 파워 값이 거리에 영향을 주는 거지? 거리에 영향을
      * 안주게 만들고 기본값인 30만 적용되게 해줘." 이전에는 낚싯대의 실제 Reel Power가
      * 그대로 {@code reelPower} 인자로 들어와 거리 회수량(baseReel/bonusReel)에 비례했다.
-     * 이제 호출부(TrophyFightManager.tick())가 낚싯대 실제 값 대신 항상
-     * {@code config.stats().defaultReelPower}(기본 30)를 넘기므로, 낚싯대를 무엇을
-     * 장비하든 거리 회수 속도는 동일하다 — 낚싯대의 Reel Power는 여전히 Stamina 감소
-     * 속도({@link #calculateStaminaDecrease})에는 영향을 준다.</p>
+     * 이제 호출부(TrophyFightManager.tick())가 낚싯대 실제 값 대신 config
+     * {@code defaultReelPower}(기본 30)를 기준값으로 넘긴다. 다만 이후 피드백
+     * ("추가적인 reelPower 증가분에 대해 *0.1을 해서 거리 감소에 추가해줘. 지금 거리
+     * 감소가 너무 안 되는 문제가 있어.")에 따라 호출부는 기본값을 유지하면서 낚싯대
+     * 보너스만 0.1 계수로 곱해 더한 값
+     * ({@code defaultReelPower + (낚싯대 보너스) × 0.1})을 전달한다.
+     * 즉 기본 낚싯대(보너스 0)는 그대로 30 기준, 좋은 낚싯대는 약간 더 빠르게 거리를
+     * 회수한다. 낚싯대의 Reel Power는 여전히 Stamina 감소 속도
+     * ({@link #calculateStaminaDecrease})에는 그대로 영향을 준다.</p>
      *
-     * @param reelPower Distance 계산에 사용할 Reel Power. 낚싯대의 실제 값이 아니라
-     *                  호출부에서 넘기는 고정 기준값(기본 30)이어야 한다 (위 피드백 참고).
+     * <p>기절(STUNNED) 상태는 Power/Resistance가 동시에 0인 유일한 상태라 공식 구조상
+     * 회수 속도가 최대가 되었고, 이를 독립 계수 {@link #STUNNED_PULL_COEFFICIENT}로 분리해
+     * 제어한다 (피드백: "물고기가 기절하면 끌려오는 거리가 너무 많이 끌려와서 별로다").</p>
+     *
+     * @param reelPower Distance 계산에 사용할 Reel Power. 호출부에서 낚싯대 보너스를
+     *                  0.1 계수로 반영한 유효값을 넘긴다 (기본 30 + 보너스×0.1).
      * @param fishPower 현재 Fish Power (AI 상태별)
      * @param fishResistance 현재 Fish Resistance (AI 상태별)
      * @param staminaRatio 현재 Stamina 비율 (0.0 ~ 1.0)
@@ -160,6 +180,14 @@ public class FightCalculator {
      */
     public double calculateDistanceChange(double reelPower, double fishPower, double fishResistance,
                                           double staminaRatio, boolean isReeling, FishState state) {
+        // 기절(STUNNED) 상태: 기존 baseReel/bonusReel 합산 공식을 타지 않고 독립 계수로 처리한다.
+        // (STUNNED는 Power/Resistance가 둘 다 0이어서 resistanceFactor·exhaustionFactor가 항상
+        // 최댓값 1.0이 되어, 공식을 그대로 쓰면 전체 상태 중 가장 빠르게 Distance가 줄어들었다.
+        // 릴을 감지 않으면 기존의 fishEscape=0(도망 없음)과 동일하도록 0.0 반환 — 회귀 없음.)
+        if (state == FishState.STUNNED) {
+            return isReeling ? -(reelPower * STUNNED_PULL_COEFFICIENT) : 0.0;
+        }
+
         double fishEscape = fishPower * FISH_ESCAPE_COEFFICIENT;
 
         if (!isReeling) {
@@ -201,44 +229,44 @@ public class FightCalculator {
     /**
      * Tension 변화량을 계산한다.
      *
-     * <p>수식: {@code tensionChange = fishPower * 0.05 * reelFactor - tensionDecay}</p>
-     * <ul>
-     *   <li>{@code reelFactor} — 릴을 감고 있으면 1.0, 멈추면 0.0</li>
-     *   <li>{@code tensionDecay} — 릴을 멈추면 장력 감소 (기본 2.0)</li>
-     *   <li>항상 Tick마다 계산 (isReeling에 따라 증가/감소)</li>
-     * </ul>
+     * <p>3단계 장력 시스템을 적용한다:
+     * <ol>
+     *   <li>수동 상태(REST, SLOW_MOVE, EXHAUSTED): 장력이 거의 오르지 않으며, 좌클릭으로도 장력이 크게 증가하지 않는다. 플레이어는 좌클릭을 집중하여 스태미너를 소모해야 한다.</li>
+     *   <li>중간 상태(NORMAL_MOVE, TURN, CIRCLE, LINE_TANGLE, JUMP): 장력이 자동으로 오르며, 좌클릭과 우클릭을 번갈아 사용하여 장력을 관리해야 한다.</li>
+     *   <li>공격 상태(CHARGE, DIVE, FINAL_STRUGGLE): 장력이 빠르게 자동 상승하며, 우클릭(릴 풀기)을 최우선으로 사용해야 한다.</li>
+     * </ol>
      *
-     * @param fishPower 현재 Fish Power
+     * <p>수식:
+     * <ul>
+     *   <li>릴 감기(좌클릭): {@code tensionChange = maxTension * tensionRate}</li>
+     *   <li>대기(릴 미감기): {@code tensionChange = -2.0 + autoTensionRate}</li>
+     *   <li>릴 풀기(우클릭): {@code tensionChange = -comboBasedDecay}</li>
+     * </ul>
+     * </p>
+     *
+     * @param maxTension 최대 장력 (Line Strength)
      * @param isReeling 릴을 감고 있는지 여부
      * @param state 현재 Fish AI 상태
      * @return Tension 변화량 (양수 = 장력 증가, 음수 = 장력 감소)
      */
-    public double calculateTensionChange(double fishPower, boolean isReeling, FishState state) {
-        double tensionDecay = isReeling ? 0.0 : 2.0;
-        if (!isReeling) {
-            return -tensionDecay;
+    public double calculateTensionChange(double maxTension, boolean isReeling, FishState state) {
+        double maxTensionSafe = Math.max(1.0, maxTension);
+
+        if (isReeling) {
+            // 릴 감기(좌클릭): 상태별 장력 상승율 적용
+            double tensionRate = state.getTensionRate();
+            return maxTensionSafe * tensionRate;
         }
 
-        // 피드백: 좌클릭 시 물고기 상태에 따라 탠션 유지력(상승량)이 다르다.
-        //   TURN(방향전환) — 탠션이 더 많이 오른다 (×1.5)
-        //   CHARGE(돌진)/FINAL_STRUGGLE(발악) — 탠션이 많이 오른다 (×2.0)
-        double tensionGain = fishPower * 0.05;
-        double stateMultiplier = switch (state) {
-            case TURN -> 1.5;
-            case CHARGE, FINAL_STRUGGLE -> 2.0;
-            case DIVE -> 3.0;          // 잠수 — 좌클릭 시 탠션 폭증 (좌클릭 금지)
-            case LINE_TANGLE -> 1.5;   // 줄 엉킴 — 좌클릭 위험
-            case EXHAUSTED -> 0.6;     // 탈진 — 좌클릭해도 안전 (몰아치기)
-            case JUMP -> 0.8;          // 점프 — 탠션 영향 적음
-            default -> 1.0;
-        };
-        return tensionGain * stateMultiplier;
+        // 대기(릴 미감기): 기본 장력 감소(-2.0) + 자동 장력 상승
+        double autoTension = state.getAutoTensionRate();
+        return -2.0 + autoTension;
     }
 
     /**
      * Reel State 변화량을 계산한다.
      *
-     * <p>수식: {@code reelStateChange = -(fishPower + fishResistance) * 0.01 * durabilityFactor}</p>
+     * <p>수식: {@code reelStateChange = -(fishPower + fishResistance) * 0.006 * durabilityFactor}</p>
      * <ul>
      *   <li>릴을 감을 때만 Reel State가 감소 (degradation)</li>
      *   <li>릴을 멈추면 Reel State는 서서히 회복된다 — {@link #calculateReelStateRegen(double)} 참고
@@ -254,6 +282,13 @@ public class FightCalculator {
      * 배수로 바꾸고 기본 계수도 10배 올려, Reel Durability가 낮은 낚싯대는
      * 확실히 빨리 닳고, 높은 낚싯대도 계속 릴을 감으면 결국 닳도록 했다.</p>
      *
+     * <p><b>밸런스 수정 (피드백: "릴 내구성도 빠르게 닳아서 밸런스 조정 필요"):</b>
+     * 좌클릭(릴 감기) 소모 계수를 0.01 → 0.006으로만 하향 조정했다. 회복 수식
+     * (idle 0.0015 / 우클릭 0.008)은 그대로 두어, 기본 낚싯대 기준 릴을 감을 수 있는
+     * 시간이 약 1.6~1.7배 늘어난다 (HP 100 → 0: 기본 ~6.5초 → ~10.8초, S급 배수 시
+     * ~2.6초 → ~4.3초). 여전히 감기만 하면 소모되므로 "감기 → 잠깐 멈춤/우클릭" 리듬
+     * 관리는 유지된다.</p>
+     *
      * @param fishPower 현재 Fish Power
      * @param fishResistance 현재 Fish Resistance
      * @param isReeling 릴을 감고 있는지 여부
@@ -266,7 +301,7 @@ public class FightCalculator {
             return 0.0;
         }
         double durabilityFactor = 100.0 / (100.0 + Math.max(0.0, reelDurability));
-        return -(fishPower + fishResistance) * 0.01 * durabilityFactor;
+        return -(fishPower + fishResistance) * 0.006 * durabilityFactor;
     }
 
     /**
@@ -317,6 +352,7 @@ public class FightCalculator {
             case CIRCLE -> 1.0;        // 원형 유영 — 우클릭 시 거리 완만
             case JUMP -> 1.0;
             case LINE_TANGLE -> 3.0;   // 줄 엉킴 — 우클릭으로 관리
+            case STUNNED -> 0.5;       // 기절 — 우클릭해도 거리 별로 안 늘어남
             case DIVE -> 4.0;          // 잠수 — 우클릭해도 거리 크게 늘어남
         };
         return fishEscape + RELEASE_BASE * stateMultiplier;
@@ -344,4 +380,5 @@ public class FightCalculator {
     public double calculateReleaseReelStateRegen(double maxReelState) {
         return Math.max(0.0, maxReelState) * RELEASE_REEL_REGEN_RATIO;
     }
+
 }

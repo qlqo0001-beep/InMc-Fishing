@@ -1,12 +1,12 @@
 package me.ninesik.fishing.tournament;
 
 import me.ninesik.fishing.gui.AbstractGui;
+import me.ninesik.fishing.gui.GuiItems;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.inventory.ItemStack;
-import org.bukkit.inventory.meta.ItemMeta;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -59,14 +59,14 @@ public class TournamentGui extends AbstractGui {
         int totalPages = Math.max(1, (all.size() + pageSize - 1) / pageSize);
 
         if (page > 0) {
-            setItem(45, createIcon(Material.ARROW, ChatColor.YELLOW + "이전 페이지", List.of()));
+            setItem(45, GuiItems.createIcon(Material.ARROW, ChatColor.YELLOW + "이전 페이지", List.of()));
         }
         if (page < totalPages - 1) {
-            setItem(53, createIcon(Material.ARROW, ChatColor.YELLOW + "다음 페이지", List.of()));
+            setItem(53, GuiItems.createIcon(Material.ARROW, ChatColor.YELLOW + "다음 페이지", List.of()));
         }
-        setItem(49, createIcon(Material.BARRIER, ChatColor.RED + "닫기", List.of()));
+        setItem(49, GuiItems.createIcon(Material.BARRIER, ChatColor.RED + "닫기", List.of()));
         // 피드백: 각 GUI 창에는 메인 GUI로 돌아오는 버튼을 둔다.
-        setItem(50, createIcon(Material.OAK_DOOR, ChatColor.GOLD + "메인 GUI로",
+        setItem(50, GuiItems.createIcon(Material.OAK_DOOR, ChatColor.GOLD + "메인 GUI로",
                 List.of(ChatColor.GRAY + "낚시 메인메뉴로 돌아갑니다.")));
     }
 
@@ -94,7 +94,7 @@ public class TournamentGui extends AbstractGui {
             }
         }
 
-        return createIcon(material, name, lore);
+        return GuiItems.createIcon(material, name, lore);
     }
 
     @Override
@@ -135,16 +135,5 @@ public class TournamentGui extends AbstractGui {
                 player.sendMessage(ChatColor.GRAY + "해당 대회는 현재 대기 중입니다.");
             }
         }
-    }
-
-    private ItemStack createIcon(Material material, String name, List<String> lore) {
-        ItemStack item = new ItemStack(material, 1);
-        ItemMeta meta = item.getItemMeta();
-        if (meta != null) {
-            meta.setDisplayName(name);
-            meta.setLore(lore);
-            item.setItemMeta(meta);
-        }
-        return item;
     }
 }

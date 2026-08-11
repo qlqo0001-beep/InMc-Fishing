@@ -41,7 +41,7 @@ public class RodLoader {
                     continue;
                 }
 
-                Map<Grade, Integer> bonus = new HashMap<>();
+                Map<Grade, Integer> bonus = new LinkedHashMap<>();
                 ConfigurationSection bonusSection = rodSection.getConfigurationSection("bonus");
                 if (bonusSection != null) {
                     for (String gradeKey : bonusSection.getKeys(false)) {

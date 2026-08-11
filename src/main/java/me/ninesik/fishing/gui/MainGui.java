@@ -7,6 +7,7 @@ import me.ninesik.fishing.fatigue.PlayerFatigueManager;
 import me.ninesik.fishing.fight.FightConfig;
 import me.ninesik.fishing.model.Grade;
 import me.ninesik.fishing.model.Rod;
+import me.ninesik.fishing.fillet.FilletGui;
 import me.ninesik.fishing.net.NetManager;
 import me.ninesik.fishing.player.PlayerPreferenceManager;
 import me.ninesik.fishing.ranking.RankingManager;
@@ -19,7 +20,7 @@ import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.inventory.ItemStack;
-import org.bukkit.inventory.meta.ItemMeta;
+import org.bukkit.inventory.meta.SkullMeta;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -35,17 +36,18 @@ import java.util.List;
  */
 public class MainGui extends AbstractGui {
 
-    private static final int ROWS = 5;
+    private static final int ROWS = 3;
 
-    private static final int SLOT_STATS = 18;
-    private static final int SLOT_NET = 19;
-    private static final int SLOT_COLLECTION = 20;
-    private static final int SLOT_RANK = 21;
-    private static final int SLOT_TOURNAMENT = 22;
-    private static final int SLOT_AUTOCATCH = 27;
-    private static final int SLOT_PRACTICE = 28;
-    private static final int SLOT_FIGHT_HELP = 29;
-    private static final int SLOT_CLOSE = 44;
+    private static final int SLOT_STATS = 4;
+    private static final int SLOT_NET = 11;
+    private static final int SLOT_COLLECTION = 12;
+    private static final int SLOT_RANK = 13;
+    private static final int SLOT_TOURNAMENT = 14;
+    private static final int SLOT_FILLET = 15;
+    private static final int SLOT_AUTOCATCH = 21;
+    private static final int SLOT_PRACTICE = 22;
+    private static final int SLOT_FIGHT_HELP = 23;
+    private static final int SLOT_CLOSE = 26;
 
     public MainGui(Player player) {
         super(player, ROWS, ChatColor.DARK_AQUA + "낚시 메인메뉴");
@@ -74,19 +76,20 @@ public class MainGui extends AbstractGui {
         setItem(SLOT_COLLECTION, buildNavIcon(Material.BOOK, "도감", "낚은 물고기를 등록하고 보상을 받습니다."));
         setItem(SLOT_RANK, buildNavIcon(Material.GOLDEN_SWORD, "랭킹", "도감/사이즈/트로피 랭킹을 확인합니다."));
         setItem(SLOT_TOURNAMENT, buildNavIcon(Material.FISHING_ROD, "대회", "낚시 대회 참가/정보를 확인합니다."));
+        setItem(SLOT_FILLET, buildNavIcon(Material.COOKED_COD, "생선 살 가공", "물고기를 생선 살로 가공합니다."));
         setItem(SLOT_AUTOCATCH, buildAutoCatchIcon());
         setItem(SLOT_PRACTICE, buildPracticeIcon());
         setItem(SLOT_FIGHT_HELP, buildNavIcon(Material.WRITABLE_BOOK, "트로피 파이트 설명",
                 "물고기와의 힘겨루기 게임 방식을 안내합니다."));
-        setItem(SLOT_CLOSE, createIcon(Material.BARRIER, ChatColor.RED + "닫기",
+        setItem(SLOT_CLOSE, GuiItems.createIcon(Material.BARRIER, ChatColor.RED + "닫기",
                 List.of(ChatColor.GRAY + "메뉴를 닫습니다.")));
     }
 
     private void fillBorder() {
-        ItemStack pane = createIcon(Material.GRAY_STAINED_GLASS_PANE, " ", List.of());
+        ItemStack pane = GuiItems.createIcon(Material.GRAY_STAINED_GLASS_PANE, " ", List.of());
         for (int i = 0; i < inventory.getSize(); i++) {
             if (i == SLOT_STATS || i == SLOT_NET || i == SLOT_COLLECTION || i == SLOT_RANK
-                    || i == SLOT_TOURNAMENT || i == SLOT_AUTOCATCH || i == SLOT_PRACTICE
+                    || i == SLOT_TOURNAMENT || i == SLOT_FILLET || i == SLOT_AUTOCATCH || i == SLOT_PRACTICE
                     || i == SLOT_FIGHT_HELP || i == SLOT_CLOSE) {
                 continue;
             }
@@ -100,7 +103,15 @@ public class MainGui extends AbstractGui {
     /** 내 낚시 스탯 버튼 아이콘. LORE에 스탯을 표기한다 (피드백). */
     private ItemStack buildStatsIcon() {
         List<String> lines = buildStatsLines(player);
-        return createIcon(Material.IRON_PICKAXE, ChatColor.GOLD + "내 낚시 스탯", lines);
+        ItemStack head = new ItemStack(Material.PLAYER_HEAD);
+        SkullMeta sm = (SkullMeta) head.getItemMeta();
+        if (sm != null) {
+            sm.setOwningPlayer(player);
+            sm.setDisplayName(ChatColor.GOLD + "내 낚시 스탯");
+            sm.setLore(lines);
+            head.setItemMeta(sm);
+        }
+        return head;
     }
 
     /**
@@ -191,7 +202,7 @@ public class MainGui extends AbstractGui {
         }
         lore.add(ChatColor.YELLOW + "현재: " + (on ? ChatColor.GREEN + "ON (미니게임)" : ChatColor.RED + "OFF (자동 낚시)"));
         lore.add(ChatColor.GRAY + "클릭: 토글");
-        return createIcon(on ? Material.COMPARATOR : Material.REPEATER,
+        return GuiItems.createIcon(on ? Material.COMPARATOR : Material.REPEATER,
                 ChatColor.GOLD + "미니게임 " + (on ? "ON" : "OFF"), lore);
     }
 
@@ -200,7 +211,7 @@ public class MainGui extends AbstractGui {
     private ItemStack buildPracticeIcon() {
         PlayerPreferenceManager prefs = plugin().getPlayerPreferenceManager();
         boolean on = prefs != null && prefs.isTrophyPracticeMode(player);
-        return createIcon(on ? Material.GOLDEN_SWORD : Material.STONE_SWORD,
+        return GuiItems.createIcon(on ? Material.GOLDEN_SWORD : Material.STONE_SWORD,
                 ChatColor.GOLD + "트로피 파이트 연습모드 " + (on ? "ON" : "OFF"),
                 List.of(
                         ChatColor.GRAY + "ON이면 일반 물고기여도 낚시 성공 시",
@@ -211,7 +222,7 @@ public class MainGui extends AbstractGui {
     }
 
     private ItemStack buildNavIcon(Material material, String name, String desc) {
-        return createIcon(material, ChatColor.GOLD + name, List.of(
+        return GuiItems.createIcon(material, ChatColor.GOLD + name, List.of(
                 ChatColor.GRAY + desc,
                 ChatColor.GRAY + "클릭: " + name + " 열기"));
     }
@@ -266,6 +277,15 @@ public class MainGui extends AbstractGui {
                 player.closeInventory();
                 new me.ninesik.fishing.tournament.TournamentGui(player, t).open();
             }
+            case SLOT_FILLET -> {
+                var fm = plugin().getFilletManager();
+                if (fm == null) {
+                    player.sendMessage(ChatColor.RED + "생선 살 가공 시스템이 초기화되지 않았습니다.");
+                    return;
+                }
+                player.closeInventory();
+                new FilletGui(player, fm).open();
+            }
             case SLOT_AUTOCATCH -> {
                 PlayerPreferenceManager prefs = plugin().getPlayerPreferenceManager();
                 if (prefs != null) {
@@ -302,17 +322,6 @@ public class MainGui extends AbstractGui {
     private void emitToggleActionBar(String name, boolean enabled) {
         me.ninesik.fishing.util.Texts.sendActionBar(player,
                 (enabled ? "&a" : "&c") + name + (enabled ? " ON" : " OFF"));
-    }
-
-    private ItemStack createIcon(Material material, String name, List<String> lore) {
-        ItemStack item = new ItemStack(material, 1);
-        ItemMeta meta = item.getItemMeta();
-        if (meta != null) {
-            meta.setDisplayName(name);
-            meta.setLore(lore);
-            item.setItemMeta(meta);
-        }
-        return item;
     }
 }
 

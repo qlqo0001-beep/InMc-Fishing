@@ -4,7 +4,7 @@ plugins {
 }
 
 group = "me.ninesik"
-version = "1.0.0"
+version = "1.5.1"
 
 java {
     toolchain {
@@ -25,6 +25,9 @@ dependencies {
 
     // bStats 메트릭스 — 최종 jar(Shadow)에만 병합된다.
     implementation("org.bstats:bstats-bukkit:3.2.1")
+
+    // SQLite JDBC — 플레이어 데이터 통합 DB
+    implementation("org.xerial:sqlite-jdbc:3.49.1.0")
 }
 
 tasks {

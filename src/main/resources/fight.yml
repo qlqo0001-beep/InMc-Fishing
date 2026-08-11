@@ -116,8 +116,8 @@ trophy-fight:
   # --- 사운드 설정 ---
   # 빈 문자열("") = 해당 상황 사운드 끄기
   sound:
-    # 사운드 출력 인터벌 (틱). 기본값 2.
-    interval: 2
+    # 사운드 출력 인터벌 (틱). 기본값 8.
+    interval: 8
     # 물고기가 강하게 돌진
     charge: "entity.salmon.flop"
     # 릴이 과부하 상태
