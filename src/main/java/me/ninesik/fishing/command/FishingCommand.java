@@ -380,6 +380,11 @@ public class FishingCommand implements CommandExecutor, TabCompleter {
     }
 
     private void handleInfo(CommandSender sender) {
+        // 다른 유저 명령어와 동일하게 권한을 확인한다 (이 명령만 누락돼 있었다)
+        if (!sender.hasPermission("infishing.user")) {
+            sender.sendMessage("§c권한이 없습니다.");
+            return;
+        }
         sender.sendMessage("§6===== InMc-Fishing =====");
         sender.sendMessage("§e버전: §f" + plugin.getDescription().getVersion());
         sender.sendMessage("§eAPI: §f" + plugin.getDescription().getAPIVersion());

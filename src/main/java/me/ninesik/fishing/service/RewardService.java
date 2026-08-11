@@ -93,42 +93,7 @@ public class RewardService {
         if (netManager != null && netManager.addFish(player, reward)) {
             // 표시명 (메시지용, 색상 포함)
             ItemStack tempItem = createItemStack(fish, 1, reward.getSize(), reward.isTrophy(), reward.isRareTrophy());
-            String itemDisplay = resolveDisplayName(fish, tempItem);
-            itemDisplay = Texts.colorize(itemDisplay);
-
-            // 대어 메시지
-            if (reward.isBigFish()) {
-                String bigFishMsg = configManager.formatMessage("catch.big-fish", placeholders(player, reward, itemDisplay));
-                if (!bigFishMsg.isEmpty()) {
-                    player.sendMessage(bigFishMsg);
-                }
-                Sounds.play(player, configManager.getSound("big-fish"));
-            }
-
-            // 성공/더블 메시지
-            boolean effectiveDouble = reward.isDouble() && fish.isDoubleEnabled();
-            String catchMsg = configManager.formatMessage(
-                    effectiveDouble ? "catch.caught-double" : "catch.caught",
-                    placeholders(player, reward, itemDisplay));
-            if (!catchMsg.isEmpty()) {
-                player.sendMessage(catchMsg);
-            }
-
-            // 트로피/레어 트로피 서버 공지 (피드백)
-            announceTrophy(player, reward, itemDisplay);
-
-            // 사운드
-            Sounds.play(player, configManager.getSound("success"));
-            if (effectiveDouble) {
-                Sounds.play(player, configManager.getSound("double"));
-            }
-
-            // Fish.commands 콘솔 실행
-            runCommands(player, reward, itemDisplay);
-
-            // 이벤트 발행 — 도감/랭킹/대회 등이 수신
-            Bukkit.getPluginManager().callEvent(new FishCatchEvent(player, fish, reward));
-
+            announceCatch(player, reward, Texts.colorize(resolveDisplayName(fish, tempItem)));
             return true;
         }
 
@@ -172,8 +137,21 @@ public class RewardService {
         }
 
         // 표시명 (메시지용, 색상 포함) — 8장 fallback 순서
-        String itemDisplay = resolveDisplayName(fish, item);
-        itemDisplay = Texts.colorize(itemDisplay);
+        announceCatch(player, reward, Texts.colorize(resolveDisplayName(fish, item)));
+        return true;
+    }
+
+    /**
+     * 낚기 성공 후처리: 대어/성공/더블 메시지 + 트로피 공지 + 사운드 + Fish.commands +
+     * FishCatchEvent 발행.
+     *
+     * <p>어망 저장 경로와 인벤토리 지급 경로가 이 블록을 그대로 복붙해서 갖고 있었다.
+     * 한쪽만 고치는 사고를 막기 위해 한 곳으로 모았다 (순서·내용은 기존과 동일).</p>
+     *
+     * @param itemDisplay 색상이 적용된 표시명
+     */
+    private void announceCatch(Player player, RewardEntry reward, String itemDisplay) {
+        Fish fish = reward.getFish();
 
         // 대어 메시지 (S 등급 승급 없음은 RollEngine에서 isBigFish=false로 처리됨)
         if (reward.isBigFish()) {
@@ -207,8 +185,6 @@ public class RewardService {
 
         // 이벤트 발행 — 도감/랭킹/대회 등이 수신
         Bukkit.getPluginManager().callEvent(new FishCatchEvent(player, fish, reward));
-
-        return true;
     }
 
     /**
@@ -312,7 +288,9 @@ public class RewardService {
      * PDC에 fish_id가 없으면(물고기 아이템이 아니면) null을 반환한다.
      */
     public FishItemData readFishItemData(ItemStack item) {
-        if (item == null || !item.hasItemMeta() || !item.getItemMeta().hasDisplayName()) {
+        // 표시명 유무는 판정 조건이 아니다 — PDC의 fish_id만으로 충분하다.
+        // (hasDisplayName() 조건은 이름이 지워진 아이템을 물고기가 아닌 것으로 오판했다)
+        if (item == null || !item.hasItemMeta()) {
             return null;
         }
         var pdc = item.getItemMeta().getPersistentDataContainer();
@@ -436,93 +414,17 @@ public class RewardService {
 
     /**
      * 세션 18: 사이즈 정보를 포함하여 아이템 생성.
+     *
+     * <p>사전 판정된 트로피 정보가 없는 호출 경로용이다. size로 트로피 여부를 판정한 뒤
+     * 5인자 버전에 위임한다. 예전에는 5인자 버전과 거의 같은 코드가 통째로 복제돼 있었고
+     * (약 85줄), 실제 차이는 "트로피 판정을 어디서 받느냐"뿐이었다.</p>
+     *
      * @param size 물고기 사이즈(cm), 사이즈 없는 아이템은 0.0
      */
     public ItemStack createItemStack(Fish fish, int amount, double size) {
-        String useType = fish.getUseType() != null ? fish.getUseType().toLowerCase() : "vanilla";
-
-        if ("vanilla".equals(useType)) {
-            org.bukkit.Material material = org.bukkit.Material.matchMaterial(fish.getVanillaMaterial());
-            if (material == null) {
-                logger.warning("Unknown vanilla material: " + fish.getVanillaMaterial() + " (fish=" + fish.getId() + ")");
-                return null;
-            }
-
-            ItemStack item = new ItemStack(material, amount);
-            org.bukkit.inventory.meta.ItemMeta meta = item.getItemMeta();
-            if (meta != null) {
-                // 표시명: [F] 생대구 형식
-                String baseName = resolveDisplayName(fish, item);
-                meta.setDisplayName(formatDisplayNameWithGrade(fish, baseName));
-
-                // 기존 vanilla-lore + 트로피 정보 추가 (사이즈는 인벤토리에서 미표시)
-                List<String> lore = new java.util.ArrayList<>();
-                if (fish.getVanillaLore() != null && !fish.getVanillaLore().isEmpty()) {
-                    lore.addAll(fish.getVanillaLore().stream()
-                            .map(Texts::colorize)
-                            .toList());
-                }
-                // 기존 createItemStack(fish, amount, size) 경로: 사전 판정 없이 size 기반 트로피 판정
-                TrophyType trophyType = evaluateTrophyType(fish, size);
-                appendTrophyLore(lore, trophyType == TrophyType.NORMAL, trophyType == TrophyType.RARE);
-                // 피로도 회복 물약: 회복량 Lore 표시
-                if (fish.isFatiguePotion()) {
-                    lore.add("§7피로도 회복: §a+" + fish.getFatigueRecovery());
-                }
-                if (!lore.isEmpty()) {
-                    meta.setLore(lore);
-                }
-
-                // CustomModelData 적용
-                if (fish.getCustomModelData() > 0) {
-                    meta.setCustomModelData(fish.getCustomModelData());
-                }
-
-                applyPdc(meta, fish, size, trophyType == TrophyType.NORMAL, trophyType == TrophyType.RARE);
-                item.setItemMeta(meta);
-            }
-            return item;
-
-        } else if ("mmoitems".equals(useType)) {
-            if (!dependencyManager.getMMOItems().isAvailable()) {
-                logger.warning("MMOItems not available, cannot create item: "
-                        + fish.getMmoitemsType() + ":" + fish.getMmoitemsId());
-                return null;
-            }
-            ItemStack base = dependencyManager.getMMOItems()
-                    .getMMOItem(fish.getMmoitemsType(), fish.getMmoitemsId());
-            if (base == null) {
-                logger.warning("MMOItems returned null for: "
-                        + fish.getMmoitemsType() + ":" + fish.getMmoitemsId());
-                return null;
-            }
-            // amount 적용 (MMOItems는 보통 1개 반환)
-            ItemStack result = base.clone();
-            result.setAmount(amount);
-
-            org.bukkit.inventory.meta.ItemMeta meta = result.getItemMeta();
-            if (meta != null) {
-                // 표시명: [F] 생대구 형식
-                String baseName = resolveDisplayName(fish, result);
-                meta.setDisplayName(formatDisplayNameWithGrade(fish, baseName));
-
-                // Lore에 트로피 정보 적용 (사이즈는 인벤토리에서 미표시)
-                List<String> lore = meta.hasLore() ? meta.getLore() : new java.util.ArrayList<>();
-                if (lore == null) lore = new java.util.ArrayList<>();
-                TrophyType trophyType2 = evaluateTrophyType(fish, size);
-                appendTrophyLore(lore, trophyType2 == TrophyType.NORMAL, trophyType2 == TrophyType.RARE);
-                if (!lore.isEmpty()) {
-                    meta.setLore(lore);
-                }
-
-                applyPdc(meta, fish, size, trophyType2 == TrophyType.NORMAL, trophyType2 == TrophyType.RARE);
-                result.setItemMeta(meta);
-            }
-            return result;
-        }
-
-        logger.warning("Unknown use-type: " + useType + " (fish=" + fish.getId() + ")");
-        return null;
+        TrophyType trophyType = evaluateTrophyType(fish, size);
+        return createItemStack(fish, amount, size,
+                trophyType == TrophyType.NORMAL, trophyType == TrophyType.RARE);
     }
 
     private void runCommands(Player player, RewardEntry reward, String itemDisplay) {
@@ -638,23 +540,4 @@ public class RewardService {
         return s.replace("\\", "\\\\").replace("\"", "\\\"");
     }
 
-    /**
-     * MMOItems Lore에 {size} 플레이스홀더를 실제 사이즈로 치환한다.
-     */
-    private ItemStack applySizePlaceholder(ItemStack item, double size) {
-        if (item == null) return item;
-        org.bukkit.inventory.meta.ItemMeta meta = item.getItemMeta();
-        if (meta == null) return item;
-
-        List<String> lore = meta.getLore();
-        if (lore != null) {
-            String sizeStr = String.format("%.1f", size);
-            List<String> replaced = lore.stream()
-                    .map(line -> line.replace("{size}", sizeStr))
-                    .toList();
-            meta.setLore(replaced);
-            item.setItemMeta(meta);
-        }
-        return item;
-    }
 }

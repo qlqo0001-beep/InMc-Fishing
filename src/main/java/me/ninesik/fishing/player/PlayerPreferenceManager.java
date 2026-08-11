@@ -17,14 +17,11 @@ public class PlayerPreferenceManager {
     private final DatabaseManager db;
     private final Map<UUID, Boolean> minigameEnabledCache = new ConcurrentHashMap<>();
     private final Map<UUID, Boolean> trophyPracticeModeCache = new ConcurrentHashMap<>();
-    private FatigueManager fatigueManager;
 
     public PlayerPreferenceManager(InMcFishing plugin, DatabaseManager db) {
         this.plugin = plugin;
         this.db = db;
     }
-
-    public void setFatigueManager(FatigueManager fatigueManager) { this.fatigueManager = fatigueManager; }
 
     /**
      * 개인 설정을 로드한다. (접속 시 비동기 호출)
@@ -99,12 +96,10 @@ public class PlayerPreferenceManager {
     }
 
     public boolean isMinigameEnabled(Player player) {
-        if (fatigueManager != null && fatigueManager.isAutoCatchBlocked(player)) return true;
         return minigameEnabledCache.getOrDefault(player.getUniqueId(), true);
     }
 
     public void setMinigameEnabled(Player player, boolean enabled) {
-        if (!enabled && fatigueManager != null && fatigueManager.isAutoCatchBlocked(player)) return;
         minigameEnabledCache.put(player.getUniqueId(), enabled);
         saveBoolean(player.getUniqueId(), "minigame_enabled", enabled);
     }

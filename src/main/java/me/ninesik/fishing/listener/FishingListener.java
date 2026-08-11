@@ -657,6 +657,19 @@ public class FishingListener implements Listener {
      */
     private Fish findFatiguePotion(ItemStack item) {
         if (item == null || fishRegistry == null) return null;
+
+        // 1순위: PDC의 fish_id로 정확히 판정한다. 이름 부분일치(contains)는 이름이 짧은
+        // 물약이 다른 아이템에 오탐될 수 있고, 매 우클릭마다 전체 물고기를 순회해야 했다.
+        RewardService.FishItemData data = rewardService.readFishItemData(item);
+        if (data != null && data.fishId() != null) {
+            Fish byPdc = fishRegistry.getById(data.fishId());
+            if (byPdc != null && byPdc.isFatiguePotion()) {
+                return byPdc;
+            }
+            return null;
+        }
+
+        // 2순위: PDC가 없는 구버전 아이템 호환 — 기존 이름 매칭 방식을 유지한다.
         org.bukkit.inventory.meta.ItemMeta meta = item.hasItemMeta() ? item.getItemMeta() : null;
         String displayName = (meta != null && meta.hasDisplayName()) ? meta.getDisplayName() : null;
         if (displayName == null) return null;
