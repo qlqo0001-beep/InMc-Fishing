@@ -96,6 +96,14 @@ public final class FilletManager {
 
     // ── 가공 시작 ──
 
+    /**
+     * 가공을 시작한다.
+     *
+     * <p>이 메서드는 넘겨받은 {@code fishItem}을 건드리지 않는다. 예전에는 여기서
+     * 몰래 {@code setAmount(amount - quantity)}로 차감했고, 호출자(FilletGui)는
+     * 그 사실을 모른 채 인벤토리 슬롯을 통째로 비워서 남은 물고기가 전부
+     * 사라졌다. 아이템 차감 책임은 호출자 한 곳에만 둔다.</p>
+     */
     public FilletStorage.FilletActiveSlot startFillet(Player player, int slotIndex,
                                                        ItemStack fishItem, int quantity) {
         RewardService.FishItemData data = rewardService.readFishItemData(fishItem);
@@ -115,7 +123,6 @@ public final class FilletManager {
                 quantity, data.size(), data.isTrophy(), data.isRareTrophy(),
                 System.currentTimeMillis(), duration);
         storage.startFillet(slot);
-        fishItem.setAmount(fishItem.getAmount() - quantity);
         return slot;
     }
 
@@ -127,7 +134,8 @@ public final class FilletManager {
             if (player == null || !player.isOnline()) {
                 openGuis.remove(entry.getKey()); continue;
             }
-            Bukkit.getScheduler().runTask(plugin, () -> entry.getValue().refresh());
+            // tick()은 runTaskTimer로 이미 메인 스레드에서 실행된다 — runTask 중첩 불필요.
+            entry.getValue().refresh();
         }
     }
 
@@ -151,20 +159,15 @@ public final class FilletManager {
         ItemStack filletItem = createFilletItem(target.gradeId(), trophyType, yield);
         if (filletItem == null) return null;
 
+        // 인벤토리에 공간이 없으면 슬롯을 그대로 둔다. 예전에는 DB에서 먼저 지운 뒤
+        // 호출자가 addItem() 반환값을 버려서 가공품이 그대로 사라졌다.
+        // (NetManager.removeFish와 동일한 방식)
+        if (!me.ninesik.fishing.util.InventoryUtil.canFit(player.getInventory(), filletItem)) {
+            return null;
+        }
+
         storage.removeFillet(uuid, slotIndex);
         return filletItem;
-    }
-
-    public List<ItemStack> claimAllComplete(Player player) {
-        List<ItemStack> items = new ArrayList<>();
-        List<FilletStorage.FilletActiveSlot> slots = storage.loadActiveSlots(player.getUniqueId());
-        for (FilletStorage.FilletActiveSlot s : slots) {
-            if (s.isComplete()) {
-                ItemStack item = claimFillet(player, s.slotIndex());
-                if (item != null) items.add(item);
-            }
-        }
-        return items;
     }
     /** 가공 중인 슬롯을 취소하고 원본 물고기를 반환한다. 완료된 슬롯은 취소 불가. */
     public ItemStack cancelFillet(Player player, int slotIndex) {

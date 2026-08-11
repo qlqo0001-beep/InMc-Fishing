@@ -32,6 +32,16 @@ public final class FilletGui extends AbstractGui {
     private final FilletManager manager;
     private final int maxSlots;
 
+    /**
+     * initialize()에서 한 번만 조회한 가공 슬롯 스냅샷.
+     *
+     * <p>예전에는 renderSlots()/renderButtons()/findEmptySlot()이 각각
+     * manager.getActiveSlots()(= SELECT)를 호출했고, FilletManager.tick()이
+     * 1초마다 refresh를 돌려서 GUI 하나당 초당 3회 이상 DB 조회가
+     * 메인 스레드에서 일어났다.</p>
+     */
+    private List<FilletActiveSlot> activeSlots = List.of();
+
     public FilletGui(Player player, FilletManager manager) {
         super(player, ROWS, ChatColor.DARK_RED + "생선 살 가공");
         this.manager = manager;
@@ -40,18 +50,24 @@ public final class FilletGui extends AbstractGui {
 
     @Override
     public void initialize() {
+        activeSlots = manager.getActiveSlots(player);
         for (int i = 0; i < 54; i++)
             setItem(i, GuiItems.createIcon(Material.GRAY_STAINED_GLASS_PANE, " ", List.of()));
         renderSlots();
         renderButtons();
     }
 
+    /** 스냅샷에서 해당 인덱스의 가공 슬롯을 찾는다. 비어 있으면 null. */
+    private FilletActiveSlot findSlot(int slotIndex) {
+        for (FilletActiveSlot s : activeSlots) {
+            if (s.slotIndex() == slotIndex) return s;
+        }
+        return null;
+    }
+
     private void renderSlots() {
-        List<FilletActiveSlot> activeSlots = manager.getActiveSlots(player);
         for (int i = 0; i < maxSlots; i++) {
-            FilletActiveSlot active = null;
-            for (FilletActiveSlot s : activeSlots)
-                if (s.slotIndex() == i) { active = s; break; }
+            FilletActiveSlot active = findSlot(i);
             if (active != null) {
                 setItem(SLOT_POS[i], active.isComplete()
                         ? buildCompleteIcon(active, i) : buildProcessingIcon(active, i));
@@ -71,8 +87,7 @@ public final class FilletGui extends AbstractGui {
     }
 
     private void renderButtons() {
-        List<FilletActiveSlot> slots = manager.getActiveSlots(player);
-        if (slots.stream().anyMatch(FilletActiveSlot::isComplete)) {
+        if (activeSlots.stream().anyMatch(FilletActiveSlot::isComplete)) {
             setItem(CLAIM_ALL, GuiItems.createIcon(Material.GREEN_WOOL,
                     ChatColor.GREEN + "완료된 가공품 모두 수령", List.of()));
         }
@@ -118,12 +133,8 @@ public final class FilletGui extends AbstractGui {
     }
 
     private int findEmptySlot() {
-        List<FilletActiveSlot> active = manager.getActiveSlots(player);
         for (int i = 0; i < maxSlots; i++) {
-            for (FilletActiveSlot s : active) if (s.slotIndex() == i) break;
-            boolean used = false;
-            for (FilletActiveSlot s : active) if (s.slotIndex() == i) { used = true; break; }
-            if (!used) return i;
+            if (findSlot(i) == null) return i;
         }
         return -1;
     }
@@ -133,22 +144,7 @@ public final class FilletGui extends AbstractGui {
         int rawSlot = event.getRawSlot();
 
         if (event.getClickedInventory() == player.getInventory()) {
-            ItemStack clicked = event.getCurrentItem();
-            if (clicked != null && clicked.getType() != Material.AIR) {
-                var data = manager.getRewardService().readFishItemData(clicked);
-                if (data != null && data.fishId() != null) {
-                    int empty = findEmptySlot();
-                    if (empty >= 0) {
-                        var slot = manager.startFillet(player, empty, clicked, 1);
-                        if (slot != null) {
-                            event.getClickedInventory().setItem(event.getSlot(), null);
-                            player.playSound(player.getLocation(),
-                                    Sound.BLOCK_COMPOSTER_FILL_SUCCESS, 0.5f, 1.0f);
-                            Bukkit.getScheduler().runTask(InMcFishing.getInstance(), this::refresh);
-                        }
-                    } else player.sendMessage(ChatColor.RED + "빈 가공 슬롯이 없습니다.");
-                }
-            }
+            handleInventoryClick(event);
             return;
         }
 
@@ -157,9 +153,7 @@ public final class FilletGui extends AbstractGui {
 
         for (int i = 0; i < maxSlots; i++) {
             if (rawSlot != SLOT_POS[i]) continue;
-            List<FilletActiveSlot> slots = manager.getActiveSlots(player);
-            FilletActiveSlot active = null;
-            for (FilletActiveSlot s : slots) if (s.slotIndex() == i) { active = s; break; }
+            FilletActiveSlot active = findSlot(i);
 
             if (event.isShiftClick() && event.isRightClick()) {
                 if (active != null && !active.isComplete()) {
@@ -171,7 +165,7 @@ public final class FilletGui extends AbstractGui {
                         player.sendMessage(ChatColor.YELLOW + "가공을 취소하고 물고기를 돌려받았습니다.");
                         player.playSound(player.getLocation(), Sound.ENTITY_ITEM_PICKUP, 0.5f, 1.2f);
                     }
-                    Bukkit.getScheduler().runTask(InMcFishing.getInstance(), this::refresh);
+                    refreshNextTick();
                 }
                 return;
             }
@@ -180,23 +174,83 @@ public final class FilletGui extends AbstractGui {
                 if (reward != null) {
                     player.getInventory().addItem(reward);
                     player.playSound(player.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 0.5f, 1.5f);
+                } else {
+                    // claimFillet은 인벤토리 공간이 없으면 슬롯을 유지한 채 null을 반환한다.
+                    player.sendMessage(ChatColor.RED + "인벤토리에 빈자리가 없어 수령할 수 없습니다.");
                 }
-                Bukkit.getScheduler().runTask(InMcFishing.getInstance(), this::refresh);
+                refreshNextTick();
                 return;
             }
             return;
         }
 
         if (rawSlot == CLAIM_ALL) {
-            List<ItemStack> items = manager.claimAllComplete(player);
-            for (ItemStack item : items) player.getInventory().addItem(item);
-            if (!items.isEmpty()) player.playSound(player.getLocation(),
-                    Sound.ENTITY_PLAYER_LEVELUP, 0.5f, 1.5f);
-            Bukkit.getScheduler().runTask(InMcFishing.getInstance(), this::refresh);
+            handleClaimAll();
             return;
         }
         if (rawSlot == BACK_MENU) { MainGui.open(player); return; }
         if (rawSlot == CLOSE) player.closeInventory();
+    }
+
+    /** 인벤토리의 물고기를 클릭해 빈 가공 슬롯에 등록한다. */
+    private void handleInventoryClick(InventoryClickEvent event) {
+        ItemStack clicked = event.getCurrentItem();
+        if (clicked == null || clicked.getType() == Material.AIR) return;
+
+        var data = manager.getRewardService().readFishItemData(clicked);
+        if (data == null || data.fishId() == null) return;
+
+        int empty = findEmptySlot();
+        if (empty < 0) {
+            player.sendMessage(ChatColor.RED + "빈 가공 슬롯이 없습니다.");
+            return;
+        }
+
+        final int quantity = 1;
+        var slot = manager.startFillet(player, empty, clicked, quantity);
+        if (slot == null) return;
+
+        // 클릭한 스택에서 등록한 수량만 차감한다.
+        // (이전에는 setItem(slot, null)로 슬롯을 통째로 비워, 스택에 남아 있던
+        //  나머지 물고기가 전부 사라졌다 — 스택이 1개일 때만 우연히 맞았다)
+        int remain = clicked.getAmount() - quantity;
+        if (remain <= 0) {
+            event.getClickedInventory().setItem(event.getSlot(), null);
+        } else {
+            clicked.setAmount(remain);
+        }
+
+        player.playSound(player.getLocation(), Sound.BLOCK_COMPOSTER_FILL_SUCCESS, 0.5f, 1.0f);
+        refreshNextTick();
+    }
+
+    /**
+     * 완료된 슬롯을 순서대로 수령한다.
+     * 한 개씩 즉시 인벤토리에 넣어야 다음 수령의 공간 검사가 정확해진다
+     * (모아뒀다가 한꺼번에 넣으면 공간을 초과해 지급돼 아이템이 사라진다).
+     */
+    private void handleClaimAll() {
+        int claimed = 0;
+        boolean full = false;
+        for (FilletActiveSlot s : new ArrayList<>(activeSlots)) {
+            if (!s.isComplete()) continue;
+            ItemStack reward = manager.claimFillet(player, s.slotIndex());
+            if (reward == null) { full = true; break; }
+            player.getInventory().addItem(reward);
+            claimed++;
+        }
+        if (claimed > 0) {
+            player.playSound(player.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 0.5f, 1.5f);
+        }
+        if (full) {
+            player.sendMessage(ChatColor.RED + "인벤토리에 빈자리가 없어 일부만 수령했습니다.");
+        }
+        refreshNextTick();
+    }
+
+    /** 클릭 이벤트 처리가 끝난 다음 틱에 GUI를 다시 그린다. */
+    private void refreshNextTick() {
+        Bukkit.getScheduler().runTask(InMcFishing.getInstance(), this::refresh);
     }
 
     @Override public void open() { super.open(); manager.registerGui(player, this); }
