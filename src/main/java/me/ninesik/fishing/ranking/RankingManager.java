@@ -195,18 +195,30 @@ public class RankingManager {
         return result;
     }
 
+    /** ranking.yml에 즉시 저장한다. 종료 시점처럼 반드시 완료돼야 하는 경우에만 사용. */
     public void save() {
         storage.save(new ArrayList<>(rankings.values()));
     }
 
+    /**
+     * 현재 랭킹을 스냅샷으로 떠서 비동기로 저장한다.
+     * 스냅샷 복사는 호출 스레드(메인)에서, 파일 쓰기만 비동기로 넘긴다.
+     */
+    private void saveAsync() {
+        List<RankingEntry> snapshot = new ArrayList<>(rankings.values());
+        Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> storage.save(snapshot));
+    }
+
     private void startPeriodicUpdate() {
         taskId = Bukkit.getScheduler().runTaskTimerAsynchronously(plugin, () -> {
-            // 비동기로 파일 스캔은 가능하지만 Bukkit API(player name)는 메인 스레드에서
+            // Bukkit API(player name/온라인 목록)는 메인 스레드에서만 접근 가능하다.
             Bukkit.getScheduler().runTask(plugin, () -> {
                 for (Player player : Bukkit.getOnlinePlayers()) {
                     updatePlayer(player);
                 }
-                save();
+                // 파일 저장은 다시 비동기로 내보낸다 (.clinerules "파일 저장은 async").
+                // 이전에는 여기서 ranking.yml 쓰기가 메인 스레드에서 주기적으로 일어났다.
+                saveAsync();
             });
         }, updateIntervalSeconds * 20L, updateIntervalSeconds * 20L).getTaskId();
     }

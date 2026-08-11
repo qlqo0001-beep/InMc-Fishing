@@ -338,7 +338,18 @@ public class FishingCommand implements CommandExecutor, TabCompleter {
 
         sender.sendMessage("§e[InMc-Fishing] §7" + count + "회 시뮬레이션 중...");
 
-        Map<String, Long> result = rollEngine.simulate(count);
+        // 최대 1천만 회를 메인 스레드에서 돌리면 서버가 수 초~수십 초 멈추고 워치독에 걸린다.
+        // simulate()는 불변 Registry와 RandomService만 사용하므로 비동기로 계산하고,
+        // 결과 출력(Bukkit API)만 메인 스레드로 되돌린다.
+        final int simulationCount = count;
+        Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
+            Map<String, Long> asyncResult = rollEngine.simulate(simulationCount);
+            Bukkit.getScheduler().runTask(plugin, () -> printSimulationResult(sender, simulationCount, asyncResult));
+        });
+    }
+
+    /** 시뮬레이션 결과를 채팅으로 출력한다. (메인 스레드에서 호출) */
+    private void printSimulationResult(CommandSender sender, int count, Map<String, Long> result) {
         long total = result.getOrDefault("total", 0L);
         long bigFish = result.getOrDefault("big_fish", 0L);
         long doubleCount = result.getOrDefault("double", 0L);
