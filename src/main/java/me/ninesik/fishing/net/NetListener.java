@@ -31,6 +31,8 @@ public class NetListener implements Listener {
 
     @EventHandler
     public void onPlayerJoin(PlayerJoinEvent event) {
+        // 로드 표시는 반드시 비동기 작업을 던지기 전에, 메인 스레드에서 해야 한다.
+        netManager.markLoading(event.getPlayer().getUniqueId());
         Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> netManager.loadPlayer(event.getPlayer()));
     }
 

@@ -50,6 +50,8 @@ public class PlayerFatigueManager {
     private final Map<UUID, Integer> fatigueCache = new ConcurrentHashMap<>();
     /** 피로도가 lock-threshold 이하로 내려가 자동 낚시가 잠긴 플레이어 */
     private final Map<UUID, Boolean> locked = new ConcurrentHashMap<>();
+    /** 로드가 진행 중인 플레이어. {@link #markLoading}·{@link #unloadPlayer} 참조. */
+    private final java.util.Set<UUID> loading = ConcurrentHashMap.newKeySet();
 
     private BukkitTask recoveryTask;
     private int elapsedSeconds = 0;
@@ -129,26 +131,50 @@ public class PlayerFatigueManager {
 
     public void loadPlayer(Player player) {
         UUID uuid = player.getUniqueId();
+        // 파일 읽기만 호출 스레드(비동기)에서 한다.
         FileConfiguration config = loadConfig(uuid);
         int value = config.getInt("fatigue", configManager.getFatigueDefaultMax());
-        fatigueCache.put(uuid, value);
 
-        boolean isLocked = value <= configManager.getFatigueLockThreshold();
-        locked.put(uuid, isLocked);
-        if (isLocked) {
-            // 접속 시점에도 잠금 상태면 미니게임을 강제 ON 상태로 맞춰준다 (일관성 보장)
-            playerPreferenceManager.setMinigameEnabled(player, true);
-        }
+        // 캐시 반영과 Bukkit API 호출은 메인 스레드에서. setMinigameEnabled는 DB 저장을
+        // 유발하고 checkLock 계열은 메시지를 보내므로 비동기에서 부르면 안 된다.
+        // loading 표시가 사라졌다면 로드 중에 퇴장한 것이므로 결과를 버린다.
+        Bukkit.getScheduler().runTask(plugin, () -> {
+            if (!loading.remove(uuid)) return;
+
+            fatigueCache.put(uuid, value);
+            boolean isLocked = value <= configManager.getFatigueLockThreshold();
+            locked.put(uuid, isLocked);
+            if (isLocked && player.isOnline()) {
+                // 접속 시점에도 잠금 상태면 미니게임을 강제 ON 상태로 맞춰준다 (일관성 보장)
+                playerPreferenceManager.setMinigameEnabled(player, true);
+            }
+        });
+    }
+
+    /**
+     * 접속 시 메인 스레드에서 호출해 "로드 진행 중"을 표시한다.
+     * 자세한 이유는 {@code CollectionManager.markLoading} 참조.
+     */
+    public void markLoading(UUID uuid) {
+        loading.add(uuid);
     }
 
     public void unloadPlayer(Player player) {
         UUID uuid = player.getUniqueId();
+        // 진행 중인 로드를 무효화한다 — 그 결과가 나중에 캐시에 들어오면 안 된다.
+        loading.remove(uuid);
         Integer value = fatigueCache.remove(uuid);
         locked.remove(uuid);
         if (value != null) {
-            // 파일 저장은 비동기 (메인 스레드 블로킹 방지 — 접속/퇴장 시 핑·트래픽 급증 원인)
             UUID u = uuid;
             int v = value;
+            // 플러그인 비활성화 중 퇴장이면 스케줄러가 새 작업을 거부해
+            // IllegalPluginAccessException이 난다. 그 경우에만 호출 스레드에서 즉시 저장한다.
+            if (!plugin.isEnabled()) {
+                saveFatigue(u, v);
+                return;
+            }
+            // 파일 저장은 비동기 (메인 스레드 블로킹 방지 — 접속/퇴장 시 핑·트래픽 급증 원인)
             Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> saveFatigue(u, v));
         }
     }

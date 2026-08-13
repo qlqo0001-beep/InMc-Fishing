@@ -2,6 +2,7 @@ package me.ninesik.fishing.player;
 
 import me.ninesik.fishing.InMcFishing;
 import me.ninesik.fishing.storage.DatabaseManager;
+import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 
 import java.sql.PreparedStatement;
@@ -17,6 +18,8 @@ public class PlayerPreferenceManager {
     private final DatabaseManager db;
     private final Map<UUID, Boolean> minigameEnabledCache = new ConcurrentHashMap<>();
     private final Map<UUID, Boolean> trophyPracticeModeCache = new ConcurrentHashMap<>();
+    /** 로드가 진행 중인 플레이어. {@link #markLoading}·{@link #unloadPlayer} 참조. */
+    private final java.util.Set<UUID> loading = ConcurrentHashMap.newKeySet();
 
     public PlayerPreferenceManager(InMcFishing plugin, DatabaseManager db) {
         this.plugin = plugin;
@@ -49,16 +52,33 @@ public class PlayerPreferenceManager {
                 return result;
             });
         } catch (SQLException e) {
+            loading.remove(uuid);
             plugin.getLogger().log(java.util.logging.Level.SEVERE,
                     "개인 설정 로드 실패 — 이번 접속에서는 저장을 차단합니다: " + player.getName(), e);
             return;
         }
-        minigameEnabledCache.put(uuid, loaded[0]);
-        trophyPracticeModeCache.put(uuid, loaded[1]);
+
+        // 캐시 반영은 메인 스레드에서. loading 표시가 사라졌다면 로드 중에 퇴장한 것이므로
+        // 결과를 버린다 (안 그러면 오프라인 엔트리가 캐시에 영구 잔류한다).
+        Bukkit.getScheduler().runTask(plugin, () -> {
+            if (!loading.remove(uuid)) return;
+            minigameEnabledCache.put(uuid, loaded[0]);
+            trophyPracticeModeCache.put(uuid, loaded[1]);
+        });
+    }
+
+    /**
+     * 접속 시 메인 스레드에서 호출해 "로드 진행 중"을 표시한다.
+     * 자세한 이유는 {@code CollectionManager.markLoading} 참조.
+     */
+    public void markLoading(UUID uuid) {
+        loading.add(uuid);
     }
 
     public void unloadPlayer(Player player) {
         UUID uuid = player.getUniqueId();
+        // 진행 중인 로드를 무효화한다 — 그 결과가 나중에 캐시에 들어오면 안 된다.
+        loading.remove(uuid);
         Boolean enabled = minigameEnabledCache.remove(uuid);
         Boolean practice = trophyPracticeModeCache.remove(uuid);
         if (enabled != null) saveBoolean(uuid, "minigame_enabled", enabled);

@@ -35,6 +35,8 @@ public class NetManager {
 
     /** 플레이어별 어망 데이터 캐시 */
     private final Map<UUID, NetData> cache = new ConcurrentHashMap<>();
+    /** 로드가 진행 중인 플레이어. {@link #markLoading}·{@link #unloadPlayer} 참조. */
+    private final java.util.Set<UUID> loading = ConcurrentHashMap.newKeySet();
 
     private int maxSize;
 
@@ -63,13 +65,13 @@ public class NetManager {
      *
      * @return 로드된 데이터, 실패 시 null
      */
-    public NetData loadPlayer(Player player) {
+    public void loadPlayer(Player player) {
         UUID uuid = player.getUniqueId();
+        NetData data;
         try {
-            NetData data = storage.load(uuid, maxSize);
-            cache.put(uuid, data);
-            return data;
+            data = storage.load(uuid, maxSize);
         } catch (java.sql.SQLException e) {
+            loading.remove(uuid);
             plugin.getLogger().log(java.util.logging.Level.SEVERE,
                     "어망 로드 실패 — 이번 접속에서는 저장을 차단합니다: " + player.getName(), e);
             Bukkit.getScheduler().runTask(plugin, () -> {
@@ -78,14 +80,31 @@ public class NetManager {
                     player.sendMessage(ChatColor.GRAY + "(데이터 보호를 위해 이번 접속에서는 어망이 저장되지 않습니다)");
                 }
             });
-            return null;
+            return;
         }
+
+        // 캐시 반영은 메인 스레드에서. loading 표시가 사라졌다면 로드 중에 퇴장한 것이므로
+        // 결과를 버린다 (안 그러면 오프라인 엔트리가 캐시에 영구 잔류한다).
+        Bukkit.getScheduler().runTask(plugin, () -> {
+            if (!loading.remove(uuid)) return;
+            cache.put(uuid, data);
+        });
+    }
+
+    /**
+     * 접속 시 메인 스레드에서 호출해 "로드 진행 중"을 표시한다.
+     * 자세한 이유는 {@code CollectionManager.markLoading} 참조.
+     */
+    public void markLoading(UUID uuid) {
+        loading.add(uuid);
     }
 
     /**
      * 플레이어의 어망 데이터를 저장하고 캐시에서 제거한다.
      */
     public void unloadPlayer(Player player) {
+        // 진행 중인 로드를 무효화한다 — 그 결과가 나중에 캐시에 들어오면 안 된다.
+        loading.remove(player.getUniqueId());
         NetData data = cache.remove(player.getUniqueId());
         if (data != null) {
             // DB 저장은 전용 단일 스레드에 큐잉 (메인 스레드 블로킹 방지 +

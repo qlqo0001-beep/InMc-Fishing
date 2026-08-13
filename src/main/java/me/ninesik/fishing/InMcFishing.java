@@ -91,7 +91,9 @@ public final class InMcFishing extends JavaPlugin {
         getServer().getPluginManager().registerEvents(
                 new PlayerPreferenceListener(this, playerPreferenceManager), this);
         // /reload 등으로 이미 접속해 있던 플레이어도 개인 설정을 적용한다. (파일 로드는 비동기)
+        // markLoading을 먼저 해야 로드 결과가 캐시에 반영된다 (표시가 없으면 폐기된다).
         var reloadPrefPlayers = new java.util.ArrayList<org.bukkit.entity.Player>(getServer().getOnlinePlayers());
+        reloadPrefPlayers.forEach(p -> playerPreferenceManager.markLoading(p.getUniqueId()));
         getServer().getScheduler().runTaskAsynchronously(this,
                 () -> reloadPrefPlayers.forEach(playerPreferenceManager::loadPlayer));
 
@@ -119,7 +121,9 @@ public final class InMcFishing extends JavaPlugin {
                 new me.ninesik.fishing.fatigue.FatigueListener(this, fatigueManager), this);
         getServer().getPluginManager().registerEvents(
                 new me.ninesik.fishing.fatigue.FatiguePotionListener(this, fatigueManager, fishingService.getConfigManager()), this);
+        // markLoading을 먼저 해야 로드 결과가 캐시에 반영된다 (표시가 없으면 폐기된다).
         var reloadFatiguePlayers = new java.util.ArrayList<org.bukkit.entity.Player>(getServer().getOnlinePlayers());
+        reloadFatiguePlayers.forEach(p -> fatigueManager.markLoading(p.getUniqueId()));
         getServer().getScheduler().runTaskAsynchronously(this,
                 () -> reloadFatiguePlayers.forEach(fatigueManager::loadPlayer));
         fatigueManager.startScheduler();
@@ -148,6 +152,22 @@ public final class InMcFishing extends JavaPlugin {
         collectionManager.setRankingManager(rankingManager);
         getServer().getPluginManager().registerEvents(
                 new CollectionListener(this, collectionManager), this);
+
+        // /reload 등으로 이미 접속해 있던 플레이어의 도감·어망을 로드한다.
+        // 예전에는 이 경로가 없어서, 도감 GUI를 열 때 하던 메인 스레드 동기 로드가
+        // 유일한 복구 수단이었다. 그 동기 로드를 제거했으므로 여기서 정식으로 로드한다.
+        var reloadDataPlayers = new java.util.ArrayList<org.bukkit.entity.Player>(getServer().getOnlinePlayers());
+        for (org.bukkit.entity.Player online : reloadDataPlayers) {
+            collectionManager.markLoading(online.getUniqueId());
+            netManager.markLoading(online.getUniqueId());
+        }
+        getServer().getScheduler().runTaskAsynchronously(this, () -> {
+            for (org.bukkit.entity.Player online : reloadDataPlayers) {
+                collectionManager.loadPlayer(online);
+                netManager.loadPlayer(online);
+            }
+        });
+
         getServer().getPluginManager().registerEvents(
                 new GuiListener(), this);
 

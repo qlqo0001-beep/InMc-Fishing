@@ -20,6 +20,8 @@ public class PlayerPreferenceListener implements Listener {
     @EventHandler
     public void onPlayerJoin(PlayerJoinEvent event) {
         // 개인 설정 파일 로드는 메인 스레드를 막지 않도록 비동기 수행 (접속 시 핑/트래픽 급증 방지)
+        // 로드 표시는 반드시 비동기 작업을 던지기 전에, 메인 스레드에서 해야 한다.
+        preferenceManager.markLoading(event.getPlayer().getUniqueId());
         Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> preferenceManager.loadPlayer(event.getPlayer()));
     }
 

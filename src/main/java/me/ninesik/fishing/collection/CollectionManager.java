@@ -45,6 +45,8 @@ public class CollectionManager {
 
     // 메모리 캐시: 접속 중인 플레이어의 도감 데이터
     private final Map<UUID, CollectionData> cache = new ConcurrentHashMap<>();
+    /** 로드가 진행 중인 플레이어. {@link #markLoading}·{@link #unloadPlayer} 참조. */
+    private final java.util.Set<UUID> loading = ConcurrentHashMap.newKeySet();
 
     /**
      * 도감 데이터 로드가 끝나기 전에 낚은 물고기를 잠시 담아두는 큐.
@@ -158,6 +160,7 @@ public class CollectionManager {
         } catch (java.sql.SQLException e) {
             // 로드 실패 시 캐시에 넣지 않는다. 빈 데이터를 캐시에 올리면 퇴장 시 save()가
             // DB의 진짜 도감을 덮어써서 기록이 통째로 사라진다(캐시에 없으면 저장도 안 된다).
+            loading.remove(uuid);
             pendingCatches.remove(uuid);
             plugin.getLogger().log(java.util.logging.Level.SEVERE,
                     "도감 로드 실패 — 이번 접속에서는 저장을 차단합니다: " + player.getName(), e);
@@ -169,26 +172,45 @@ public class CollectionManager {
             });
             return;
         }
-        data.setPlayerName(player.getName());
-        syncWithRegistry(data);
-        cache.put(uuid, data);
 
-        // 로드를 기다리는 동안 낚은 물고기를 반영한다.
-        // collectionRewardService가 보상 지급·메시지·사운드를 수행하므로 메인 스레드에서.
-        List<PendingCatch> pending = pendingCatches.remove(uuid);
-        if (pending != null && !pending.isEmpty()) {
-            Bukkit.getScheduler().runTask(plugin, () -> {
+        // 캐시 반영은 메인 스레드에서 한다. syncWithRegistry가 엔트리를 만들고,
+        // 대기 물고기 반영은 보상 지급·메시지·사운드를 동반하기 때문이다.
+        // loading 표시가 이미 사라졌다면 로드가 끝나기 전에 퇴장한 것이므로 결과를 버린다.
+        Bukkit.getScheduler().runTask(plugin, () -> {
+            if (!loading.remove(uuid)) return;
+
+            data.setPlayerName(player.getName());
+            syncWithRegistry(data);
+            cache.put(uuid, data);
+
+            List<PendingCatch> pending = pendingCatches.remove(uuid);
+            if (pending != null) {
                 for (PendingCatch queued : pending) {
                     recordCatch(player, queued.fishId(), queued.size());
                 }
-            });
-        }
+            }
+        });
+    }
+
+    /**
+     * 접속 시 메인 스레드에서 호출해 "로드 진행 중"을 표시한다.
+     *
+     * <p>비동기 로드가 끝나 캐시에 넣으려 할 때 이 표시가 없으면 이미 퇴장한 것이므로
+     * 결과를 폐기한다. 이게 없으면 빠른 접속→퇴장에서 unloadPlayer가 먼저 돌아 저장을
+     * 건너뛰고, 뒤늦게 끝난 loadPlayer가 cache.put을 해서 오프라인 플레이어 엔트리가
+     * 영구 잔류하고 종료 시 saveAll()이 낡은 값으로 DB를 덮어쓴다.</p>
+     */
+    public void markLoading(UUID uuid) {
+        if (!enabled) return;
+        loading.add(uuid);
     }
 
     /**
      * 플레이어 퇴장 시 데이터를 저장하고 캐시에서 제거한다.
      */
     public void unloadPlayer(Player player) {
+        // 진행 중인 로드를 무효화한다 — 그 결과가 나중에 캐시에 들어오면 안 된다.
+        loading.remove(player.getUniqueId());
         pendingCatches.remove(player.getUniqueId());
         CollectionData data = cache.remove(player.getUniqueId());
         if (data != null) {
@@ -469,9 +491,12 @@ public class CollectionManager {
 
     public void openCollectionGui(Player player) {
         if (!enabled) return;
-        CollectionData data = cache.get(player.getUniqueId());
-        if (data == null) {
-            loadPlayer(player);
+        // 캐시에 없으면 아직 로드 중(또는 로드 실패)이다. 예전에는 여기서 메인 스레드로
+        // 동기 로드를 했는데, 물고기 종 수만큼 쿼리가 나가 서버가 멈추고 진행 중인
+        // 비동기 로드와 경쟁해 데이터가 덮어써졌다. 어망(openNetGui)과 같은 방식으로 맞춘다.
+        if (cache.get(player.getUniqueId()) == null) {
+            player.sendMessage("§e도감 데이터를 불러오는 중입니다. 잠시 후 다시 시도해 주세요.");
+            return;
         }
         new CollectionGui(player, this, rewardService).open();
     }
