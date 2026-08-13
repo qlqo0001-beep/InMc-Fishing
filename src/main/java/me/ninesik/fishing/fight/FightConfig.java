@@ -3,6 +3,7 @@ package me.ninesik.fishing.fight;
 import org.bukkit.configuration.file.FileConfiguration;
 
 import java.util.Collections;
+import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -108,27 +109,22 @@ public class FightConfig {
 
     /** Fish AI 상태 기계 설정. */
     public static class AiConfig {
-        /** AI 업데이트 주기 (틱). 기본값 20 = 매 틱. */
-        public final int updateTick;
-        /** 각 AI 상태별 지속 시간 (틱) — 상태명 → 최소/최대 지속 */
-        public final Map<String, int[]> stateDurations;
-        /** 각 AI 상태별 전이 확률 — 상태명 → (다음 상태명 → 확률) */
-        public final Map<String, Map<String, Double>> transitionProbabilities;
+        /**
+         * 상태별 밸런스 수치.
+         *
+         * <p>예전의 {@code stateDurations}/{@code transitionProbabilities} 두 맵은 항상 빈 맵을
+         * 반환하는 껍데기였고(FishAI가 하드코딩 값을 썼다), 소비처도 0건이었다.
+         * 실제로 동작하는 {@link StateStats}로 대체했다.</p>
+         */
+        public final Map<FishState, StateStats> states;
 
         public AiConfig(FileConfiguration config) {
-            this.updateTick = config.getInt("trophy-fight.ai.update-tick", 20);
-            this.stateDurations = loadStateDurations(config);
-            this.transitionProbabilities = loadTransitionProbabilities(config);
+            this.states = StateStats.loadAll(config);
         }
 
-        private Map<String, int[]> loadStateDurations(FileConfiguration config) {
-            // 상태 지속시간은 FishAI가 하드코딩된 값을 사용하므로 현재는 비워 둔다.
-            return Collections.unmodifiableMap(new HashMap<>());
-        }
-
-        private Map<String, Map<String, Double>> loadTransitionProbabilities(FileConfiguration config) {
-            // 전이 확률은 FishAI가 하드코딩된 값을 사용하므로 현재는 비워 둔다.
-            return Collections.unmodifiableMap(new HashMap<>());
+        /** 해당 상태의 수치. 항상 non-null (모든 상태에 기본값이 있다). */
+        public StateStats state(FishState state) {
+            return states.get(state);
         }
     }
 
@@ -417,6 +413,108 @@ public class FightConfig {
             for (String grade : new String[]{"f", "e", "d", "c", "b", "a", "s"}) {
                 map.put(grade, config.getDouble(
                         "trophy-fight.stats.min-distance-with-stamina." + grade, 50.0));
+            }
+            return Collections.unmodifiableMap(map);
+        }
+    }
+
+    // ===================== StateStats (상태별 수치) =====================
+
+    /**
+     * 물고기 상태 하나의 밸런스 수치 묶음.
+     *
+     * <p>예전에는 같은 상태의 값이 세 파일에 흩어져 있었다 — Power/Resistance/지속시간은
+     * {@link FishAI}, 장력·행동력은 {@link FishState}, 릴 배수는 {@link FightCalculator}.
+     * "휴식 상태를 약하게" 같은 조정을 하려면 세 곳을 동시에 고쳐야 했고, 어드민은
+     * 아예 손댈 수 없었다. 이제 상태 단위로 한 블록에 모은다.</p>
+     *
+     * <p><b>모든 기본값은 이관 전 하드코딩 값과 문자 그대로 같다.</b></p>
+     */
+    public static final class StateStats {
+        /** 물고기 힘. 거리 증가와 릴 HP 소모에 영향. */
+        public final double power;
+        /** 물고기 저항. 클수록 릴을 감아도 거리가 잘 줄지 않는다. */
+        public final double resistance;
+        /** 상태 지속시간 하한(틱). */
+        public final int durationMinTicks;
+        /** 상태 지속시간 상한(틱, 미포함). min과 같으면 고정 길이. */
+        public final int durationMaxTicks;
+        /** 이 상태로 전이할 때 소모하는 행동력. -1 = 전부 소모. */
+        public final int actionPowerCost;
+        /** 릴을 감을 때 틱당 장력 상승률 (최대 장력 대비). */
+        public final double tensionRate;
+        /** 릴을 감지 않을 때 틱당 자동 장력 상승량. */
+        public final double autoTensionRate;
+        /** 릴 감기 시 물고기 체력 감소 배수. */
+        public final double reelStaminaMultiplier;
+        /** 릴 감기 시 거리 회수 배수. */
+        public final double reelDistanceMultiplier;
+        /** 릴 풀기(우클릭) 시 거리 증가 배수. */
+        public final double releaseDistanceMultiplier;
+        /** 릴을 감지 않을 때 틱당 체력 회복 비율 (최대 체력 대비). */
+        public final double staminaRegenRatio;
+
+        private StateStats(double power, double resistance, int durationMinTicks, int durationMaxTicks,
+                           int actionPowerCost, double tensionRate, double autoTensionRate,
+                           double reelStaminaMultiplier, double reelDistanceMultiplier,
+                           double releaseDistanceMultiplier, double staminaRegenRatio) {
+            this.power = power;
+            this.resistance = resistance;
+            this.durationMinTicks = durationMinTicks;
+            this.durationMaxTicks = Math.max(durationMinTicks, durationMaxTicks);
+            this.actionPowerCost = actionPowerCost;
+            this.tensionRate = tensionRate;
+            this.autoTensionRate = autoTensionRate;
+            this.reelStaminaMultiplier = reelStaminaMultiplier;
+            this.reelDistanceMultiplier = reelDistanceMultiplier;
+            this.releaseDistanceMultiplier = releaseDistanceMultiplier;
+            this.staminaRegenRatio = staminaRegenRatio;
+        }
+
+        /**
+         * 이관 전 하드코딩 값 그대로의 기본 테이블.
+         * yml에 키가 없으면 이 값이 쓰이므로, fight.yml을 갱신하지 않은 서버는 밸런스가 같다.
+         */
+        private static StateStats defaults(FishState state) {
+            return switch (state) {
+                //                           power  resist  durMin durMax  apCost  tension  autoTen  reelSta  reelDist  relDist  staRegen
+                case REST ->           new StateStats(10,  10,     40,    80,     0,   0.005,   0.0,     1.0,     1.0,      0.5,    0.0016);
+                case SLOW_MOVE ->      new StateStats(20,  20,     30,    60,     1,   0.01,    0.0,     1.0,     1.5,      1.0,    0.0008);
+                case NORMAL_MOVE ->    new StateStats(40,  40,     20,    50,     0,   0.015,   1.0,     1.0,     1.0,      2.0,    0.0004);
+                case TURN ->           new StateStats(50,  50,     15,    35,     1,   0.025,   1.0,     1.0,     1.0,      3.0,    0.0002);
+                case CHARGE ->         new StateStats(80,  70,     10,    25,     3,   0.045,   3.0,     1.5,     1.0,      4.0,    0.0);
+                case FINAL_STRUGGLE -> new StateStats(100, 90,      5,    15,    -1,   0.08,    3.0,     0.0,     1.0,      6.0,    0.0);
+                case DIVE ->           new StateStats(60,  100,     8,    20,     1,   0.055,   3.0,     0.0,     0.2,      4.0,    0.0);
+                case EXHAUSTED ->      new StateStats(5,   5,      40,    60,     0,   0.005,   0.0,     2.0,     2.0,      0.5,    0.0);
+                case CIRCLE ->         new StateStats(40,  60,     40,    60,     2,   0.03,    1.0,     1.0,     0.5,      1.0,    0.0002);
+                case JUMP ->           new StateStats(30,  30,     10,    16,     2,   0.015,   1.0,     0.3,     0.5,      1.0,    0.0);
+                case LINE_TANGLE ->    new StateStats(50,  80,     30,    50,     0,   0.03,    1.0,     0.2,     0.2,      3.0,    0.0);
+                // 기절은 AI가 멈추므로 지속시간이 의미 없고, 거리 회수는 calc.stunned-pull-coefficient가 담당한다.
+                case STUNNED ->        new StateStats(0,   0,       0,     0,     0,   0.0,     0.0,     1.0,     1.0,      0.5,    0.0);
+            };
+        }
+
+        private static StateStats load(FileConfiguration config, FishState state) {
+            StateStats d = defaults(state);
+            String p = "trophy-fight.ai.states." + state.name().toLowerCase() + ".";
+            return new StateStats(
+                    config.getDouble(p + "power", d.power),
+                    config.getDouble(p + "resistance", d.resistance),
+                    config.getInt(p + "duration-ticks.min", d.durationMinTicks),
+                    config.getInt(p + "duration-ticks.max", d.durationMaxTicks),
+                    config.getInt(p + "action-power-cost", d.actionPowerCost),
+                    config.getDouble(p + "tension-rate", d.tensionRate),
+                    config.getDouble(p + "auto-tension-rate", d.autoTensionRate),
+                    config.getDouble(p + "reel-stamina-multiplier", d.reelStaminaMultiplier),
+                    config.getDouble(p + "reel-distance-multiplier", d.reelDistanceMultiplier),
+                    config.getDouble(p + "release-distance-multiplier", d.releaseDistanceMultiplier),
+                    config.getDouble(p + "stamina-regen-ratio", d.staminaRegenRatio));
+        }
+
+        static Map<FishState, StateStats> loadAll(FileConfiguration config) {
+            Map<FishState, StateStats> map = new EnumMap<>(FishState.class);
+            for (FishState state : FishState.values()) {
+                map.put(state, load(config, state));
             }
             return Collections.unmodifiableMap(map);
         }

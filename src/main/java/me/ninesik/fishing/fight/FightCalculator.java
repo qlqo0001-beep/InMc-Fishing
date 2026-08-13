@@ -33,6 +33,11 @@ public class FightCalculator {
         return configSupplier.get().calc();
     }
 
+    /** 상태별 밸런스 수치 (fight.yml trophy-fight.ai.states.<상태>). */
+    private FightConfig.StateStats stats(FishState state) {
+        return configSupplier.get().ai().state(state);
+    }
+
     // 수식 계수는 전부 fight.yml의 trophy-fight.calc.* 로 이관됐다.
     // 각 계수의 의미와 "왜 이 값인가"에 대한 밸런스 이력은 FightConfig.CalcConfig 주석에 있다.
 
@@ -57,17 +62,7 @@ public class FightCalculator {
         if (reelPower <= 0) return 0.0;
         double reelEfficiency = Math.max(0.0, Math.min(1.0, reelStateRatio));
         double base = reelPower * calc().staminaDecreasePerReelPower * reelEfficiency;
-         double stateMultiplier = switch (state) {
-             case CHARGE -> 1.5;        // 돌진 — 스태미너를 더 많이 줄인다
-             case FINAL_STRUGGLE -> 0.0; // 발악 — 스태미너가 줄어들지 않는다
-             case EXHAUSTED -> 2.0;     // 탈진 — 좌클릭 몰아치기 최적 (스태미너 가장 잘 깎임)
-             case DIVE -> 0.0;          // 잠수 — 스태미너가 줄어들지 않는다
-             case CIRCLE -> 1.0;        // 원형 유영 — 보통
-             case JUMP -> 0.3;          // 점프 — 클릭 효과 약화
-             case LINE_TANGLE -> 0.2;   // 줄 엉킴 — 좌클릭 무효
-             default -> 1.0;
-         };
-        return base * stateMultiplier;
+        return base * stats(state).reelStaminaMultiplier;
     }
 
     /**
@@ -86,15 +81,7 @@ public class FightCalculator {
      * @return Stamina 회복량 (항상 0 이상)
      */
     public double calculateStaminaRegen(FishState state, double maxStamina) {
-        double ratio = switch (state) {
-             case REST -> 0.0016;
-            case SLOW_MOVE -> 0.0008;
-            case NORMAL_MOVE -> 0.0004;
-            case TURN -> 0.0002;
-            case CIRCLE -> 0.0002;     // 원형 유영(소강) — 완만하게 약간 회복
-            case CHARGE, FINAL_STRUGGLE, DIVE, JUMP, LINE_TANGLE, EXHAUSTED, STUNNED -> 0.0;
-        };
-        return Math.max(0.0, maxStamina) * ratio;
+        return Math.max(0.0, maxStamina) * stats(state).staminaRegenRatio;
     }
 
     /**
@@ -171,16 +158,8 @@ public class FightCalculator {
         double resistanceFactor = calc().resistanceSoftening / (calc().resistanceSoftening + Math.max(0.0, fishResistance));
         double exhaustionFactor = 1.0 - Math.max(0.0, Math.min(1.0, staminaRatio));
 
-        // 피드백: 천천히 이동(SLOW_MOVE) 상태일 때 릴을 감으면 거리를 많이 줄인다.
-        double distanceModifier = switch (state) {
-            case SLOW_MOVE -> 1.5;     // 천천히 이동 — 거리 회수 보너스
-            case EXHAUSTED -> 2.0;     // 탈진 — 좌클릭 시 거리 회수 최대 (몰아치기 보상)
-            case CIRCLE -> 0.5;        // 원형 유영 — 거리 변화 완만
-            case JUMP -> 0.5;          // 점프 — 클릭 효과 약화
-            case DIVE -> 0.2;          // 잠수 — 거리 변화 거의 없음
-            case LINE_TANGLE -> 0.2;   // 줄 엉킴 — 좌클릭 무효
-            default -> 1.0;
-        };
+        // 상태별 거리 회수 배수 (예: 천천히 이동·탈진일 때 릴을 감으면 거리를 많이 줄인다).
+        double distanceModifier = stats(state).reelDistanceMultiplier;
 
         // 기본 회수량: Stamina와 무관하게 릴을 감기만 하면 항상 일부 적용된다. (reelPower에 선형 비례)
         double baseReel = reelPower * calc().baseReelCoefficient * resistanceFactor * distanceModifier;
@@ -218,12 +197,12 @@ public class FightCalculator {
 
         if (isReeling) {
             // 릴 감기(좌클릭): 상태별 장력 상승율 적용
-            double tensionRate = state.getTensionRate();
+            double tensionRate = stats(state).tensionRate;
             return maxTensionSafe * tensionRate;
         }
 
         // 대기(릴 미감기): 기본 장력 감소(-2.0) + 자동 장력 상승
-        double autoTension = state.getAutoTensionRate();
+        double autoTension = stats(state).autoTensionRate;
         return calc().idleTensionBase + autoTension;
     }
 
@@ -305,21 +284,7 @@ public class FightCalculator {
      */
     public double calculateReleaseDistanceChange(double fishPower, FishState state) {
         double fishEscape = fishPower * calc().fishEscapeCoefficient;
-        double stateMultiplier = switch (state) {
-            case REST -> 0.5;          // 휴식 — 거리 조금 증가
-            case SLOW_MOVE -> 1.0;     // 천천히 이동 — 거리 조금 증가
-            case NORMAL_MOVE -> 2.0;   // 이동 중 — 거리 증가
-            case TURN -> 3.0;          // 방향 전환 — 거리 조금 많이 증가
-            case CHARGE -> 4.0;        // 돌진 — 거리 많이 증가
-            case FINAL_STRUGGLE -> 6.0; // 발악 — 거리 매우 많이 증가
-            case EXHAUSTED -> 0.5;     // 탈진 — 우클릭해도 거리 별로 안 늘어남
-            case CIRCLE -> 1.0;        // 원형 유영 — 우클릭 시 거리 완만
-            case JUMP -> 1.0;
-            case LINE_TANGLE -> 3.0;   // 줄 엉킴 — 우클릭으로 관리
-            case STUNNED -> 0.5;       // 기절 — 우클릭해도 거리 별로 안 늘어남
-            case DIVE -> 4.0;          // 잠수 — 우클릭해도 거리 크게 늘어남
-        };
-        return fishEscape + calc().releaseBase * stateMultiplier;
+        return fishEscape + calc().releaseBase * stats(state).releaseDistanceMultiplier;
     }
 
     /**

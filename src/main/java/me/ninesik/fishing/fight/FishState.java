@@ -62,83 +62,11 @@ public enum FishState {
     STUNNED;
 
     /**
-     * 이 상태의 행동력(Action Power) 소모량을 반환한다.
-     * -1은 모든 행동력을 소모하고 회복함을 의미한다.
-     * 0은 행동력을 소모하지 않음을 의미한다.
-     */
-    public int getActionPowerCost() {
-        return switch (this) {
-            case REST -> 0;
-            case SLOW_MOVE -> 1;
-            case NORMAL_MOVE -> 0;
-            case TURN -> 1;
-            case CIRCLE -> 2;
-            case CHARGE -> 3;
-            case DIVE -> 1;
-            case FINAL_STRUGGLE -> -1;
-            case EXHAUSTED -> 0;
-            case JUMP -> 2;
-            case LINE_TANGLE -> 0;
-            case STUNNED -> 0;
-        };
-    }
-
-    /**
-     * 이 상태가 한 틱당 장력(Tension)을 최대 장력의 몇 % 증가시키는지를 반환한다.
-     * 0.0은 장력 증가가 없음을 의미한다.
-     * DIVE와 FINAL_STRUGGLE은 가장 높은 장력 상승율을 가진다.
-     */
-    public double getTensionRate() {
-        return switch (this) {
-            case REST -> 0.005;
-            case SLOW_MOVE -> 0.01;
-            case NORMAL_MOVE -> 0.015;
-            case TURN -> 0.025;
-            case CIRCLE -> 0.03;
-            case CHARGE -> 0.045;
-            case DIVE -> 0.055;
-            case FINAL_STRUGGLE -> 0.08;
-            case EXHAUSTED -> 0.005;
-            case JUMP -> 0.015;
-            case LINE_TANGLE -> 0.03;
-            case STUNNED -> 0.0;
-        };
-    }
-
-    /**
      * 이 상태가 행동력 회복 상태인지 확인한다.
      * REST와 LINE_TANGLE은 행동력을 모두 회복한다.
      */
     public boolean recoversActionPower() {
         return this == REST || this == LINE_TANGLE;
-    }
-
-    /**
-     * 이 상태의 자동 장력 상승률을 반환한다.
-     * 릴을 감지 않을 때(대기 상태) 틱마다 자동으로 장력이 상승하는 비율이다.
-     *
-     * <p>3단계 시스템:</p>
-     * <ul>
-     *   <li>수동 상태(REST, SLOW_MOVE, EXHAUSTED): 0.0 — 자동 장력 상승 없음</li>
-     *   <li>중간 상태(NORMAL_MOVE, TURN, CIRCLE, LINE_TANGLE, JUMP): 0.5/tick</li>
-     *   <li>공격 상태(CHARGE, DIVE, FINAL_STRUGGLE): 2.0/tick</li>
-     * </ul>
-     */
-    public double getAutoTensionRate() {
-        return switch (this) {
-            case REST -> 0.0;
-            case SLOW_MOVE -> 0.0;
-            case NORMAL_MOVE -> 1.0;
-            case TURN -> 1.0;
-            case CIRCLE -> 1.0;
-            case CHARGE -> 3.0;
-            case DIVE -> 3.0;
-            case FINAL_STRUGGLE -> 3.0;
-            case EXHAUSTED -> 0.0;
-            case JUMP -> 1.0;
-            case LINE_TANGLE -> 1.0;
-            case STUNNED -> 0.0;
-        };
     }
 
     /**

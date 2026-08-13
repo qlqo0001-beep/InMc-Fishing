@@ -78,10 +78,10 @@ public final class BalanceDump {
         out.add("# samples: transition=" + TRANSITION_SAMPLES + " duration=" + DURATION_SAMPLES + " seed=" + SEED);
         out.add("");
 
-        dumpFishStateTables(out);
-        dumpFishAiStats(out);
-        dumpStateDurations(out);
-        dumpTransitions(out);
+        dumpFishStateTables(out, fightConfig);
+        dumpFishAiStats(out, fightConfig);
+        dumpStateDurations(out, fightConfig);
+        dumpTransitions(out, fightConfig);
         dumpCalculator(out, fightConfig);
 
         return out;
@@ -89,15 +89,16 @@ public final class BalanceDump {
 
     // ===== 1. FishState 테이블 =====
 
-    private static void dumpFishStateTables(List<String> out) {
+    private static void dumpFishStateTables(List<String> out, FightConfig fightConfig) {
         out.add("## [1] FishState 테이블");
         out.add("state | apCost | tensionRate | autoTensionRate | recoversAp | isPassive");
         for (FishState s : FishState.values()) {
+            FightConfig.StateStats st = fightConfig.ai().state(s);
             out.add(String.format(Locale.ROOT, "%-15s | %3d | %s | %s | %s | %s",
                     s.name(),
-                    s.getActionPowerCost(),
-                    num(s.getTensionRate()),
-                    num(s.getAutoTensionRate()),
+                    st.actionPowerCost,
+                    num(st.tensionRate),
+                    num(st.autoTensionRate),
                     s.recoversActionPower(),
                     s.isPassive()));
         }
@@ -106,10 +107,10 @@ public final class BalanceDump {
 
     // ===== 2. FishAI Power / Resistance =====
 
-    private static void dumpFishAiStats(List<String> out) {
+    private static void dumpFishAiStats(List<String> out, FightConfig fightConfig) {
         out.add("## [2] FishAI 상태별 Power / Resistance");
         out.add("state | power | resistance");
-        FishAI ai = newAi();
+        FishAI ai = newAi(fightConfig);
         for (FishState s : FishState.values()) {
             set(ai, F_CURRENT_STATE, s);
             out.add(String.format(Locale.ROOT, "%-15s | %s | %s",
@@ -120,11 +121,11 @@ public final class BalanceDump {
 
     // ===== 3. 상태 지속시간 분포 =====
 
-    private static void dumpStateDurations(List<String> out) {
+    private static void dumpStateDurations(List<String> out, FightConfig fightConfig) {
         out.add("## [3] FishAI randomStateDuration 분포 (틱)");
         out.add("state | min | max | sum");
         for (FishState s : FishState.values()) {
-            FishAI ai = newAi();
+            FishAI ai = newAi(fightConfig);
             ai.setRandom(new Random(SEED));
             int min = Integer.MAX_VALUE;
             int max = Integer.MIN_VALUE;
@@ -158,7 +159,7 @@ public final class BalanceDump {
 
     // ===== 4. 전이 확률 히스토그램 =====
 
-    private static void dumpTransitions(List<String> out) {
+    private static void dumpTransitions(List<String> out, FightConfig fightConfig) {
         out.add("## [4] FishAI 전이 히스토그램");
         out.add("# from / staminaRatio / reeling / actionPower -> 결과 상태별 횟수");
 
@@ -172,7 +173,7 @@ public final class BalanceDump {
             for (double stamina : staminas) {
                 for (boolean reeling : reelings) {
                     for (int ap : actionPowers) {
-                        out.add(transitionRow(from, stamina, reeling, ap));
+                        out.add(transitionRow(from, stamina, reeling, ap, fightConfig));
                     }
                 }
             }
@@ -180,8 +181,9 @@ public final class BalanceDump {
         out.add("");
     }
 
-    private static String transitionRow(FishState from, double stamina, boolean reeling, int ap) {
-        FishAI ai = newAi();
+    private static String transitionRow(FishState from, double stamina, boolean reeling, int ap,
+                                       FightConfig fightConfig) {
+        FishAI ai = newAi(fightConfig);
         ai.setRandom(new Random(SEED));
 
         Map<FishState, Integer> hist = new LinkedHashMap<>();
@@ -310,9 +312,9 @@ public final class BalanceDump {
 
     // ===== 유틸 =====
 
-    private static FishAI newAi() {
+    private static FishAI newAi(FightConfig fightConfig) {
         FishAI ai = new FishAI();
-        ai.init(5);
+        ai.init(5, fightConfig.ai());
         return ai;
     }
 

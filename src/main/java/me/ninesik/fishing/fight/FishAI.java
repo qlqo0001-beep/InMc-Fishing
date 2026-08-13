@@ -19,6 +19,15 @@ public class FishAI {
 
     private Random random = new Random();
 
+    /** Fight 시작 시 주입되는 상태별 수치. init 전에는 기본값(빈 설정)으로 동작한다. */
+    private FightConfig.AiConfig aiConfig =
+            new FightConfig(new org.bukkit.configuration.file.YamlConfiguration()).ai();
+
+    /** 현재 상태(또는 지정 상태)의 밸런스 수치. */
+    private FightConfig.StateStats stats(FishState state) {
+        return aiConfig.state(state);
+    }
+
     /**
      * 난수원을 교체한다. {@link BalanceDump}가 밸런스 골든 덤프를 결정적으로 만들기 위해서만 쓴다
      * (같은 시드 → 같은 전이 히스토그램). 게임 로직에서는 호출하지 않는다.
@@ -65,6 +74,17 @@ public class FishAI {
      *
      * @param maxActionPower 이 물고기의 최대 행동력
      */
+    /**
+     * Fight 시작 시 상태별 수치 스냅샷을 받아 둔다.
+     *
+     * <p>진행 중인 파이트가 /fishing reload로 규칙이 바뀌면 플레이어에게 설명할 수 없는
+     * 실패가 생기므로, 시작 시점의 설정을 그대로 들고 끝까지 간다.</p>
+     */
+    public void init(int maxActionPower, FightConfig.AiConfig aiConfig) {
+        this.aiConfig = aiConfig;
+        init(maxActionPower);
+    }
+
     public void init(int maxActionPower) {
         this.maxActionPower = Math.max(1, maxActionPower);
         this.actionPower = this.maxActionPower;
@@ -143,7 +163,7 @@ public class FishAI {
      * -1은 모든 행동력을 소모함을 의미한다.
      */
     public int getCurrentActionPowerCost() {
-        return currentState.getActionPowerCost();
+        return stats(currentState).actionPowerCost;
     }
 
     /**
@@ -186,44 +206,18 @@ public class FishAI {
 
     /**
      * 현재 상태에 따른 Fish Power 값을 반환한다.
-     * (하드코딩 기본값)
+     * 값은 fight.yml의 trophy-fight.ai.states.<상태>에서 온다.
      */
     public double getCurrentPower() {
-        return switch (currentState) {
-            case REST -> 10.0;
-            case SLOW_MOVE -> 20.0;
-            case NORMAL_MOVE -> 40.0;
-            case TURN -> 50.0;
-            case CHARGE -> 80.0;
-            case FINAL_STRUGGLE -> 100.0;
-            case DIVE -> 60.0;
-            case EXHAUSTED -> 5.0;
-            case CIRCLE -> 40.0;
-            case JUMP -> 30.0;
-            case LINE_TANGLE -> 50.0;
-            case STUNNED -> 0.0;
-        };
+        return stats(currentState).power;
     }
 
     /**
      * 현재 상태에 따른 Fish Resistance 값을 반환한다.
-     * (하드코딩 기본값)
+     * 값은 fight.yml의 trophy-fight.ai.states.<상태>에서 온다.
      */
     public double getCurrentResistance() {
-        return switch (currentState) {
-            case REST -> 10.0;
-            case SLOW_MOVE -> 20.0;
-            case NORMAL_MOVE -> 40.0;
-            case TURN -> 50.0;
-            case CHARGE -> 70.0;
-            case FINAL_STRUGGLE -> 90.0;
-            case DIVE -> 100.0;
-            case EXHAUSTED -> 5.0;
-            case CIRCLE -> 60.0;
-            case JUMP -> 30.0;
-            case LINE_TANGLE -> 80.0;
-            case STUNNED -> 0.0;
-        };
+        return stats(currentState).resistance;
     }
 
     /**
@@ -353,7 +347,7 @@ public class FishAI {
         this.elapsedTicks = 0;
 
         // 새 상태의 행동력 소모
-        int cost = next.getActionPowerCost();
+        int cost = stats(next).actionPowerCost;
         if (cost > 0) {
             consumeActionPower(cost);
         } else if (cost < 0) {
@@ -364,22 +358,11 @@ public class FishAI {
 
     /**
      * 상태별 지속 시간(틱)을 랜덤하게 결정한다.
-     * (하드코딩 기본값)
+     * 값은 fight.yml의 trophy-fight.ai.states.<상태>에서 온다.
      */
     private int randomStateDuration(FishState state) {
-        return switch (state) {
-            case REST -> 40 + random.nextInt(40);       // 2~4초
-            case SLOW_MOVE -> 30 + random.nextInt(30);  // 1.5~3초
-            case NORMAL_MOVE -> 20 + random.nextInt(30); // 1~2.5초
-            case TURN -> 15 + random.nextInt(20);       // 0.75~1.75초
-            case CHARGE -> 10 + random.nextInt(15);     // 0.5~1.25초
-            case FINAL_STRUGGLE -> 5 + random.nextInt(10); // 0.25~0.75초
-            case DIVE -> 8 + random.nextInt(12);        // 0.4~1.0초
-            case EXHAUSTED -> 40 + random.nextInt(20);  // 2~3초
-            case CIRCLE -> 40 + random.nextInt(20);     // 2~3초
-            case JUMP -> 10 + random.nextInt(6);        // 0.5~0.8초
-            case LINE_TANGLE -> 30 + random.nextInt(20); // 1.5~2.5초
-            case STUNNED -> 0; // 의미 없음 (tick에서 early return)
-        };
+        FightConfig.StateStats s = stats(state);
+        int span = s.durationMaxTicks - s.durationMinTicks;
+        return span <= 0 ? s.durationMinTicks : s.durationMinTicks + random.nextInt(span);
     }
 }

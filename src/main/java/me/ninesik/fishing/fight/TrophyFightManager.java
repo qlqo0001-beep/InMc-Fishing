@@ -329,7 +329,9 @@ public class TrophyFightManager {
         if (reward.isRareTrophy()) {
             maxAP *= 2;
         }
-        session.getFishAI().init(maxAP);
+        // AI는 시작 시점의 상태 수치를 스냅샷으로 들고 끝까지 간다
+        // (진행 중 /fishing reload로 규칙이 바뀌면 설명할 수 없는 실패가 생긴다).
+        session.getFishAI().init(maxAP, config.ai());
         // 위험 임계값 비율 — config에서 주입 (FishAI 기본 0.3)
         session.getFishAI().setDangerousThresholdRatio(apConfig.dangerousThresholdRatio);
 
