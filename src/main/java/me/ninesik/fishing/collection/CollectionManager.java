@@ -379,7 +379,9 @@ public class CollectionManager {
      */
     public int getInventoryFishAmount(Player player, Fish fish) {
         if (player == null || fish == null) return 0;
-        ItemStack expected = rewardService.createItemStack(fish, 1);
+        // 비교 템플릿일 뿐이다 — isSameFishItem은 타입·이름·CustomModelData·MMOItems ID만 보므로
+        // PDC/스냅샷 JSON을 만들 필요가 없다 (도감 GUI가 아이콘마다 이걸 호출한다).
+        ItemStack expected = rewardService.createDisplayItemStack(fish, 1);
         if (expected == null || expected.getType().isAir()) return 0;
 
         int amount = 0;

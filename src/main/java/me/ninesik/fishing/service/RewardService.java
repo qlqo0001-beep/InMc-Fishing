@@ -41,11 +41,31 @@ public class RewardService {
     /** 어망 시스템 (선택적 — null이면 어망 저장 없이 기존 인벤토리 지급) */
     private NetManager netManager;
 
+    /**
+     * PDC 키는 생성 시점에 한 번만 만든다.
+     *
+     * <p>예전에는 읽을 때마다 {@code new NamespacedKey}를 5개, 쓸 때마다 6개를 새로 만들었다.
+     * 읽기 경로는 <b>모든 우클릭</b>과 도감 GUI 아이콘 렌더링에서 불리므로 그대로 반복 비용이 됐다.</p>
+     */
+    private final NamespacedKey fishIdKey;
+    private final NamespacedKey gradeIdKey;
+    private final NamespacedKey trophyKey;
+    private final NamespacedKey rareKey;
+    private final NamespacedKey sizeKey;
+    private final NamespacedKey snapshotKey;
+
     public RewardService(JavaPlugin plugin, DependencyManager dependencyManager, ConfigManager configManager) {
         this.plugin = plugin;
         this.dependencyManager = dependencyManager;
         this.configManager = configManager;
         this.logger = plugin.getLogger();
+
+        this.fishIdKey = new NamespacedKey(plugin, "fish_id");
+        this.gradeIdKey = new NamespacedKey(plugin, "grade_id");
+        this.trophyKey = new NamespacedKey(plugin, "is_trophy");
+        this.rareKey = new NamespacedKey(plugin, "is_rare_trophy");
+        this.sizeKey = new NamespacedKey(plugin, "size");
+        this.snapshotKey = new NamespacedKey(plugin, "fish_snapshot");
     }
 
     /**
@@ -294,14 +314,14 @@ public class RewardService {
             return null;
         }
         var pdc = item.getItemMeta().getPersistentDataContainer();
-        String fishId = pdc.get(new NamespacedKey(plugin, "fish_id"), PersistentDataType.STRING);
+        String fishId = pdc.get(fishIdKey, PersistentDataType.STRING);
         if (fishId == null || fishId.isEmpty()) {
             return null;
         }
-        String gradeId = pdc.get(new NamespacedKey(plugin, "grade_id"), PersistentDataType.STRING);
-        Double size = pdc.get(new NamespacedKey(plugin, "size"), PersistentDataType.DOUBLE);
-        Byte trophy = pdc.get(new NamespacedKey(plugin, "is_trophy"), PersistentDataType.BYTE);
-        Byte rare = pdc.get(new NamespacedKey(plugin, "is_rare_trophy"), PersistentDataType.BYTE);
+        String gradeId = pdc.get(gradeIdKey, PersistentDataType.STRING);
+        Double size = pdc.get(sizeKey, PersistentDataType.DOUBLE);
+        Byte trophy = pdc.get(trophyKey, PersistentDataType.BYTE);
+        Byte rare = pdc.get(rareKey, PersistentDataType.BYTE);
         return new FishItemData(
                 fishId,
                 size != null ? size : 0.0,
@@ -333,6 +353,24 @@ public class RewardService {
      * RewardEntry의 isTrophy/isRareTrophy 값을 사용하여 Lore에 트로피 문구를 표시한다.
      */
     public ItemStack createItemStack(Fish fish, int amount, double size, boolean isTrophy, boolean isRareTrophy) {
+        return createItemStack(fish, amount, size, isTrophy, isRareTrophy, true);
+    }
+
+    /**
+     * GUI 표시나 비교에만 쓸 아이템을 만든다. PDC와 fish_snapshot JSON을 생략한다.
+     *
+     * <p>도감/어망 GUI는 클릭이 전부 취소되는 표시 전용이라 아이콘에 PDC가 필요 없다.
+     * 그런데도 아이콘마다 {@code NamespacedKey} 6개 생성 + JSON 직렬화를 돌고 있었고,
+     * 한 페이지에 아이콘이 36개, 클릭할 때마다 다시 그려진다.
+     * {@code isSameFishItem} 비교도 타입·이름·CustomModelData·MMOItems ID만 보므로
+     * PDC 없는 아이템으로 충분하다.</p>
+     */
+    public ItemStack createDisplayItemStack(Fish fish, int amount) {
+        return createItemStack(fish, amount, 0.0, false, false, false);
+    }
+
+    private ItemStack createItemStack(Fish fish, int amount, double size,
+                                      boolean isTrophy, boolean isRareTrophy, boolean withPdc) {
         String useType = fish.getUseType() != null ? fish.getUseType().toLowerCase() : "vanilla";
 
         if ("vanilla".equals(useType)) {
@@ -368,7 +406,7 @@ public class RewardService {
                     meta.setCustomModelData(fish.getCustomModelData());
                 }
 
-                applyPdc(meta, fish, size, isTrophy, isRareTrophy);
+                if (withPdc) applyPdc(meta, fish, size, isTrophy, isRareTrophy);
                 item.setItemMeta(meta);
             }
             return item;
@@ -402,7 +440,7 @@ public class RewardService {
                     meta.setLore(lore);
                 }
 
-                applyPdc(meta, fish, size, isTrophy, isRareTrophy);
+                if (withPdc) applyPdc(meta, fish, size, isTrophy, isRareTrophy);
                 result.setItemMeta(meta);
             }
             return result;
@@ -498,19 +536,13 @@ public class RewardService {
      * 나머지 상세 정보는 fish_snapshot JSON 하나로 저장한다.
      */
     private void applyPdc(ItemMeta meta, Fish fish, double size, boolean isTrophy, boolean isRareTrophy) {
-        NamespacedKey fishIdKey = new NamespacedKey(plugin, "fish_id");
-        NamespacedKey gradeIdKey = new NamespacedKey(plugin, "grade_id");
-        NamespacedKey trophyKey = new NamespacedKey(plugin, "is_trophy");
-        NamespacedKey rareKey = new NamespacedKey(plugin, "is_rare_trophy");
-        NamespacedKey sizeKey = new NamespacedKey(plugin, "size");
-        NamespacedKey snapshotKey = new NamespacedKey(plugin, "fish_snapshot");
-
-        meta.getPersistentDataContainer().set(fishIdKey, PersistentDataType.STRING, fish.getId());
-        meta.getPersistentDataContainer().set(gradeIdKey, PersistentDataType.STRING, fish.getGrade() != null ? fish.getGrade().getId() : "");
-        meta.getPersistentDataContainer().set(trophyKey, PersistentDataType.BYTE, (byte) (isTrophy ? 1 : 0));
-        meta.getPersistentDataContainer().set(rareKey, PersistentDataType.BYTE, (byte) (isRareTrophy ? 1 : 0));
-        meta.getPersistentDataContainer().set(sizeKey, PersistentDataType.DOUBLE, size);
-        meta.getPersistentDataContainer().set(snapshotKey, PersistentDataType.STRING, buildSnapshotJson(fish));
+        var pdc = meta.getPersistentDataContainer();
+        pdc.set(fishIdKey, PersistentDataType.STRING, fish.getId());
+        pdc.set(gradeIdKey, PersistentDataType.STRING, fish.getGrade() != null ? fish.getGrade().getId() : "");
+        pdc.set(trophyKey, PersistentDataType.BYTE, (byte) (isTrophy ? 1 : 0));
+        pdc.set(rareKey, PersistentDataType.BYTE, (byte) (isRareTrophy ? 1 : 0));
+        pdc.set(sizeKey, PersistentDataType.DOUBLE, size);
+        pdc.set(snapshotKey, PersistentDataType.STRING, buildSnapshotJson(fish));
     }
 
     /**

@@ -603,39 +603,22 @@ public class FishingListener implements Listener {
         RodRegistry rodRegistry = registryManager.getRodRegistry();
         if (rodRegistry == null) return new RodLookupResult.NotARod();
 
-        // MMOItems 아이템 확인
+        // 매칭은 RodRegistry의 사전 인덱스에 맡긴다 (RodFinder와 로직이 완전히 중복돼 있었다).
+        // 여기서 다른 점은 "매칭 실패를 어떻게 분류하느냐"뿐이다 — 미등록 MMOItems 낚싯대는
+        // 낚시를 차단하고, 미등록 바닐라 낚싯대는 보너스 0으로 진행시킨다.
         if (dependencyManager.getMMOItems().isAvailable() &&
             dependencyManager.getMMOItems().isMMOItem(item)) {
-            String mmoItemId = dependencyManager.getMMOItems().getMMOItemId(item);
-            if (mmoItemId != null) {
-                for (Rod rod : rodRegistry.getAll().values()) {
-                    if ("mmoitems".equalsIgnoreCase(rod.getUseType()) && mmoItemId.equals(rod.getMmoitemsId())) {
-                        return new RodLookupResult.Matched(rod);
-                    }
-                }
-            }
-            return new RodLookupResult.UnregisteredMmoItemRod();
+            Rod rod = rodRegistry.matchMmoItemId(dependencyManager.getMMOItems().getMMOItemId(item));
+            return rod != null ? new RodLookupResult.Matched(rod) : new RodLookupResult.UnregisteredMmoItemRod();
         }
 
         // 바닐라 낚싯대 확인 (rod.yml의 vanilla-name을 실제로 조회해서 매칭 — 하드코딩 문자열 비교 금지)
         if (item.getType() == Material.FISHING_ROD) {
             ItemMeta meta = item.hasItemMeta() ? item.getItemMeta() : null;
             String displayName = (meta != null && meta.hasDisplayName()) ? meta.getDisplayName() : null;
-
-            if (displayName != null) {
-                for (Rod rod : rodRegistry.getAll().values()) {
-                    if (!"vanilla".equalsIgnoreCase(rod.getUseType())) {
-                        continue;
-                    }
-                    String configuredName = rod.getVanillaName();
-                    if (configuredName == null || configuredName.isEmpty()) {
-                        continue;
-                    }
-                    String translated = ChatColor.translateAlternateColorCodes('&', configuredName);
-                    if (translated.equals(displayName)) {
-                        return new RodLookupResult.Matched(rod);
-                    }
-                }
+            Rod rod = rodRegistry.matchVanillaName(displayName);
+            if (rod != null) {
+                return new RodLookupResult.Matched(rod);
             }
 
             // 29.1: 이름/로어가 없거나(또는 등록된 이름과 매칭되지 않는) 일반 바닐라 FISHING_ROD →
@@ -657,75 +640,49 @@ public class FishingListener implements Listener {
         ItemStack item = player.getInventory().getItemInOffHand();
         if (item == null || item.getType() == Material.AIR) return null;
 
-        // MMOItems 확인
+        // 매칭은 BaitRegistry의 사전 인덱스에 맡긴다 (입질마다 전체 순회 + 색상 변환하던 것 제거).
         if (dependencyManager.getMMOItems().isAvailable() &&
             dependencyManager.getMMOItems().isMMOItem(item)) {
-            String mmoItemId = dependencyManager.getMMOItems().getMMOItemId(item);
-            if (mmoItemId != null) {
-                for (Bait bait : baitRegistry.getAll().values()) {
-                    if ("mmoitems".equalsIgnoreCase(bait.getUseType())
-                            && mmoItemId.equals(bait.getMmoitemsId())) {
-                        return bait;
-                    }
-                }
-            }
-            return null;
+            return baitRegistry.matchMmoItemId(dependencyManager.getMMOItems().getMMOItemId(item));
         }
 
         // 바닐라 name 매칭
         ItemMeta meta = item.hasItemMeta() ? item.getItemMeta() : null;
         String displayName = (meta != null && meta.hasDisplayName()) ? meta.getDisplayName() : null;
-        if (displayName != null) {
-            for (Bait bait : baitRegistry.getAll().values()) {
-                if (!"vanilla".equalsIgnoreCase(bait.getUseType())) continue;
-                String cfgName = bait.getVanillaName();
-                if (cfgName == null || cfgName.isEmpty()) continue;
-                String translated = ChatColor.translateAlternateColorCodes('&', cfgName);
-                if (translated.equals(displayName)) {
-                    return bait;
-                }
-            }
-        }
-
-        return null;
+        return baitRegistry.matchVanillaName(displayName);
     }
 
 
     /**
      * 손에 든 아이템이 피로도 회복 물약인지 확인한다.
      * items/*.yml에서 fatigue-recovery가 0보다 큰 물고기(물약)를 찾는다.
+     *
+     * <p>판정은 <b>PDC의 {@code fish_id}만</b> 쓴다. 예전에는 PDC가 없는 구버전 아이템을 위해
+     * 표시 이름 부분일치(contains) 폴백이 있었는데, 세 가지 문제가 있었다:</p>
+     * <ul>
+     *   <li>이름에 물약 이름이 포함되기만 하면 <b>아무 아이템이나</b> 피로도를 회복시켰다</li>
+     *   <li>{@code items/potions.yml} 물약(PDC 키가 다름)이 이름으로 여기에도 걸리면
+     *       {@link me.ninesik.fishing.fatigue.FatiguePotionListener}와 <b>둘 다</b> 실행돼
+     *       아이템 2개가 소모됐다 — Bukkit은 setCancelled(true)로 뒤 핸들러를 막지 못한다</li>
+     *   <li>매 우클릭마다 전체 물고기를 순회하며 색상 코드를 벗겨냈다</li>
+     * </ul>
      */
     private Fish findFatiguePotion(ItemStack item) {
-        FishRegistry fishRegistry = registryManager.getFishRegistry();
-        if (item == null || fishRegistry == null) return null;
+        if (item == null) return null;
 
-        // 1순위: PDC의 fish_id로 정확히 판정한다. 이름 부분일치(contains)는 이름이 짧은
-        // 물약이 다른 아이템에 오탐될 수 있고, 매 우클릭마다 전체 물고기를 순회해야 했다.
-        RewardService.FishItemData data = rewardService.readFishItemData(item);
-        if (data != null && data.fishId() != null) {
-            Fish byPdc = fishRegistry.getById(data.fishId());
-            if (byPdc != null && byPdc.isFatiguePotion()) {
-                return byPdc;
-            }
+        // potions.yml 계열 물약은 전용 리스너가 처리한다. 여기서 건드리면 이중 처리가 된다.
+        if (me.ninesik.fishing.fatigue.FatiguePotionItem.getGradeId(plugin, item) != null) {
             return null;
         }
 
-        // 2순위: PDC가 없는 구버전 아이템 호환 — 기존 이름 매칭 방식을 유지한다.
-        org.bukkit.inventory.meta.ItemMeta meta = item.hasItemMeta() ? item.getItemMeta() : null;
-        String displayName = (meta != null && meta.hasDisplayName()) ? meta.getDisplayName() : null;
-        if (displayName == null) return null;
+        RewardService.FishItemData data = rewardService.readFishItemData(item);
+        if (data == null || data.fishId() == null) return null;
 
-        String stripped = ChatColor.stripColor(displayName);
-        for (Fish fish : fishRegistry.getAll().values()) {
-            if (!fish.isFatiguePotion()) continue;
-            // 물약 아이템의 displayName과 매칭 (등급 접두사 제거 후 비교)
-            String fishName = rewardService.resolveDisplayName(fish, null);
-            String fishStripped = ChatColor.stripColor(fishName);
-            if (stripped != null && fishStripped != null && stripped.contains(fishStripped)) {
-                return fish;
-            }
-        }
-        return null;
+        FishRegistry fishRegistry = registryManager.getFishRegistry();
+        if (fishRegistry == null) return null;
+
+        Fish fish = fishRegistry.getById(data.fishId());
+        return (fish != null && fish.isFatiguePotion()) ? fish : null;
     }
 
     @EventHandler

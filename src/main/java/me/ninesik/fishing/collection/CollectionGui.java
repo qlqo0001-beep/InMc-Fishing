@@ -170,7 +170,8 @@ public class CollectionGui extends AbstractGui {
         boolean isDiscovered = entry != null && entry.isDiscovered();
         boolean isPerfect = entry != null && entry.isPerfect();
 
-        ItemStack base = rewardService.createItemStack(fish, 1);
+        // 클릭이 전부 취소되는 표시 전용 아이콘이라 PDC/스냅샷 JSON이 필요 없다.
+        ItemStack base = rewardService.createDisplayItemStack(fish, 1);
         if (base == null) {
             base = new ItemStack(Material.COD, 1);
         }

@@ -30,38 +30,18 @@ public final class RodFinder {
             return null;
         }
 
+        // 매칭 자체는 RodRegistry의 사전 인덱스가 O(1)로 처리한다.
+        // (예전에는 여기서 전체 낚싯대를 순회하며 항목마다 색상 코드를 변환했다)
         if (dependencyManager != null
                 && dependencyManager.getMMOItems().isAvailable()
                 && dependencyManager.getMMOItems().isMMOItem(item)) {
-            String mmoItemId = dependencyManager.getMMOItems().getMMOItemId(item);
-            if (mmoItemId != null) {
-                for (Rod rod : rodRegistry.getAll().values()) {
-                    if ("mmoitems".equalsIgnoreCase(rod.getUseType()) && mmoItemId.equals(rod.getMmoitemsId())) {
-                        return rod;
-                    }
-                }
-            }
-            return null;
+            return rodRegistry.matchMmoItemId(dependencyManager.getMMOItems().getMMOItemId(item));
         }
 
         if (item.getType() == Material.FISHING_ROD) {
             ItemMeta meta = item.hasItemMeta() ? item.getItemMeta() : null;
             String displayName = (meta != null && meta.hasDisplayName()) ? meta.getDisplayName() : null;
-            if (displayName != null) {
-                for (Rod rod : rodRegistry.getAll().values()) {
-                    if (!"vanilla".equalsIgnoreCase(rod.getUseType())) {
-                        continue;
-                    }
-                    String configuredName = rod.getVanillaName();
-                    if (configuredName == null || configuredName.isEmpty()) {
-                        continue;
-                    }
-                    String translated = ChatColor.translateAlternateColorCodes('&', configuredName);
-                    if (translated.equals(displayName)) {
-                        return rod;
-                    }
-                }
-            }
+            return rodRegistry.matchVanillaName(displayName);
         }
 
         return null;
