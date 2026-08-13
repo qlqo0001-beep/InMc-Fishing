@@ -3,7 +3,9 @@ package me.ninesik.fishing.fight;
 import org.bukkit.configuration.file.FileConfiguration;
 
 import java.util.Collections;
+import java.util.ArrayList;
 import java.util.EnumMap;
+import java.util.List;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -118,8 +120,81 @@ public class FightConfig {
          */
         public final Map<FishState, StateStats> states;
 
+        /**
+         * 상태 전이 확률표.
+         *
+         * <p>키는 {@code transition(...)}의 분기와 1:1로 대응한다 — 위험 / 지침(low) /
+         * 중간(mid) / 초기(high) × 행동력 구간. 예전에는 이 60여 개 임계값이
+         * {@code FishAI.transition()}의 if-else 사슬에 그대로 박혀 있었다.</p>
+         */
+        public final Map<String, TransitionTable> transitions;
+
+        /** 스테미나 구간 경계 — 이 값 이하면 "지침". */
+        public final double staminaLowThreshold;
+        /** 스테미나 구간 경계 — 이 값 이하면 "중간". */
+        public final double staminaMidThreshold;
+        /** 행동력이 이 값 이하면 "매우 부족". */
+        public final int actionPowerCritical;
+        /** 행동력이 이 값 이하면 "부족". */
+        public final int actionPowerLow;
+        /** 행동력이 이 값 이하면 "보통" (초기 구간 전용). */
+        public final int actionPowerMid;
+
         public AiConfig(FileConfiguration config) {
             this.states = StateStats.loadAll(config);
+
+            String t = "trophy-fight.ai.transitions.";
+            this.staminaLowThreshold = config.getDouble(t + "stamina-thresholds.low", 0.2);
+            this.staminaMidThreshold = config.getDouble(t + "stamina-thresholds.mid", 0.5);
+            this.actionPowerCritical = config.getInt(t + "action-power-thresholds.critical", 1);
+            this.actionPowerLow = config.getInt(t + "action-power-thresholds.low", 2);
+            this.actionPowerMid = config.getInt(t + "action-power-thresholds.mid", 3);
+
+            Map<String, TransitionTable> map = new java.util.LinkedHashMap<>();
+            for (Map.Entry<String, TransitionTable> e : defaultTransitions().entrySet()) {
+                map.put(e.getKey(), TransitionTable.load(config, t + e.getKey(), e.getValue()));
+            }
+            this.transitions = Collections.unmodifiableMap(map);
+        }
+
+        /**
+         * 이관 전 {@code FishAI.transition()}의 if-else 사슬을 그대로 옮긴 기본 표.
+         * 각 표의 가중치 합은 100이며, 누적하면 원래 코드의 임계값과 같아진다.
+         */
+        private static Map<String, TransitionTable> defaultTransitions() {
+            Map<String, TransitionTable> d = new java.util.LinkedHashMap<>();
+            d.put("after-exhausted", TransitionTable.parse(
+                    "SLOW_MOVE:50", "NORMAL_MOVE:25", "CHARGE:25"));
+            d.put("dangerous", TransitionTable.parse(
+                    "SLOW_MOVE:15", "NORMAL_MOVE:15", "TURN:20", "CHARGE:15",
+                    "DIVE:15", "FINAL_STRUGGLE:10", "JUMP:10"));
+
+            d.put("low-stamina.ap-critical", TransitionTable.parse(
+                    "REST:50", "NORMAL_MOVE:30", "EXHAUSTED:20"));
+            d.put("low-stamina.ap-low", TransitionTable.parse(
+                    "REST:30", "SLOW_MOVE:20", "NORMAL_MOVE:20", "TURN:15", "CIRCLE:15"));
+            d.put("low-stamina.default", TransitionTable.parse(
+                    "REST:45", "SLOW_MOVE:25", "NORMAL_MOVE:15", "CIRCLE:15"));
+
+            d.put("mid-stamina.ap-critical", TransitionTable.parse(
+                    "SLOW_MOVE:50", "NORMAL_MOVE:30", "EXHAUSTED:20"));
+            d.put("mid-stamina.ap-low", TransitionTable.parse(
+                    "SLOW_MOVE:20", "NORMAL_MOVE:20", "TURN:20", "JUMP:15", "CIRCLE:15", "CHARGE:10"));
+            d.put("mid-stamina.default", TransitionTable.parse(
+                    "SLOW_MOVE:20", "NORMAL_MOVE:20", "TURN:20", "JUMP:10", "CIRCLE:15", "CHARGE:15"));
+
+            d.put("high-stamina.ap-low", TransitionTable.parse(
+                    "NORMAL_MOVE:20", "TURN:30", "CIRCLE:20", "SLOW_MOVE:15", "CHARGE:15"));
+            d.put("high-stamina.ap-mid", TransitionTable.parse(
+                    "NORMAL_MOVE:20", "TURN:15", "CHARGE:25", "DIVE:10", "FINAL_STRUGGLE:15", "JUMP:15"));
+            d.put("high-stamina.default", TransitionTable.parse(
+                    "NORMAL_MOVE:20", "TURN:15", "CHARGE:25", "DIVE:10", "FINAL_STRUGGLE:15", "JUMP:15"));
+            return d;
+        }
+
+        /** 분기 키로 표를 얻는다. */
+        public TransitionTable transition(String key) {
+            return transitions.get(key);
         }
 
         /** 해당 상태의 수치. 항상 non-null (모든 상태에 기본값이 있다). */
@@ -415,6 +490,94 @@ public class FightConfig {
                         "trophy-fight.stats.min-distance-with-stamina." + grade, 50.0));
             }
             return Collections.unmodifiableMap(map);
+        }
+    }
+
+    // ===================== TransitionTable (AI 전이 확률) =====================
+
+    /**
+     * 다음 상태를 뽑는 가중치 표.
+     *
+     * <p>yml에는 정수 가중치(합 100 권장)로 적고, 로드 시 누적합을 <b>한 번만</b> 나눠
+     * 임계값을 만든다. 이관 전 코드가 {@code r < 0.15}, {@code r < 0.3} 같은 리터럴을
+     * 순서대로 비교했는데, 가중치를 정수로 누적한 뒤 나누면 그 리터럴과 <b>같은 double</b>이
+     * 나온다(예: 30/100 → 0.3). 부동소수 누적을 피해 판정이 한 표본도 어긋나지 않게 하려는 것이다.</p>
+     *
+     * <p>항목 <b>순서가 곧 확률 구간</b>이므로 yml에서도 리스트로 적는다 — 맵을 쓰면
+     * 순서가 보장되지 않아 같은 설정이 서버마다 다르게 동작할 수 있다.</p>
+     */
+    public static final class TransitionTable {
+        private final FishState[] states;
+        /** 누적 임계값 (0 초과 ~ 1.0). states와 같은 길이. */
+        private final double[] thresholds;
+
+        private TransitionTable(FishState[] states, double[] thresholds) {
+            this.states = states;
+            this.thresholds = thresholds;
+        }
+
+        /** @param r 0.0 이상 1.0 미만의 균등 난수 */
+        public FishState pick(double r) {
+            for (int i = 0; i < thresholds.length; i++) {
+                if (r < thresholds[i]) return states[i];
+            }
+            return states[states.length - 1];
+        }
+
+        /** 가중치 목록에서 표를 만든다. 비어 있으면 null. */
+        private static TransitionTable of(List<Object[]> entries) {
+            if (entries.isEmpty()) return null;
+            double total = 0;
+            for (Object[] e : entries) total += (double) e[1];
+            if (total <= 0) return null;
+
+            FishState[] states = new FishState[entries.size()];
+            double[] thresholds = new double[entries.size()];
+            double running = 0;
+            for (int i = 0; i < entries.size(); i++) {
+                states[i] = (FishState) entries.get(i)[0];
+                running += (double) entries.get(i)[1];
+                thresholds[i] = running / total;
+            }
+            return new TransitionTable(states, thresholds);
+        }
+
+        /** {@code "SLOW_MOVE:15"} 형태의 기본 표기에서 만든다. */
+        private static TransitionTable parse(String... spec) {
+            List<Object[]> entries = new ArrayList<>();
+            for (String s : spec) {
+                int colon = s.indexOf(':');
+                entries.add(new Object[]{
+                        FishState.valueOf(s.substring(0, colon)),
+                        Double.parseDouble(s.substring(colon + 1))});
+            }
+            return of(entries);
+        }
+
+        /**
+         * yml의 리스트를 읽는다. 각 항목은 {@code {state: rest, weight: 45}} 형태.
+         * 키가 없거나 해석에 실패하면 기본 표를 그대로 쓴다.
+         */
+        private static TransitionTable load(FileConfiguration config, String path, TransitionTable fallback) {
+            List<?> raw = config.getList(path);
+            if (raw == null || raw.isEmpty()) return fallback;
+
+            List<Object[]> entries = new ArrayList<>();
+            for (Object item : raw) {
+                if (!(item instanceof Map<?, ?> map)) continue;
+                Object stateName = map.get("state");
+                Object weight = map.get("weight");
+                if (stateName == null || !(weight instanceof Number w)) continue;
+                try {
+                    entries.add(new Object[]{
+                            FishState.valueOf(stateName.toString().trim().toUpperCase()),
+                            w.doubleValue()});
+                } catch (IllegalArgumentException ignored) {
+                    // 알 수 없는 상태 이름 — 이 항목만 건너뛴다
+                }
+            }
+            TransitionTable loaded = of(entries);
+            return loaded != null ? loaded : fallback;
         }
     }
 

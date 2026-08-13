@@ -249,10 +249,7 @@ public class FishAI {
             next = FishState.EXHAUSTED;
         } else if (currentState == FishState.EXHAUSTED) {
             // 탈진 구간이 끝나면 물고기가 회복하며 다시 위기 상태로 올라선다.
-            double r = random.nextDouble();
-            if (r < 0.5) next = FishState.SLOW_MOVE;
-            else if (r < 0.75) next = FishState.NORMAL_MOVE;
-            else next = FishState.CHARGE;
+            next = aiConfig.transition("after-exhausted").pick(random.nextDouble());
         } else {
             // 위험 상황: 스태미너가 낮고 플레이어가 릴을 감고 있으면
             // 모든 행동력을 소모하여 강하게 저항한다.
@@ -260,81 +257,9 @@ public class FishAI {
 
             double r = random.nextDouble();
 
-            if (dangerous) {
-                // 위험 상태 — 강한 행동 위주 (행동력 소모를 감수)
-                if (r < 0.15) next = FishState.SLOW_MOVE;
-                else if (r < 0.3) next = FishState.NORMAL_MOVE;
-                else if (r < 0.5) next = FishState.TURN;
-                else if (r < 0.65) next = FishState.CHARGE;
-                else if (r < 0.8) next = FishState.DIVE;
-                else if (r < 0.9) next = FishState.FINAL_STRUGGLE;
-                else next = FishState.JUMP;
-            } else if (staminaRatio <= 0.2) {
-                // 지침 상태 — 휴식/천천히 이동 위주 (가끔 소강 CIRCLE)
-                // 행동력이 부족하면 행동력을 소모하지 않는 상태를 선호
-                if (actionPower <= 1) {
-                    // 행동력이 매우 부족하면 0-cost 상태만 선택
-                    if (r < 0.5) next = FishState.REST;
-                    else if (r < 0.8) next = FishState.NORMAL_MOVE;
-                    else next = FishState.EXHAUSTED;
-                } else if (actionPower <= 2) {
-                    // 행동력이 부족하면 저비용 상태 선호
-                    if (r < 0.3) next = FishState.REST;
-                    else if (r < 0.5) next = FishState.SLOW_MOVE;
-                    else if (r < 0.7) next = FishState.NORMAL_MOVE;
-                    else if (r < 0.85) next = FishState.TURN;
-                    else next = FishState.CIRCLE;
-                } else {
-                    if (r < 0.45) next = FishState.REST;
-                    else if (r < 0.7) next = FishState.SLOW_MOVE;
-                    else if (r < 0.85) next = FishState.NORMAL_MOVE;
-                    else next = FishState.CIRCLE;
-                }
-            } else if (staminaRatio <= 0.5) {
-                // 중간 상태 — 이동/방향전환 위주 + 낮은 확률로 JUMP/CIRCLE/CHARGE
-                if (actionPower <= 1) {
-                    if (r < 0.5) next = FishState.SLOW_MOVE;
-                    else if (r < 0.8) next = FishState.NORMAL_MOVE;
-                    else next = FishState.EXHAUSTED;
-                } else if (actionPower <= 2) {
-                    if (r < 0.2) next = FishState.SLOW_MOVE;
-                    else if (r < 0.4) next = FishState.NORMAL_MOVE;
-                    else if (r < 0.6) next = FishState.TURN;
-                    else if (r < 0.75) next = FishState.JUMP;
-                    else if (r < 0.9) next = FishState.CIRCLE;
-                    else next = FishState.CHARGE;
-                } else {
-                    if (r < 0.2) next = FishState.SLOW_MOVE;
-                    else if (r < 0.4) next = FishState.NORMAL_MOVE;
-                    else if (r < 0.6) next = FishState.TURN;
-                    else if (r < 0.7) next = FishState.JUMP;
-                    else if (r < 0.85) next = FishState.CIRCLE;
-                    else next = FishState.CHARGE;
-                }
-            } else {
-                // 초기 상태 — 강한 돌진/잠수/발악 위주 + 가끔 점프
-                if (actionPower <= 2) {
-                    if (r < 0.2) next = FishState.NORMAL_MOVE;
-                    else if (r < 0.5) next = FishState.TURN;
-                    else if (r < 0.7) next = FishState.CIRCLE;
-                    else if (r < 0.85) next = FishState.SLOW_MOVE;
-                    else next = FishState.CHARGE;
-                } else if (actionPower <= 3) {
-                    if (r < 0.2) next = FishState.NORMAL_MOVE;
-                    else if (r < 0.35) next = FishState.TURN;
-                    else if (r < 0.6) next = FishState.CHARGE;
-                    else if (r < 0.7) next = FishState.DIVE;
-                    else if (r < 0.85) next = FishState.FINAL_STRUGGLE;
-                    else next = FishState.JUMP;
-                } else {
-                    if (r < 0.2) next = FishState.NORMAL_MOVE;
-                    else if (r < 0.35) next = FishState.TURN;
-                    else if (r < 0.6) next = FishState.CHARGE;
-                    else if (r < 0.7) next = FishState.DIVE;
-                    else if (r < 0.85) next = FishState.FINAL_STRUGGLE;
-                    else next = FishState.JUMP;
-                }
-            }
+            // 어느 확률표를 쓸지만 여기서 고르고, 실제 추첨은 표가 한다.
+            // 예전에는 60여 개 임계값이 이 자리에 if-else 사슬로 박혀 있었다.
+            next = aiConfig.transition(pickTransitionKey(dangerous, staminaRatio)).pick(r);
         }
 
         // 행동력 회복 상태 진입 시 행동력 모두 회복
@@ -360,6 +285,33 @@ public class FishAI {
      * 상태별 지속 시간(틱)을 랜덤하게 결정한다.
      * 값은 fight.yml의 trophy-fight.ai.states.<상태>에서 온다.
      */
+    /**
+     * 현재 상황에 해당하는 전이 확률표의 키를 고른다.
+     *
+     * <p>구간 구분 자체(위험 / 지침 / 중간 / 초기 × 행동력)는 게임 규칙이라 코드에 남기고,
+     * 각 구간에서 "무엇이 얼마나 나오는가"만 config로 뺐다.</p>
+     *
+     * <p>초기(high) 구간의 ap-mid와 default는 이관 전 코드에서도 내용이 완전히 같았다.
+     * 덤프 diff를 0으로 유지하려고 그대로 두 항목으로 옮겼다 — 합칠지는 별도로 판단한다.</p>
+     */
+    private String pickTransitionKey(boolean dangerous, double staminaRatio) {
+        if (dangerous) return "dangerous";
+
+        String band;
+        if (staminaRatio <= aiConfig.staminaLowThreshold) band = "low-stamina";
+        else if (staminaRatio <= aiConfig.staminaMidThreshold) band = "mid-stamina";
+        else band = "high-stamina";
+
+        if ("high-stamina".equals(band)) {
+            if (actionPower <= aiConfig.actionPowerLow) return band + ".ap-low";
+            if (actionPower <= aiConfig.actionPowerMid) return band + ".ap-mid";
+            return band + ".default";
+        }
+        if (actionPower <= aiConfig.actionPowerCritical) return band + ".ap-critical";
+        if (actionPower <= aiConfig.actionPowerLow) return band + ".ap-low";
+        return band + ".default";
+    }
+
     private int randomStateDuration(FishState state) {
         FightConfig.StateStats s = stats(state);
         int span = s.durationMaxTicks - s.durationMinTicks;
