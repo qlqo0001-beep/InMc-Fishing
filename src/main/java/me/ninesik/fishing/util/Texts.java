@@ -44,14 +44,42 @@ public final class Texts {
         if (template == null || template.isEmpty()) {
             return "";
         }
-        String result = template;
-        if (placeholders != null) {
-            for (Map.Entry<String, String> entry : placeholders.entrySet()) {
-                String value = entry.getValue() != null ? entry.getValue() : "";
-                result = result.replace("{" + entry.getKey() + "}", value);
-            }
+        if (placeholders == null || placeholders.isEmpty() || template.indexOf('{') < 0) {
+            return template;
         }
-        return result;
+
+        // 템플릿을 한 번만 훑는다. 예전에는 placeholder 개수만큼 String.replace를 연쇄해
+        // 중간 String을 매번 새로 만들었고("{" + key + "}" 조합도 매번), 파이트 HUD처럼
+        // 세션당 초당 60회 불리는 경로에서는 그대로 반복 할당이 됐다.
+        //
+        // 부수 효과로 결과가 결정적이 된다 — 치환된 값 안에 다른 placeholder가 들어 있으면
+        // 예전에는 HashMap 순회 순서에 따라 다시 치환될 수도, 안 될 수도 있었다.
+        StringBuilder sb = new StringBuilder(template.length() + 16);
+        int i = 0;
+        int length = template.length();
+        while (i < length) {
+            char c = template.charAt(i);
+            if (c != '{') {
+                sb.append(c);
+                i++;
+                continue;
+            }
+            int close = template.indexOf('}', i + 1);
+            if (close < 0) {
+                sb.append(template, i, length);
+                break;
+            }
+            String key = template.substring(i + 1, close);
+            String value = placeholders.get(key);
+            if (value != null || placeholders.containsKey(key)) {
+                sb.append(value != null ? value : "");
+            } else {
+                // 알 수 없는 키는 원문 그대로 남긴다 (기존 동작과 동일).
+                sb.append(template, i, close + 1);
+            }
+            i = close + 1;
+        }
+        return sb.toString();
     }
 
     /**

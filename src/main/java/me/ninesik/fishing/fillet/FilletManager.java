@@ -137,8 +137,18 @@ public final class FilletManager {
     }
 
     public ItemStack claimFillet(Player player, int slotIndex) {
+        return claimFillet(player, slotIndex, storage.loadActiveSlots(player.getUniqueId()));
+    }
+
+    /**
+     * 호출자가 이미 슬롯 목록을 갖고 있을 때 재조회를 생략한다.
+     *
+     * <p>"모두 수령"은 슬롯마다 이 메서드를 부르는데, 매번 전체 목록을 다시 SELECT하면
+     * 슬롯 N개에 2N번의 메인 스레드 쿼리가 나간다. 완료 여부는 저장된 종료 시각에서
+     * 계산되므로 목록을 다시 읽을 필요가 없다.</p>
+     */
+    public ItemStack claimFillet(Player player, int slotIndex, List<FilletStorage.FilletActiveSlot> slots) {
         UUID uuid = player.getUniqueId();
-        List<FilletStorage.FilletActiveSlot> slots = storage.loadActiveSlots(uuid);
         FilletStorage.FilletActiveSlot target = null;
         for (FilletStorage.FilletActiveSlot s : slots) {
             if (s.slotIndex() == slotIndex) { target = s; break; }

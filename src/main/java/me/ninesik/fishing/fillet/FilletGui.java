@@ -33,12 +33,16 @@ public final class FilletGui extends AbstractGui {
     private final int maxSlots;
 
     /**
-     * initialize()에서 한 번만 조회한 가공 슬롯 스냅샷.
+     * 가공 슬롯 스냅샷. <b>플레이어가 슬롯을 조작했을 때만</b> DB에서 다시 읽는다.
      *
      * <p>예전에는 renderSlots()/renderButtons()/findEmptySlot()이 각각
-     * manager.getActiveSlots()(= SELECT)를 호출했고, FilletManager.tick()이
-     * 1초마다 refresh를 돌려서 GUI 하나당 초당 3회 이상 DB 조회가
-     * 메인 스레드에서 일어났다.</p>
+     * manager.getActiveSlots()(= SELECT)를 호출했고, 그걸 initialize() 1회로 줄인 뒤에도
+     * FilletManager.tick()이 1초마다 refresh를 돌려 <b>GUI 하나당 초당 1회 메인 스레드
+     * SQLite 조회</b>가 남아 있었다.</p>
+     *
+     * <p>핵심은 fillet_active 행이 플레이어의 조작(등록/수령/취소)으로만 바뀐다는 점이다.
+     * 매초 갱신해야 하는 건 남은 시간 표시뿐이고, 그건 이미 스냅샷의 종료 시각에서
+     * 계산된다. 그래서 주기 refresh는 DB를 다시 읽을 이유가 없다.</p>
      */
     private List<FilletActiveSlot> activeSlots = List.of();
 
@@ -46,11 +50,17 @@ public final class FilletGui extends AbstractGui {
         super(player, ROWS, ChatColor.DARK_RED + "생선 살 가공");
         this.manager = manager;
         this.maxSlots = Math.min(manager.getMaxSlots(player), SLOT_POS.length);
+        reloadSlots();
+    }
+
+    /** DB에서 슬롯 상태를 다시 읽는다. 슬롯이 실제로 바뀌었을 때만 호출한다. */
+    private void reloadSlots() {
+        activeSlots = manager.getActiveSlots(player);
     }
 
     @Override
     public void initialize() {
-        activeSlots = manager.getActiveSlots(player);
+        // 여기서 DB를 읽지 않는다 — 1초마다 도는 refresh가 그대로 메인 스레드 SELECT가 된다.
         for (int i = 0; i < 54; i++)
             setItem(i, GuiItems.createIcon(Material.GRAY_STAINED_GLASS_PANE, " ", List.of()));
         renderSlots();
@@ -232,9 +242,11 @@ public final class FilletGui extends AbstractGui {
     private void handleClaimAll() {
         int claimed = 0;
         boolean full = false;
-        for (FilletActiveSlot s : new ArrayList<>(activeSlots)) {
+        // 스냅샷을 그대로 넘겨 슬롯마다 전체 목록을 다시 SELECT하지 않게 한다.
+        List<FilletActiveSlot> snapshot = new ArrayList<>(activeSlots);
+        for (FilletActiveSlot s : snapshot) {
             if (!s.isComplete()) continue;
-            ItemStack reward = manager.claimFillet(player, s.slotIndex());
+            ItemStack reward = manager.claimFillet(player, s.slotIndex(), snapshot);
             if (reward == null) { full = true; break; }
             me.ninesik.fishing.util.InventoryUtil.giveOrDrop(player, reward);
             claimed++;
@@ -249,8 +261,15 @@ public final class FilletGui extends AbstractGui {
     }
 
     /** 클릭 이벤트 처리가 끝난 다음 틱에 GUI를 다시 그린다. */
+    /**
+     * 슬롯을 조작한 직후 호출한다. 스냅샷을 다시 읽고 화면을 갱신한다.
+     * (주기 refresh와 달리 여기서는 DB를 반드시 다시 읽어야 한다)
+     */
     private void refreshNextTick() {
-        Bukkit.getScheduler().runTask(InMcFishing.getInstance(), this::refresh);
+        Bukkit.getScheduler().runTask(InMcFishing.getInstance(), () -> {
+            reloadSlots();
+            refresh();
+        });
     }
 
     @Override public void open() { super.open(); manager.registerGui(player, this); }

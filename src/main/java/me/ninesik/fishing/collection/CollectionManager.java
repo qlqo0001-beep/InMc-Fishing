@@ -289,6 +289,19 @@ public class CollectionManager {
      * @return 등록 성공 여부
      */
     public boolean registerFish(Player player, String fishId) {
+        return registerFish(player, fishId, false);
+    }
+
+    /**
+     * @param deferGradeRewards true면 등급 전체등록/퍼펙트/도감 완성 판정을 건너뛴다.
+     *
+     * <p>이 세 판정은 각각 전체 엔트리를 순회한다(등급 7개 × 2 + 1 = 15회 stream).
+     * 일괄 등록은 물고기 종 수 × 슬롯 수만큼 반복하므로, 등록마다 이걸 돌리면
+     * 클릭 한 번에 전체 엔트리를 수십만 번 방문하게 된다. 호출자가 루프를 마친 뒤
+     * {@code processGradeRewards}를 한 번만 부르도록 미룬다 — 조건은 누적 상태로
+     * 판정되므로 결과는 같다.</p>
+     */
+    private boolean registerFish(Player player, String fishId, boolean deferGradeRewards) {
         if (!enabled) return false;
 
         Fish fish = registryManager.getFishRegistry().getById(fishId);
@@ -312,7 +325,9 @@ public class CollectionManager {
         entry.registerFish(size);
         Sounds.play(player, registerSound);
         collectionRewardService.processRewards(player, entry);
-        collectionRewardService.processGradeRewards(player, data);
+        if (!deferGradeRewards) {
+            collectionRewardService.processGradeRewards(player, data);
+        }
         collectionRewardService.processSlotCompletionReward(player, entry);
         if (rankingManager != null) {
             rankingManager.queueUpdate(player.getUniqueId());
@@ -427,9 +442,13 @@ public class CollectionManager {
             while (entry != null
                     && entry.getStatus() == Status.ACTIVE
                     && entry.getRegisteredSlots() < entry.getMaxSlots()
-                    && registerFish(player, fish.getId())) {
+                    && registerFish(player, fish.getId(), true)) {
                 registered++;
             }
+        }
+        // 등급/전체완성 보상은 루프를 마친 뒤 한 번만 판정한다 (위 registerFish 주석 참고).
+        if (registered > 0) {
+            collectionRewardService.processGradeRewards(player, data);
         }
         return registered;
     }
@@ -451,9 +470,13 @@ public class CollectionManager {
             while (entry != null
                     && entry.getStatus() == Status.ACTIVE
                     && entry.getRegisteredSlots() < entry.getMaxSlots()
-                    && registerFish(player, fish.getId())) {
+                    && registerFish(player, fish.getId(), true)) {
                 registered++;
             }
+        }
+        // 등급/전체완성 보상은 루프를 마친 뒤 한 번만 판정한다 (위 registerFish 주석 참고).
+        if (registered > 0) {
+            collectionRewardService.processGradeRewards(player, data);
         }
         return registered;
     }

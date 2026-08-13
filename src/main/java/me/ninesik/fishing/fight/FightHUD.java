@@ -28,6 +28,34 @@ public class FightHUD {
     private final Map<UUID, BossBar> bossBars = new ConcurrentHashMap<>();
 
     /**
+     * placeholder 조립용 재사용 맵.
+     *
+     * <p>HUD 3종(보스바/액션바/타이틀)이 세션마다 매 틱 불리므로, 그때마다 HashMap을
+     * 새로 만들면 세션당 초당 60개가 쌓인다. HUD 갱신은 전부 메인 스레드에서
+     * 순차 실행되고 값을 담자마자 {@code Texts.apply}로 소비하므로 재사용해도 안전하다.</p>
+     */
+    private final Map<String, String> placeholderScratch = new HashMap<>();
+
+    private Map<String, String> scratch() {
+        placeholderScratch.clear();
+        return placeholderScratch;
+    }
+
+    /**
+     * {@code String.format("%.0f", v)} 대체. HUD는 매 틱 6개씩 포맷하는데 String.format은
+     * 매번 포맷 파서를 태운다. 표시 대상(체력/거리/릴 등)은 모두 음수가 아니라 결과가 같다.
+     */
+    private static String round0(double value) {
+        return Long.toString(Math.round(value));
+    }
+
+    /** {@code String.format("%.1f", v)} 대체. */
+    private static String round1(double value) {
+        long scaled = Math.round(value * 10.0);
+        return (scaled / 10) + "." + Math.abs(scaled % 10);
+    }
+
+    /**
      * Fight 시작 시 BossBar를 생성하고 표시한다.
      */
     public void showBossBar(Player player, FightSession session, FightConfig.HudConfig hudConfig) {
@@ -81,9 +109,9 @@ public class FightHUD {
         }
 
         // 네임 텍스트 = config.yml의 bossbar-title-format ({distance}/{max_distance} 치환)
-        Map<String, String> placeholders = new HashMap<>();
-        placeholders.put("distance", String.format("%.0f", session.getDistance()));
-        placeholders.put("max_distance", maxDistance > 0 ? String.format("%.0f", maxDistance) : "-");
+        Map<String, String> placeholders = scratch();
+        placeholders.put("distance", round0(session.getDistance()));
+        placeholders.put("max_distance", maxDistance > 0 ? round0(maxDistance) : "-");
         String title = Texts.apply(hudConfig.bossBarTitleFormat, placeholders);
         bar.setTitle(Texts.colorize(colorPrefix + title));
     }
@@ -97,13 +125,13 @@ public class FightHUD {
      */
     public void updateActionBar(Player player, FightSession session, FightConfig.HudConfig hudConfig) {
         double maxDistance = session.getMaxDistance();
-        Map<String, String> placeholders = new HashMap<>();
-        placeholders.put("stamina", String.format("%.0f", session.getStamina()));
-        placeholders.put("power", String.format("%.0f", session.getPower()));
-        placeholders.put("resistance", String.format("%.0f", session.getResistance()));
-        placeholders.put("reel", String.format("%.0f", session.getReelState()));
-        placeholders.put("distance", String.format("%.0f", session.getDistance()));
-        placeholders.put("max_distance", maxDistance > 0 ? String.format("%.0f", maxDistance) : "-");
+        Map<String, String> placeholders = scratch();
+        placeholders.put("stamina", round0(session.getStamina()));
+        placeholders.put("power", round0(session.getPower()));
+        placeholders.put("resistance", round0(session.getResistance()));
+        placeholders.put("reel", round0(session.getReelState()));
+        placeholders.put("distance", round0(session.getDistance()));
+        placeholders.put("max_distance", maxDistance > 0 ? round0(maxDistance) : "-");
         String message = Texts.apply(hudConfig.actionBarFormat, placeholders);
         Texts.sendActionBar(player, Texts.colorize(message));
     }
@@ -149,12 +177,12 @@ public class FightHUD {
         String subtitle = guide != null ? guide.subtitle() : hudConfig.stateSubtitleFormat;
 
         double remainingSeconds = Math.max(0, remainingTicks) / 20.0;
-        Map<String, String> placeholders = new HashMap<>();
+        Map<String, String> placeholders = scratch();
         placeholders.put("state_color", stateColor);
         placeholders.put("state", state.getDisplayName());
-        placeholders.put("stamina", String.format("%.0f", stamina));
-        placeholders.put("reel", String.format("%.0f", reelState));
-        placeholders.put("remaining_seconds", String.format("%.1f", remainingSeconds));
+        placeholders.put("stamina", round0(stamina));
+        placeholders.put("reel", round0(reelState));
+        placeholders.put("remaining_seconds", round1(remainingSeconds));
 
         player.sendTitle(
                 Texts.colorize(Texts.apply(title, placeholders)),
