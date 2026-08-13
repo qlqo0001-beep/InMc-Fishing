@@ -27,14 +27,6 @@ public class GradeRoller {
         this.registryManager = registryManager;
     }
 
-    public Grade rollGrade(Player player, me.ninesik.fishing.model.Rod rod) {
-        return rollGrade(player, rod, null, null);
-    }
-
-    public Grade rollGrade(Player player, me.ninesik.fishing.model.Rod rod, Set<String> allowedGradeIds) {
-        return rollGrade(player, rod, allowedGradeIds, null);
-    }
-
     public Grade rollGrade(Player player, me.ninesik.fishing.model.Rod rod,
                            Set<String> allowedGradeIds, Bait bait) {
         // 루프 안에서 매번 조회하지 않도록 진입 시 1회만 캡처한다 (입질마다 실행되는 핫패스).

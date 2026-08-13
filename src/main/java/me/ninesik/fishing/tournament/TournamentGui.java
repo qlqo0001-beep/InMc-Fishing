@@ -2,6 +2,7 @@ package me.ninesik.fishing.tournament;
 
 import me.ninesik.fishing.gui.AbstractGui;
 import me.ninesik.fishing.gui.GuiItems;
+import me.ninesik.fishing.gui.GuiLayout;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
@@ -54,20 +55,10 @@ public class TournamentGui extends AbstractGui {
     }
 
     private void renderBottom() {
-        List<Tournament> all = new ArrayList<>(tournamentManager.getTournaments());
         int pageSize = CONTENT_END - CONTENT_START + 1;
-        int totalPages = Math.max(1, (all.size() + pageSize - 1) / pageSize);
-
-        if (page > 0) {
-            setItem(45, GuiItems.createIcon(Material.ARROW, ChatColor.YELLOW + "이전 페이지", List.of()));
-        }
-        if (page < totalPages - 1) {
-            setItem(53, GuiItems.createIcon(Material.ARROW, ChatColor.YELLOW + "다음 페이지", List.of()));
-        }
-        setItem(49, GuiItems.createIcon(Material.BARRIER, ChatColor.RED + "닫기", List.of()));
-        // 피드백: 각 GUI 창에는 메인 GUI로 돌아오는 버튼을 둔다.
-        setItem(50, GuiItems.createIcon(Material.OAK_DOOR, ChatColor.GOLD + "메인 GUI로",
-                List.of(ChatColor.GRAY + "낚시 메인메뉴로 돌아갑니다.")));
+        // 이전/다음 화살표 + 닫기 + 메인으로는 모든 6줄 GUI가 같은 자리를 쓴다 (GuiLayout).
+        GuiLayout.renderFooter(getInventory(), page,
+                GuiLayout.totalPages(tournamentManager.getTournaments().size(), pageSize));
     }
 
     private ItemStack buildTournamentIcon(Tournament tournament) {
@@ -102,21 +93,21 @@ public class TournamentGui extends AbstractGui {
         int slot = event.getRawSlot();
         if (slot < 0 || slot >= inventory.getSize()) return;
 
-        if (slot == 45 && page > 0) {
+        if (slot == GuiLayout.SLOT_PREV_PAGE && page > 0) {
             page--;
             refresh();
             return;
         }
-        if (slot == 53) {
+        if (slot == GuiLayout.SLOT_NEXT_PAGE) {
             page++;
             refresh();
             return;
         }
-        if (slot == 49) {
+        if (slot == GuiLayout.SLOT_CLOSE) {
             player.closeInventory();
             return;
         }
-        if (slot == 50) {
+        if (slot == GuiLayout.SLOT_BACK_MAIN) {
             me.ninesik.fishing.gui.MainGui.open(player);
             return;
         }

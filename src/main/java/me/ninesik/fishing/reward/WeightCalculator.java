@@ -16,10 +16,6 @@ public class WeightCalculator {
         this.configManager = configManager;
     }
 
-    public double calculateFinalWeight(Player player, Grade grade, double baseWeight, Rod rod) {
-        return calculateFinalWeight(player, grade, baseWeight, rod, null);
-    }
-
     public double calculateFinalWeight(Player player, Grade grade, double baseWeight, Rod rod, Bait bait) {
         double finalWeight = baseWeight;
 

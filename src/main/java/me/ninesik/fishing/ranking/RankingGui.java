@@ -2,6 +2,7 @@ package me.ninesik.fishing.ranking;
 
 import me.ninesik.fishing.gui.AbstractGui;
 import me.ninesik.fishing.gui.GuiItems;
+import me.ninesik.fishing.gui.GuiLayout;
 import me.ninesik.fishing.model.Fish;
 import me.ninesik.fishing.registry.RegistryManager;
 import org.bukkit.ChatColor;
@@ -165,10 +166,6 @@ public class RankingGui extends AbstractGui {
     }
 
     private void renderBottom() {
-        if (page > 0) {
-            setItem(45, GuiItems.createIcon(Material.ARROW, ChatColor.YELLOW + "이전 페이지", List.of()));
-        }
-
         int totalSize = switch (currentTab) {
             case "COLLECTION" -> rankingManager.getTop(rankingManager.getDisplayCount()).size();
             case "SIZE" -> selectedFishId == null
@@ -178,15 +175,8 @@ public class RankingGui extends AbstractGui {
             default -> rankingManager.getTop(rankingManager.getDisplayCount()).size();
         };
         int pageSize = CONTENT_END - CONTENT_START + 1;
-        int totalPages = Math.max(1, (totalSize + pageSize - 1) / pageSize);
-        if (page < totalPages - 1) {
-            setItem(53, GuiItems.createIcon(Material.ARROW, ChatColor.YELLOW + "다음 페이지", List.of()));
-        }
-
-        setItem(49, GuiItems.createIcon(Material.BARRIER, ChatColor.RED + "닫기", List.of()));
-        // 피드백: 각 GUI 창에는 메인 GUI로 돌아오는 버튼을 둔다.
-        setItem(50, GuiItems.createIcon(Material.OAK_DOOR, ChatColor.GOLD + "메인 GUI로",
-                List.of(ChatColor.GRAY + "낚시 메인메뉴로 돌아갑니다.")));
+        // 이전/다음 화살표 + 닫기 + 메인으로는 모든 6줄 GUI가 같은 자리를 쓴다 (GuiLayout).
+        GuiLayout.renderFooter(getInventory(), page, GuiLayout.totalPages(totalSize, pageSize));
     }
 
     private ItemStack buildRankingIcon(RankingEntry entry, int rank) {
@@ -230,20 +220,6 @@ public class RankingGui extends AbstractGui {
         }
 
         return GuiItems.createIcon(material, name, lore);
-    }
-
-    private List<RankingEntry> getTopBySize(int count) {
-        return rankingManager.getSortedRankings().stream()
-                .filter(e -> !e.getBestSizes().isEmpty())
-                .sorted((a, b) -> {
-                    Map.Entry<String, Double> bestA = findBestSize(a);
-                    Map.Entry<String, Double> bestB = findBestSize(b);
-                    double sizeA = bestA != null ? bestA.getValue() : 0.0;
-                    double sizeB = bestB != null ? bestB.getValue() : 0.0;
-                    return Double.compare(sizeB, sizeA);
-                })
-                .limit(count)
-                .toList();
     }
 
     private Map.Entry<String, Double> findBestSize(RankingEntry entry) {
@@ -297,16 +273,16 @@ public class RankingGui extends AbstractGui {
             return;
         }
 
-        if (slot == 45 && page > 0) {
+        if (slot == GuiLayout.SLOT_PREV_PAGE && page > 0) {
             page--;
             refresh();
-        } else if (slot == 53) {
+        } else if (slot == GuiLayout.SLOT_NEXT_PAGE) {
             page++;
             refresh();
-        } else if (slot == 49) {
+        } else if (slot == GuiLayout.SLOT_CLOSE) {
             player.closeInventory();
             return;
-        } else if (slot == 50) {
+        } else if (slot == GuiLayout.SLOT_BACK_MAIN) {
             me.ninesik.fishing.gui.MainGui.open(player);
             return;
         }

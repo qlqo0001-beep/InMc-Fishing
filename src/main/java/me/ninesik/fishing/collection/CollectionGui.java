@@ -2,6 +2,7 @@ package me.ninesik.fishing.collection;
 
 import me.ninesik.fishing.gui.AbstractGui;
 import me.ninesik.fishing.gui.GuiItems;
+import me.ninesik.fishing.gui.GuiLayout;
 import me.ninesik.fishing.model.Fish;
 import me.ninesik.fishing.service.RewardService;
 import org.bukkit.ChatColor;
@@ -27,9 +28,10 @@ public class CollectionGui extends AbstractGui {
     private static final int TAB_ROW = 0;
     private static final int CONTENT_START = 9;
     private static final int CONTENT_END = 44; // 6줄에서 마지막 줄 전까지
+    // GUI 고유 버튼 — 공통 자리(45/48/50/53)는 GuiLayout이 관리한다.
     private static final int PROGRESS_SLOT = 47;
+    private static final int CLAIM_ALL_SLOT = 49;
     private static final int REGISTER_ALL_SLOT = 51;
-    private static final int BACK_SLOT = 50;
 
     private final CollectionManager collectionManager;
     private final RewardService rewardService;
@@ -107,18 +109,13 @@ public class CollectionGui extends AbstractGui {
     }
 
     private void renderBottom() {
-        // 이전 페이지
-        if (page > 0) {
-            setItem(45, GuiItems.createIcon(Material.ARROW, ChatColor.YELLOW + "이전 페이지", List.of()));
-        }
-
         // 전체수령
         CollectionData data = collectionManager.getCollectionData(player);
         int pendingCount = data != null ? data.getPendingMilestoneRewards().size() : 0;
         List<String> claimLore = pendingCount > 0
                 ? List.of(ChatColor.WHITE + "대기 중인 보상: " + pendingCount + "개")
                 : List.of(ChatColor.GRAY + "대기 중인 보상이 없습니다.");
-         setItem(49, GuiItems.createIcon(Material.CHEST, ChatColor.GOLD + "전체수령", claimLore));
+        setItem(CLAIM_ALL_SLOT, GuiItems.createIcon(Material.CHEST, ChatColor.GOLD + "전체수령", claimLore));
 
         if (data != null) {
             double progress = calculateProgress(data);
@@ -151,17 +148,10 @@ public class CollectionGui extends AbstractGui {
                     List.of(ChatColor.GRAY + "등급 탭을 선택하면 사용할 수 있습니다.")));
         }
 
-        // 피드백: 각 GUI 창에는 메인 GUI로 돌아오는 버튼을 둔다.
-        setItem(BACK_SLOT, GuiItems.createIcon(Material.OAK_DOOR, ChatColor.GOLD + "메인 GUI로",
-                List.of(ChatColor.GRAY + "낚시 메인메뉴로 돌아갑니다.")));
-
-        // 다음 페이지
-        List<Fish> fishes = getFilteredFishList();
+        // 이전/다음 화살표 + 닫기 + 메인으로는 모든 6줄 GUI가 같은 자리를 쓴다 (GuiLayout).
         int pageSize = CONTENT_END - CONTENT_START + 1;
-        int totalPages = Math.max(1, (fishes.size() + pageSize - 1) / pageSize);
-        if (page < totalPages - 1) {
-            setItem(53, GuiItems.createIcon(Material.ARROW, ChatColor.YELLOW + "다음 페이지", List.of()));
-        }
+        GuiLayout.renderFooter(getInventory(), page,
+                GuiLayout.totalPages(getFilteredFishList().size(), pageSize));
     }
 
     private ItemStack buildFishIcon(Fish fish, CollectionEntry entry) {
@@ -347,10 +337,12 @@ public class CollectionGui extends AbstractGui {
 
         // 하단 버튼
         if (slot >= 45) {
-            if (slot == 45 && page > 0) {
+            if (slot == GuiLayout.SLOT_PREV_PAGE && page > 0) {
                 page--;
                 refresh();
-            } else if (slot == BACK_SLOT) {
+            } else if (slot == GuiLayout.SLOT_CLOSE) {
+                player.closeInventory();
+            } else if (slot == GuiLayout.SLOT_BACK_MAIN) {
                 me.ninesik.fishing.gui.MainGui.open(player);
             } else if (slot == REGISTER_ALL_SLOT && (isGradeTab() || "ALL".equals(currentTab))) {
                 int registered = isGradeTab()
@@ -363,10 +355,10 @@ public class CollectionGui extends AbstractGui {
                     player.sendMessage(ChatColor.YELLOW + "등록할 수 있는 " + label + " 물고기가 없습니다.");
                 }
                 refresh();
-            } else if (slot == 49) {
+            } else if (slot == CLAIM_ALL_SLOT) {
                 collectionManager.getRewardService().claimAllPending(player);
                 refresh();
-            } else if (slot == 53) {
+            } else if (slot == GuiLayout.SLOT_NEXT_PAGE) {
                 page++;
                 refresh();
             }

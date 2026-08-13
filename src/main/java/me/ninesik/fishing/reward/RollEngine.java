@@ -46,14 +46,6 @@ public class RollEngine {
         this.rewardRoller = new RewardRoller(randomService, registryManager, dependencyManager);
     }
 
-    public RollResult roll(Player player, Rod rod) {
-        return roll(player, rod, null, null);
-    }
-
-    public RollResult roll(Player player, Rod rod, java.util.Set<String> allowedGradeIds) {
-        return roll(player, rod, allowedGradeIds, null);
-    }
-
     public RollResult roll(Player player, Rod rod, java.util.Set<String> allowedGradeIds, Bait bait) {
         // 1. 등급 롤 (Bait의 등급 보정 적용)
         Grade rolledGrade = gradeRoller.rollGrade(player, rod, allowedGradeIds, bait);
@@ -133,7 +125,15 @@ public class RollEngine {
 
     /**
      * 시뮬레이션: n번 롤을 수행하여 등급별/아이템별 통계를 반환한다.
-     * Player/Rod 없이 순수 weight 기반으로만 계산한다 (29.10).
+     *
+     * <p>Player 없이(=null) 실제 롤과 <b>같은 추첨기</b>를 돌린다. 예전에는 여기에
+     * 가중치 추첨이 통째로 재구현돼 있어, 실제 롤 로직이 바뀌어도 시뮬레이션은 옛 방식으로
+     * 남는 구조였다(두 곳이 소리 없이 어긋난다).</p>
+     *
+     * <p>결과는 예전과 동일하다 — {@code WeightCalculator}의 World/Biome/Weather/Time/
+     * Permission 보정은 player가 null이면 전부 1.0을 반환하고, Rod/Bait도 null이면
+     * 덧셈 보너스가 없다. 즉 이 시뮬레이션은 여전히 "순수 weight 기반 기본 확률"이며,
+     * PROGRESS.md에 기록된 기존 결정(Modifier/Rod 보너스 미반영)을 그대로 유지한다.</p>
      *
      * @return 시뮬레이션 결과 맵 (키: 등급ID, 아이템ID, "total", "big_fish", "double")
      */
@@ -146,33 +146,14 @@ public class RollEngine {
 
         // count가 최대 1천만이라, 루프 안에서 조회하지 않도록 진입 시 1회만 캡처한다.
         GradeRegistry grades = registryManager.getGradeRegistry();
-        FishRegistry fishes = registryManager.getFishRegistry();
 
         // 등급 목록 초기화
         for (Grade g : grades.getAll().values()) {
             gradeCounts.put(g.getId().toUpperCase(), 0L);
         }
 
-        // 등급별 weight 합계
-        Map<Grade, Integer> gradeWeights = new LinkedHashMap<>();
-        int totalWeight = 0;
-        for (Grade g : grades.getAll().values()) {
-            gradeWeights.put(g, g.getWeight());
-            totalWeight += g.getWeight();
-        }
-
         for (int i = 0; i < count; i++) {
-            // 등급 선택 (weight 기반)
-            int r = randomService.nextInt(totalWeight);
-            int cumulative = 0;
-            Grade rolledGrade = null;
-            for (Map.Entry<Grade, Integer> entry : gradeWeights.entrySet()) {
-                cumulative += entry.getValue();
-                if (r < cumulative) {
-                    rolledGrade = entry.getKey();
-                    break;
-                }
-            }
+            Grade rolledGrade = gradeRoller.rollGrade(null, null, null, null);
             if (rolledGrade == null) continue;
 
             Grade finalGrade = rolledGrade;
@@ -190,23 +171,7 @@ public class RollEngine {
                 }
             }
 
-            // 아이템 선택 (weight 기반)
-            List<Fish> fishList = fishes.getByGrade(finalGrade);
-            if (fishList.isEmpty()) continue;
-
-            int itemTotalWeight = fishList.stream().mapToInt(Fish::getWeight).sum();
-            if (itemTotalWeight <= 0) continue;
-
-            int ri = randomService.nextInt(itemTotalWeight);
-            int ci = 0;
-            Fish selected = null;
-            for (Fish f : fishList) {
-                ci += f.getWeight();
-                if (ri < ci) {
-                    selected = f;
-                    break;
-                }
-            }
+            Fish selected = rewardRoller.rollReward(null, finalGrade);
             if (selected == null) continue;
 
             // 더블 확률 (29.3)

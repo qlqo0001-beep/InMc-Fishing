@@ -2,6 +2,7 @@ package me.ninesik.fishing.net;
 
 import me.ninesik.fishing.gui.AbstractGui;
 import me.ninesik.fishing.gui.GuiItems;
+import me.ninesik.fishing.gui.GuiLayout;
 import me.ninesik.fishing.model.Fish;
 import me.ninesik.fishing.registry.RegistryManager;
 import me.ninesik.fishing.service.RewardService;
@@ -28,8 +29,12 @@ public class NetGui extends AbstractGui {
     private static final int CONTENT_START = 0;
     private static final int CONTENT_END = 44; // 0~44 (45칸)
     private static final int PAGE_SIZE = 45;
-    private static final int BACK_SLOT = 46;      // 메인 GUI로
-    private static final int REGISTER_SLOT = 50; // 도감 일괄 등록
+    // GUI 고유 버튼 — 공통 자리(45/48/50/53)는 GuiLayout이 관리한다.
+    // "메인 GUI로"가 여기만 46이라 다른 GUI(50)와 어긋나 있었다. 도감 일괄 등록과 자리를 맞바꿨다.
+    private static final int REGISTER_SLOT = 46; // 도감 일괄 등록
+    private static final int USAGE_SLOT = 47;
+    private static final int SORT_SLOT = 49;
+    private static final int TAKE_ALL_SLOT = 51;
 
     private final NetManager netManager;
     private final RewardService rewardService;
@@ -74,37 +79,27 @@ public class NetGui extends AbstractGui {
     }
 
     private void renderBottom() {
-        // 이전 페이지
-        if (page > 0) {
-            setItem(45, GuiItems.createIcon(Material.ARROW, ChatColor.YELLOW + "이전 페이지", List.of()));
-        }
-
         // 정렬 토글
         String sortName = switch (sortMode) {
             case TYPE -> "이름순";
             case SIZE -> "사이즈";
             case GRADE -> "등급";
         };
-         setItem(49, GuiItems.createIcon(Material.HOPPER, ChatColor.GOLD + "정렬: " + sortName,
+        setItem(SORT_SLOT, GuiItems.createIcon(Material.HOPPER, ChatColor.GOLD + "정렬: " + sortName,
                 List.of(ChatColor.GRAY + "클릭하여 변경 (이름순 → 사이즈 → 등급)")));
 
-        // 다음 페이지
         NetData data = netManager.getNetData(player);
-        int totalPages = data != null ? Math.max(1, (data.size() + PAGE_SIZE - 1) / PAGE_SIZE) : 1;
-        if (page < totalPages - 1) {
-            setItem(53, GuiItems.createIcon(Material.ARROW, ChatColor.YELLOW + "다음 페이지", List.of()));
-        }
 
         // 사용량 표시
         if (data != null) {
-            setItem(47, GuiItems.createIcon(Material.CHEST,
+            setItem(USAGE_SLOT, GuiItems.createIcon(Material.CHEST,
                     ChatColor.GOLD + "어망 사용량: " + data.size() + "/" + data.getMaxSize(),
                     List.of(ChatColor.GRAY + "위 물고기 클릭 시 인벤토리로 꺼냅니다.",
                             ChatColor.GRAY + "아래 인벤토리의 물고기 클릭 시 어망에 넣습니다.")));
         }
 
         // 전체 꺼내기 (인벤토리 빈자리만큼)
-        setItem(51, GuiItems.createIcon(Material.HOPPER_MINECART, ChatColor.AQUA + "전체 꺼내기",
+        setItem(TAKE_ALL_SLOT, GuiItems.createIcon(Material.HOPPER_MINECART, ChatColor.AQUA + "전체 꺼내기",
                 List.of(
                         ChatColor.GRAY + "인벤토리에 빈자리가 있는 만큼",
                         ChatColor.GRAY + "어망의 물고기를 순서대로 꺼냅니다."
@@ -118,10 +113,9 @@ public class NetGui extends AbstractGui {
                         ChatColor.YELLOW + "클릭: 도감 일괄 등록"
                 )));
 
-        // 피드백: 각 GUI 창에는 메인 GUI로 돌아오는 버튼을 둔다.
-        setItem(BACK_SLOT, GuiItems.createIcon(Material.OAK_DOOR, ChatColor.GOLD + "메인 GUI로",
-                List.of(ChatColor.GRAY + "낚시 메인메뉴로 돌아갑니다.")));
-
+        // 이전/다음 화살표 + 닫기 + 메인으로는 모든 6줄 GUI가 같은 자리를 쓴다 (GuiLayout).
+        GuiLayout.renderFooter(getInventory(), page,
+                GuiLayout.totalPages(data != null ? data.size() : 0, PAGE_SIZE));
     }
 
     private ItemStack buildFishIcon(NetEntry entry) {
@@ -203,10 +197,12 @@ public class NetGui extends AbstractGui {
 
         // 하단 버튼
         if (slot >= 45) {
-            if (slot == 45 && page > 0) {
+            if (slot == GuiLayout.SLOT_PREV_PAGE && page > 0) {
                 page--;
                 refresh();
-            } else if (slot == 49) {
+            } else if (slot == GuiLayout.SLOT_CLOSE) {
+                player.closeInventory();
+            } else if (slot == SORT_SLOT) {
                 sortMode = switch (sortMode) {
                     case TYPE -> NetData.SortMode.SIZE;
                     case SIZE -> NetData.SortMode.GRADE;
@@ -214,7 +210,7 @@ public class NetGui extends AbstractGui {
                 };
                 page = 0;
                 refresh();
-            } else if (slot == 51) {
+            } else if (slot == TAKE_ALL_SLOT) {
                 int count = netManager.removeAll(player);
                 if (count > 0) {
                     player.sendMessage(ChatColor.GREEN + "어망에서 물고기 " + count + "마리를 꺼냈습니다.");
@@ -223,7 +219,7 @@ public class NetGui extends AbstractGui {
                 }
                 page = 0;
                 refresh();
-            } else if (slot == 53) {
+            } else if (slot == GuiLayout.SLOT_NEXT_PAGE) {
                 page++;
                 refresh();
             } else if (slot == REGISTER_SLOT) {
@@ -241,7 +237,7 @@ public class NetGui extends AbstractGui {
                     player.sendMessage(ChatColor.YELLOW + "등록할 수 있는 물고기가 없습니다.");
                 }
                 refresh();
-            } else if (slot == BACK_SLOT) {
+            } else if (slot == GuiLayout.SLOT_BACK_MAIN) {
                 me.ninesik.fishing.gui.MainGui.open(player);
             }
             return;

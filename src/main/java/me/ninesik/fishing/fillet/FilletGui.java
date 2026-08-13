@@ -3,6 +3,7 @@ package me.ninesik.fishing.fillet;
 import me.ninesik.fishing.InMcFishing;
 import me.ninesik.fishing.gui.AbstractGui;
 import me.ninesik.fishing.gui.GuiItems;
+import me.ninesik.fishing.gui.GuiLayout;
 import me.ninesik.fishing.gui.MainGui;
 import me.ninesik.fishing.fillet.FilletStorage.FilletActiveSlot;
 import org.bukkit.Bukkit;
@@ -25,9 +26,10 @@ public final class FilletGui extends AbstractGui {
         19,20,21,22,23,24,25, 28,29,30,31,32,33,34,
         37,38,39,40,41,42,43
     };
+    // GUI 고유 버튼 — 공통 자리(45/48/50/53)는 GuiLayout이 관리한다.
+    // 예전에는 45를 "메인 GUI로", 53을 "닫기"로 써서, 같은 자리가 다른 GUI에서는
+    // 이전/다음 페이지인 것과 정반대로 동작했다.
     private static final int CLAIM_ALL = 49;
-    private static final int BACK_MENU = 45;
-    private static final int CLOSE = 53;
 
     private final FilletManager manager;
     private final int maxSlots;
@@ -101,10 +103,8 @@ public final class FilletGui extends AbstractGui {
             setItem(CLAIM_ALL, GuiItems.createIcon(Material.GREEN_WOOL,
                     ChatColor.GREEN + "완료된 가공품 모두 수령", List.of()));
         }
-        setItem(BACK_MENU, GuiItems.createIcon(Material.OAK_DOOR,
-                ChatColor.GOLD + "메인 GUI로", List.of(ChatColor.GRAY + "낚시 메인메뉴로 돌아갑니다.")));
-        setItem(CLOSE, GuiItems.createIcon(Material.BARRIER,
-                ChatColor.RED + "닫기", List.of()));
+        // 가공 GUI는 페이지가 없으므로 totalPages=1 (화살표 미표시).
+        GuiLayout.renderFooter(getInventory(), 0, 1);
     }
 
     private ItemStack buildEmptyIcon(int idx) {
@@ -198,8 +198,8 @@ public final class FilletGui extends AbstractGui {
             handleClaimAll();
             return;
         }
-        if (rawSlot == BACK_MENU) { MainGui.open(player); return; }
-        if (rawSlot == CLOSE) player.closeInventory();
+        if (rawSlot == GuiLayout.SLOT_BACK_MAIN) { MainGui.open(player); return; }
+        if (rawSlot == GuiLayout.SLOT_CLOSE) player.closeInventory();
     }
 
     /** 인벤토리의 물고기를 클릭해 빈 가공 슬롯에 등록한다. */
