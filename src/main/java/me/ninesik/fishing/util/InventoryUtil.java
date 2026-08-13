@@ -1,7 +1,10 @@
 package me.ninesik.fishing.util;
 
+import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.PlayerInventory;
+
+import java.util.Map;
 
 /**
  * 인벤토리 여유 공간 사전 확인 유틸 (29.9).
@@ -64,6 +67,26 @@ public final class InventoryUtil {
             }
         }
         return true;
+    }
+
+    /**
+     * 아이템을 인벤토리에 넣고, 들어가지 못한 분량은 발밑에 떨어뜨린다.
+     *
+     * <p>{@link PlayerInventory#addItem}은 넣지 못한 분량을 반환하는데, 이 반환값을 버리면
+     * 인벤토리가 가득 찼을 때 아이템이 <b>조용히 사라진다</b>. 사전에 {@link #canFit}으로
+     * 확인한 경로라도 이 메서드를 쓰면 시뮬레이션과 실제가 어긋나는 경우까지 막을 수 있다.</p>
+     *
+     * <p>아이템 지급이므로 반드시 메인 스레드에서 호출해야 한다.</p>
+     *
+     * @return 바닥에 떨어뜨린 스택 수 (0이면 전부 인벤토리에 들어갔다)
+     */
+    public static int giveOrDrop(Player player, ItemStack... items) {
+        if (player == null || items == null || items.length == 0) return 0;
+        Map<Integer, ItemStack> leftover = player.getInventory().addItem(items);
+        for (ItemStack drop : leftover.values()) {
+            player.getWorld().dropItemNaturally(player.getLocation(), drop);
+        }
+        return leftover.size();
     }
 
     /**

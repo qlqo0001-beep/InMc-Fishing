@@ -29,6 +29,7 @@ import me.ninesik.fishing.tournament.Tournament;
 import me.ninesik.fishing.tournament.TournamentManager;
 import org.bukkit.ChatColor;
 import org.bukkit.Bukkit;
+import me.ninesik.fishing.util.InventoryUtil;
 import me.ninesik.fishing.util.Texts;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
@@ -91,6 +92,14 @@ public class FishingCommand implements CommandExecutor, TabCompleter {
 
     // Registry는 /fishing reload 때 새 객체로 통째 교체되므로 인스턴스를 필드에 담지 않는다.
     // 필드로 들고 있던 시절에는 리로드해도 명령어가 계속 옛 목록을 보여줬다.
+    /**
+     * 인벤토리가 가득 차 아이템 일부를 바닥에 떨어뜨렸을 때 지급 메시지에 덧붙이는 안내.
+     * 예전에는 addItem()의 잔여분을 버려서 아이템이 조용히 사라졌다.
+     */
+    private String dropNotice(int dropped) {
+        return dropped > 0 ? " §7(인벤토리가 가득 차 일부는 발밑에 떨어뜨렸습니다)" : "";
+    }
+
     private GradeRegistry gradeRegistry() { return plugin.getRegistryManager().getGradeRegistry(); }
     private FishRegistry fishRegistry() { return plugin.getRegistryManager().getFishRegistry(); }
     private RodRegistry rodRegistry() { return plugin.getRegistryManager().getRodRegistry(); }
@@ -1015,8 +1024,8 @@ public class FishingCommand implements CommandExecutor, TabCompleter {
         if (amount < 1) return;
 
         ItemStack item = FatiguePotionItem.create(plugin, configManager, gradeId, amount);
-        target.getInventory().addItem(item);
-        sender.sendMessage("§a" + target.getName() + "에게 " + gradeId.toUpperCase() + "등급 피로회복 물약 " + amount + "개를 지급했습니다.");
+        int dropped = InventoryUtil.giveOrDrop(target, item);
+        sender.sendMessage("§a" + target.getName() + "에게 " + gradeId.toUpperCase() + "등급 피로회복 물약 " + amount + "개를 지급했습니다." + dropNotice(dropped));
         logger.info(sender.getName() + " gave " + amount + " " + gradeId + " fatigue potion to " + target.getName());
     }
 
@@ -1085,8 +1094,8 @@ public class FishingCommand implements CommandExecutor, TabCompleter {
         if (amount < 1) return;
 
         ItemStack item = rewardService.createItemStack(fish, amount);
-        target.getInventory().addItem(item);
-        sender.sendMessage("§a" + target.getName() + "에게 " + fish.getId() + " " + amount + "개를 지급했습니다.");
+        int dropped = InventoryUtil.giveOrDrop(target, item);
+        sender.sendMessage("§a" + target.getName() + "에게 " + fish.getId() + " " + amount + "개를 지급했습니다." + dropNotice(dropped));
         logger.info(sender.getName() + " gave " + amount + " " + fish.getId() + " to " + target.getName());
     }
 
@@ -1110,8 +1119,8 @@ public class FishingCommand implements CommandExecutor, TabCompleter {
 
         // 트로피용 물고기: max-size 기준으로 생성
         ItemStack item = rewardService.createItemStack(fish, amount, fish.getMaxSize());
-        target.getInventory().addItem(item);
-        sender.sendMessage("§a" + target.getName() + "에게 " + fish.getId() + " 트로피 " + amount + "개를 지급했습니다.");
+        int dropped = InventoryUtil.giveOrDrop(target, item);
+        sender.sendMessage("§a" + target.getName() + "에게 " + fish.getId() + " 트로피 " + amount + "개를 지급했습니다." + dropNotice(dropped));
         logger.info(sender.getName() + " gave " + amount + " trophy " + fish.getId() + " to " + target.getName());
     }
 
@@ -1142,8 +1151,8 @@ public class FishingCommand implements CommandExecutor, TabCompleter {
             return;
         }
         item.setAmount(amount);
-        target.getInventory().addItem(item);
-        sender.sendMessage("§a" + target.getName() + "에게 낚싯대 " + rod.getId() + " " + amount + "개를 지급했습니다.");
+        int dropped = InventoryUtil.giveOrDrop(target, item);
+        sender.sendMessage("§a" + target.getName() + "에게 낚싯대 " + rod.getId() + " " + amount + "개를 지급했습니다." + dropNotice(dropped));
         logger.info(sender.getName() + " gave " + amount + " rod " + rod.getId() + " to " + target.getName());
     }
 
@@ -1208,8 +1217,10 @@ public class FishingCommand implements CommandExecutor, TabCompleter {
         if (amount < 1) return;
 
         ItemStack item = createBaitItem(bait);
-        for (int i = 0; i < amount; i++) target.getInventory().addItem(item.clone());
-        sender.sendMessage("§a" + target.getName() + "에게 " + bait.getId() + " 미끼 " + amount + "개를 지급했습니다.");
+        ItemStack[] baits = new ItemStack[amount];
+        for (int i = 0; i < amount; i++) baits[i] = item.clone();
+        int dropped = InventoryUtil.giveOrDrop(target, baits);
+        sender.sendMessage("§a" + target.getName() + "에게 " + bait.getId() + " 미끼 " + amount + "개를 지급했습니다." + dropNotice(dropped));
         logger.info(sender.getName() + " gave " + amount + " bait " + bait.getId() + " to " + target.getName());
     }
 
@@ -1244,9 +1255,9 @@ public class FishingCommand implements CommandExecutor, TabCompleter {
         }
         ItemStack item = fm.createFilletItem(gradeId, trophyType, amount);
         if (item != null) {
-            target.getInventory().addItem(item);
+            int dropped = InventoryUtil.giveOrDrop(target, item);
             sender.sendMessage("§a" + target.getName() + "에게 " + gradeId.toUpperCase() + "급 "
-                    + trophyType + " 생선살 " + amount + "개를 지급했습니다.");
+                    + trophyType + " 생선살 " + amount + "개를 지급했습니다." + dropNotice(dropped));
             logger.info(sender.getName() + " gave " + amount + " fillet " + gradeId + "/" + trophyType + " to " + target.getName());
         } else {
             sender.sendMessage("§c생선 살 아이템 생성에 실패했습니다.");

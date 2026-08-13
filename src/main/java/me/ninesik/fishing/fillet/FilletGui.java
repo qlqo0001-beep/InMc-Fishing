@@ -159,9 +159,7 @@ public final class FilletGui extends AbstractGui {
                 if (active != null && !active.isComplete()) {
                     ItemStack returned = manager.cancelFillet(player, i);
                     if (returned != null) {
-                        var leftover = player.getInventory().addItem(returned);
-                        leftover.values().forEach(it ->
-                            player.getWorld().dropItemNaturally(player.getLocation(), it));
+                        me.ninesik.fishing.util.InventoryUtil.giveOrDrop(player, returned);
                         player.sendMessage(ChatColor.YELLOW + "가공을 취소하고 물고기를 돌려받았습니다.");
                         player.playSound(player.getLocation(), Sound.ENTITY_ITEM_PICKUP, 0.5f, 1.2f);
                     }
@@ -172,7 +170,9 @@ public final class FilletGui extends AbstractGui {
             if (active != null && active.isComplete()) {
                 ItemStack reward = manager.claimFillet(player, i);
                 if (reward != null) {
-                    player.getInventory().addItem(reward);
+                    // claimFillet이 canFit으로 사전 확인하지만, 시뮬레이션과 실제가 어긋나도
+                    // 아이템이 사라지지 않도록 잔여분은 바닥에 떨어뜨린다.
+                    me.ninesik.fishing.util.InventoryUtil.giveOrDrop(player, reward);
                     player.playSound(player.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 0.5f, 1.5f);
                 } else {
                     // claimFillet은 인벤토리 공간이 없으면 슬롯을 유지한 채 null을 반환한다.
@@ -236,7 +236,7 @@ public final class FilletGui extends AbstractGui {
             if (!s.isComplete()) continue;
             ItemStack reward = manager.claimFillet(player, s.slotIndex());
             if (reward == null) { full = true; break; }
-            player.getInventory().addItem(reward);
+            me.ninesik.fishing.util.InventoryUtil.giveOrDrop(player, reward);
             claimed++;
         }
         if (claimed > 0) {

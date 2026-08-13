@@ -229,7 +229,7 @@ public class NetManager {
             }
 
             data.remove(0);
-            player.getInventory().addItem(item);
+            me.ninesik.fishing.util.InventoryUtil.giveOrDrop(player, item);
             removed++;
         }
         return removed;
