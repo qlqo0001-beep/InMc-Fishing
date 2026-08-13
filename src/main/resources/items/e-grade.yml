@@ -2,11 +2,6 @@
 #  E등급 아이템 목록
 #  F등급보다 한 단계 높은 등급, 중형 물고기가 낚입니다.
 # ============================================================
-grade-settings:
-  input-count: 4
-  time-seconds: 4.5
-  weight: 25
-
 items:
   pufferfish:
     id: "pufferfish"

@@ -165,12 +165,15 @@ public class FightConfig {
             this.barColorSafe = config.getString("trophy-fight.hud.bar-color-safe", "&a");
             this.barColorWarning = config.getString("trophy-fight.hud.bar-color-warning", "&e");
             this.barColorDanger = config.getString("trophy-fight.hud.bar-color-danger", "&c");
-            this.bossBarTitleFormat = config.getString("trophy-fight.hud.bossbar-title-format", "Distance: {distance}");
+            // 기본값은 배포 fight.yml과 문자 그대로 같아야 한다 — 어드민이 키를 지웠을 때
+            // 갑자기 영문 포맷으로 바뀌는 일이 없도록.
+            this.bossBarTitleFormat = config.getString("trophy-fight.hud.bossbar-title-format",
+                    "거리: {distance} / {max_distance} M");
             this.actionBarFormat = config.getString("trophy-fight.hud.actionbar-format",
-                    "Stamina {stamina}% | Power {power} | Resistance {resistance} | Reel {reel}%");
+                    "물고기 채력 {stamina}% | 릴 상태 {reel}% | 거리 {distance}/{max_distance}M");
             this.stateTitleFormat = config.getString("trophy-fight.hud.state-title-format", "{state_color}{state} ({remaining_seconds}초)");
             this.stateSubtitleFormat = config.getString("trophy-fight.hud.state-subtitle-format",
-                    "&b체력 {stamina}  &8┃  &7{remaining_seconds}초 후 변화  &8┃  &e릴 {reel}");
+                    " &7{remaining_seconds}초 후 변화");
             this.stateColors = loadStateColors(config);
             this.stateGuides = loadStateGuides(config);
         }
@@ -260,7 +263,7 @@ public class FightConfig {
         public SoundConfig(FileConfiguration config) {
             // 하한 1 — TrophyFightManager.tick()이 tickCount % interval 로 쓰기 때문에
             // 0을 넣으면 매 틱 ArithmeticException이 나서 모든 파이트가 붕괴한다.
-            this.interval = Math.max(1, config.getInt("trophy-fight.sound.interval", 2));
+            this.interval = Math.max(1, config.getInt("trophy-fight.sound.interval", 8));
             this.charge = config.getString("trophy-fight.sound.charge", "");
             this.reelOverload = config.getString("trophy-fight.sound.reel-overload", "");
             this.tensionDanger = config.getString("trophy-fight.sound.tension-danger", "");
@@ -378,7 +381,7 @@ public class FightConfig {
             this.defaultPower = config.getDouble("trophy-fight.stats.default-power", 50.0);
             this.defaultResistance = config.getDouble("trophy-fight.stats.default-resistance", 50.0);
             this.defaultDistance = config.getDouble("trophy-fight.stats.default-distance", 100.0);
-            this.maxDistance = config.getDouble("trophy-fight.stats.max-distance", 250.0);
+            this.maxDistance = config.getDouble("trophy-fight.stats.max-distance", 150.0);
             this.distancePerLineStrength = config.getDouble("trophy-fight.stats.distance-per-line-strength", 1.0);
             this.minDistanceWithStaminaByGrade = loadMinDistanceWithStamina(config);
             // 피드백.md: max-tension은 실제로 "기본 줄 강도"이므로 default-line-strength로 리네임.

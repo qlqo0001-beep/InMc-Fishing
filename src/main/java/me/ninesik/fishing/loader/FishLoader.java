@@ -35,6 +35,13 @@ public class FishLoader {
                 continue;
             }
 
+            // grade-settings는 grades.yml과 값이 중복 기재돼 있었지만 읽히지 않는 섹션이었다.
+            // 어드민이 여기를 고쳐도 아무 효과가 없으므로, 남아 있으면 알려준다.
+            if (config.isConfigurationSection("grade-settings")) {
+                warnings.add("items/" + gradeId + "-grade.yml의 grade-settings는 무시됩니다. "
+                        + "등급 설정(input-count/time-seconds/weight)의 단일 출처는 grades.yml입니다.");
+            }
+
             ConfigurationSection itemsSection = config.getConfigurationSection("items");
             if (itemsSection == null) {
                 warnings.add("items/" + gradeId + "-grade.yml에 items 섹션이 없습니다.");

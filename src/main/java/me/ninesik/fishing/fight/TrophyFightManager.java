@@ -110,6 +110,17 @@ public class TrophyFightManager {
      * @return 생성된 FightSession
      * @throws IllegalStateException 이미 Fight 세션이 활성 중인 경우
      */
+    /**
+     * fight.yml의 {@code trophy-fight.enabled} 값.
+     *
+     * <p>예전에는 이 설정을 읽어만 두고 아무도 쓰지 않아, false로 꺼도 트로피 파이트가
+     * 그대로 발동했다. 이제 파이트 진입 지점들이 이 값을 확인하고, 꺼져 있으면 파이트
+     * 없이 보상을 바로 지급한다(= 미니게임만 진행).</p>
+     */
+    public boolean isFightEnabled() {
+        return configManager.getFightConfig().general().enabled;
+    }
+
     public FightSession startFight(Player player, RewardEntry reward) {
         Rod rod = rodLookup != null ? rodLookup.apply(player) : null;
         return startFight(player, reward, rod);

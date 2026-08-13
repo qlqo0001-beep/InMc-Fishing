@@ -2,11 +2,6 @@
 #  A등급 아이템 목록
 #  최상위 등급, 신화급 물고기가 낚입니다.
 # ============================================================
-grade-settings:
-  input-count: 8
-  time-seconds: 3.2
-  weight: 2
-
 items:
   world_serpent:
     id: "world_serpent"

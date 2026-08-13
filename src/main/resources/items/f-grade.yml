@@ -9,11 +9,6 @@
 #   avg-size:       평균 사이즈 (cm). 미지정 시 (min+max)/2
 #   custom-model-data: 리소스팩 커스텀 모델 번호
 # ============================================================
-grade-settings:
-  input-count: 3
-  time-seconds: 5.0
-  weight: 45
-
 items:
   cod:
     id: "cod"

@@ -2,11 +2,6 @@
 #  D등급 아이템 목록
 #  중간 등급, 대형/특수 물고기가 낚입니다.
 # ============================================================
-grade-settings:
-  input-count: 5
-  time-seconds: 4.0
-  weight: 15
-
 items:
   swordfish:
     id: "swordfish"

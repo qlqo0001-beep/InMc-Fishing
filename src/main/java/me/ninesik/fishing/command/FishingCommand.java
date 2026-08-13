@@ -566,6 +566,11 @@ public class FishingCommand implements CommandExecutor, TabCompleter {
             return;
         }
 
+        if (!fightManager.isFightEnabled()) {
+            sender.sendMessage("§cfight.yml의 trophy-fight.enabled가 false라 파이트를 시작할 수 없습니다.");
+            return;
+        }
+
         try {
             // 버그 수정: 이전에는 고정된 testRod(reelPower 30 고정값 등)를 항상 사용해서
             // 실제로 손에 든 낚싯대(rod.yml 보너스)가 전혀 반영되지 않았다.

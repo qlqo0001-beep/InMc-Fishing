@@ -3,11 +3,6 @@
 #  최상위 등급, 초월급 물고기가 낚입니다.
 #  낚으면 서버 전체에 알림이 나갈 수 있습니다.
 # ============================================================
-grade-settings:
-  input-count: 9
-  time-seconds: 3.0
-  weight: 1
-
 items:
   cosmic_serpent:
     id: "cosmic_serpent"

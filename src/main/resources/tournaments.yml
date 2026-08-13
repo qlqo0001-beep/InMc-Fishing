@@ -5,7 +5,7 @@
 #
 # 각 대회는 다음 속성을 가집니다:
 #
-#   id:                대회 식별자 (내부용, 중복 불가)
+#   (대회 식별자는 아래 tournaments: 바로 밑의 키 이름입니다 — 예: weekly_grade_s)
 #   name:              대회 이름 (& 색상코드 사용 가능)
 #   description:       대회 설명 (여러 줄 가능)
 #   type:              대회 종류
@@ -42,7 +42,6 @@ tournaments:
   # --- 주간 S등급 대회 ---
   # 매주 일요일 저녁 8시에 자동으로 열리는 S등급 낚시 대회
   weekly_grade_s:
-    id: "weekly_grade_s"
     name: "&c주간 S등급 대회"
     description:
       - "&7S등급 물고기를 낚아 점수를 획득하세요!"
@@ -74,7 +73,6 @@ tournaments:
   # (등급이 높을수록 우선, 동일 등급이면 weight로 순위 결정)
   # (수동 시작 — 관리자가 /fishing tournament start로 시작)
   all_grade_cup:
-    id: "all_grade_cup"
     name: "&e전체 등급 낚시 대회"
     description:
       - "&7모든 등급의 물고기가 점수로 인정됩니다!"
@@ -101,7 +99,6 @@ tournaments:
   # 잡은 모든 물고기의 사이즈 합산이 가장 큰 플레이어가 우승하는 대회
   # (수동 시작 — 관리자가 /fishing tournament start로 시작)
   size_championship:
-    id: "size_championship"
     name: "&b최고의 낚시꾼 대회"
     description:
       - "&7가장 큰 물고기를 낚아라!"
@@ -122,7 +119,6 @@ tournaments:
   # 매주 토요일 자정에 자동 시작, 48시간 동안 진행
   # 가장 많이 낚은 플레이어가 우승
   weekend_frenzy:
-    id: "weekend_frenzy"
     name: "&a주말 낚시 광란"
     description:
       - "&7주말 동안 가장 많이 낚아라!"

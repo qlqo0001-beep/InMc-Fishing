@@ -33,8 +33,9 @@ public class RewardService {
     private final ConfigManager configManager;
     private final Logger logger;
 
-    private double trophyThreshold = 1.5;
-    private double rareTrophyThreshold = 0.9;
+    // 배포 collections.yml과 같은 값. setTrophyConfig가 주입되기 전까지만 쓰인다.
+    private double trophyThreshold = 1.45;
+    private double rareTrophyThreshold = 0.95;
     private String trophyLore = "&e🏆 트로피";
     private String rareTrophyLore = "&c🏆 레어 트로피";
 

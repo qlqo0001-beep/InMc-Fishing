@@ -2,11 +2,6 @@
 #  C등급 아이템 목록
 #  중상위 등급, 희귀한 물고기가 낚입니다.
 # ============================================================
-grade-settings:
-  input-count: 6
-  time-seconds: 3.8
-  weight: 8
-
 items:
   whale_small:
     id: "whale_small"

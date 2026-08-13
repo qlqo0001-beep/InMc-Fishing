@@ -56,13 +56,17 @@ public class CollectionRewardService {
     }
 
     public double getTrophyThreshold() {
-        return rewardConfig.getDouble("trophies.trophy-threshold", 1.5);
+        return rewardConfig.getDouble("trophies.trophy-threshold", 1.45);
     }
 
     public double getRareTrophyThreshold() {
-        return rewardConfig.getDouble("trophies.rare-trophy-threshold", 0.9);
+        return rewardConfig.getDouble("trophies.rare-trophy-threshold", 0.95);
     }
 
+    /**
+     * collections.yml에 {@code trophies.display-lore} 섹션이 없어 실질적으로 이 기본값이 쓰인다.
+     * 값을 바꾸려면 collections.yml에 섹션을 추가해야 한다.
+     */
     public String getTrophyLore() {
         return rewardConfig.getString("trophies.display-lore.trophy", "&e🏆 트로피");
     }
@@ -418,17 +422,37 @@ public class CollectionRewardService {
         return "";
     }
 
-    /** 보상 유형별 설명 문구를 구성한다. messages.yml의 collection.reward-descriptions.<type>을 우선 사용한다. */
+    /**
+     * 보상 유형별 설명 문구를 구성한다. messages.yml의 {@code collection.reward-descriptions.<type>}을 쓴다.
+     *
+     * <p>배포 messages.yml에서 이 블록이 {@code tournament:} 아래로 잘못 들여쓰기돼 있어
+     * 실제 경로가 {@code tournament.reward-descriptions.*}였다. 코드는 {@code collection.}을
+     * 읽으므로 <b>어드민이 문구를 고쳐도 절대 반영되지 않고</b> 항상 아래 하드코딩 기본값이 나갔다.
+     * 리소스는 고쳤지만 {@code saveResource(..., false)}는 기존 파일을 덮어쓰지 않으므로,
+     * 이미 설치된 서버를 위해 구 경로도 한 릴리스 동안 폴백으로 읽는다.</p>
+     */
     private String rewardDescription(String type, Map<String, String> placeholders) {
         me.ninesik.fishing.config.ConfigManager cm =
                 plugin.getFishingService() != null ? plugin.getFishingService().getConfigManager() : null;
         String template = cm != null
                 ? cm.getMessageRaw("collection.reward-descriptions." + type, "") : "";
+        if ((template == null || template.isBlank()) && cm != null) {
+            // 구 경로 호환 (messages.yml을 아직 갱신하지 않은 서버)
+            template = cm.getMessageRaw("tournament.reward-descriptions." + type, "");
+            if (template != null && !template.isBlank() && !legacyPathWarned) {
+                legacyPathWarned = true;
+                plugin.getLogger().warning("messages.yml의 reward-descriptions가 tournament: 아래에 있습니다. "
+                        + "collection: 아래로 옮겨주세요 (지금은 호환 처리 중).");
+            }
+        }
         if (template == null || template.isBlank()) {
             template = defaultRewardDescription(type);
         }
         return me.ninesik.fishing.util.Texts.apply(template, placeholders);
     }
+
+    /** 구 경로 경고를 서버 기동당 한 번만 남기기 위한 플래그. */
+    private boolean legacyPathWarned = false;
 
     private String defaultRewardDescription(String type) {
         return switch (type == null ? "" : type) {

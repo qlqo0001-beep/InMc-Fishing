@@ -130,8 +130,11 @@ public class FishingMiniGame implements MiniGame {
         // 트로피 파이트 테스트 모드 (피드백 - 테스트 명령어):
         // 기본 L/R 클릭 미니게임을 생략하고 잡은 물고기를 바로 트로피 파이트로 진입시킨다.
         if (isTestFightMode(player)) {
-            if (trophyFightManager != null) {
+            if (trophyFightManager != null && trophyFightManager.isFightEnabled()) {
                 trophyFightManager.startFight(player, reward);
+            } else {
+                // 파이트가 꺼져 있으면 테스트 모드여도 진입하지 않고 보상만 지급한다.
+                rewardService.giveReward(player, reward);
             }
             return;
         }
@@ -320,7 +323,9 @@ public class FishingMiniGame implements MiniGame {
                             && inMcFishing.getPlayerPreferenceManager() != null) {
                         practice = inMcFishing.getPlayerPreferenceManager().isTrophyPracticeMode(player);
                     }
+                    // trophy-fight.enabled가 false면 파이트를 건너뛰고 아래 보상 지급으로 간다.
                     if (trophyFightManager != null
+                            && trophyFightManager.isFightEnabled()
                             && reward.getFish() != null
                             && reward.getGrade() != null
                             && (practice || reward.isTrophy() || reward.isRareTrophy())) {

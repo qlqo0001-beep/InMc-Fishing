@@ -34,6 +34,12 @@ public class ConfigManager {
     private FileConfiguration fatigue;
     private FileConfiguration potions;
     private ItemFormatConfig itemFormat;
+    /**
+     * 플러그인이 기대하는 config.yml 구조 버전.
+     * config.yml의 구조를 바꿀 때(키 추가/삭제/의미 변경) 이 값을 올린다.
+     */
+    private static final int CONFIG_VERSION = 1;
+
     /** fight.yml을 파싱한 결과. load() 시점에만 만들고 그 뒤로는 재사용한다. */
     private FightConfig fightConfig;
     /** settings.allowed-worlds. 조회가 잦아 로드 시점에 한 번만 읽는다. */
@@ -61,6 +67,31 @@ public class ConfigManager {
         this.fightConfig = new FightConfig(this.fight);
         this.allowedWorlds = List.copyOf(config.getStringList("settings.allowed-worlds"));
         this.allowedWorldSet = java.util.Set.copyOf(this.allowedWorlds);
+
+        checkConfigVersion();
+    }
+
+    /**
+     * config.yml의 구조 버전이 플러그인이 기대하는 값과 같은지 확인한다.
+     *
+     * <p>{@code saveResource(..., false)}는 기존 파일을 덮어쓰지 않으므로, 플러그인을
+     * 업데이트해도 어드민의 config.yml은 예전 구조 그대로 남는다. 새 키가 추가되거나
+     * 의미가 바뀌었을 때 이를 알려줄 유일한 신호가 이 버전이다.
+     * (예전에는 키만 있고 읽는 코드가 없어 아무 역할도 하지 않았다)</p>
+     */
+    private void checkConfigVersion() {
+        int found = config.getInt("config-version", -1);
+        if (found == CONFIG_VERSION) {
+            return;
+        }
+        if (found < 0) {
+            plugin.getLogger().warning("config.yml에 config-version이 없습니다. "
+                    + "예전 버전의 설정 파일일 수 있습니다 (기대값: " + CONFIG_VERSION + ").");
+        } else {
+            plugin.getLogger().warning("config.yml의 config-version이 " + found
+                    + "입니다 (기대값: " + CONFIG_VERSION + "). 설정 구조가 바뀌었을 수 있으니 "
+                    + "RELEASES.md의 변경 사항을 확인하세요.");
+        }
     }
 
     /** 리소스를 데이터 폴더에 최초 1회 저장하고 로드해서 반환한다. */
@@ -219,7 +250,7 @@ public class ConfigManager {
 
     /** 신규 플레이어의 기본 최대 피로도 (fatigue.default). */
     public int getFatigueDefaultMax() {
-        return fatigue.getInt("fatigue.default", 1000);
+        return fatigue.getInt("fatigue.default", 2000);
     }
 
     /** 낚싯대 보너스를 포함해도 넘을 수 없는 절대 상한 (fatigue.max). */
@@ -229,12 +260,12 @@ public class ConfigManager {
 
     /** 자연 회복 1회당 회복량 (fatigue.recovery.amount). */
     public int getFatigueRecoveryAmount() {
-        return fatigue.getInt("fatigue.recovery.amount", 200);
+        return fatigue.getInt("fatigue.recovery.amount", 100);
     }
 
     /** 자연 회복 주기(초), 최소 1초 (fatigue.recovery.interval). */
     public int getFatigueRecoveryIntervalSeconds() {
-        return Math.max(1, fatigue.getInt("fatigue.recovery.interval", 600));
+        return Math.max(1, fatigue.getInt("fatigue.recovery.interval", 300));
     }
 
     /** 자동 낚시 성공 시 등급별 피로도 소모량 (fatigue.consume.<grade>). */

@@ -2,11 +2,6 @@
 #  B등급 아이템 목록
 #  상위 등급, 전설급 물고기가 낚입니다.
 # ============================================================
-grade-settings:
-  input-count: 7
-  time-seconds: 3.5
-  weight: 4
-
 items:
   megalodon:
     id: "megalodon"
