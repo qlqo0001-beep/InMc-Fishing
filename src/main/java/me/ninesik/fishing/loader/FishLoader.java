@@ -21,8 +21,19 @@ public class FishLoader {
      * @param gradeMap     GradeLoader가 만든 gradeId → Grade 맵 (Fish.grade는 반드시 이 인스턴스를 참조해야
      *                     FishRegistry.getByGrade(Grade)가 GradeRoller가 뽑은 Grade와 동일 객체로 매칭된다)
      */
+    /**
+     * 이번 로드에서 발견한 중복 ID 개수.
+     * 콘솔 검증 리포트의 "Duplicate ID" 항목이 항상 0으로 표시되던 것을 채우기 위해 노출한다.
+     */
+    private int duplicateIdCount = 0;
+
+    public int getDuplicateIdCount() {
+        return duplicateIdCount;
+    }
+
     public Map<String, Fish> load(Map<String, FileConfiguration> gradeConfigs, Map<String, Grade> gradeMap,
                                    List<String> errors, List<String> warnings) {
+        duplicateIdCount = 0;
         Map<String, Fish> fishMap = new LinkedHashMap<>();
 
         for (Map.Entry<String, FileConfiguration> entry : gradeConfigs.entrySet()) {
@@ -63,6 +74,7 @@ public class FishLoader {
                     }
 
                     if (fishMap.containsKey(id)) {
+                        duplicateIdCount++;
                         errors.add("중복된 물고기/아이템 ID: '" + id + "' (" + gradeId + "-grade.yml)");
                         continue;
                     }

@@ -265,7 +265,8 @@ public final class InMcFishing extends JavaPlugin {
             File file = new File(getDataFolder(), "items/" + gradeId + "-grade.yml");
             gradeItemConfigs.put(gradeId, YamlConfiguration.loadConfiguration(file));
         }
-        Map<String, Fish> fishMap = new FishLoader().load(gradeItemConfigs, gradeMap, errors, warnings);
+        FishLoader fishLoader = new FishLoader();
+        Map<String, Fish> fishMap = fishLoader.load(gradeItemConfigs, gradeMap, errors, warnings);
 
         YamlConfiguration rodConfig = YamlConfiguration.loadConfiguration(new File(getDataFolder(), "items/rod.yml"));
         Map<String, Rod> rodMap = new RodLoader().load(rodConfig, gradeMap, errors, warnings);
@@ -275,6 +276,11 @@ public final class InMcFishing extends JavaPlugin {
 
         ValidationReport report = new ValidatorManager().validate(fishMap, gradeMap, rodMap);
         report.setTotalFishLoaded(fishMap.size());
+        // 중복 ID는 FishLoader에서 검출되므로 여기서 리포트에 반영한다
+        // (예전에는 연결돼 있지 않아 리포트의 "Duplicate ID"가 항상 0이었다).
+        for (int i = 0; i < fishLoader.getDuplicateIdCount(); i++) {
+            report.incrementDuplicateId();
+        }
         for (String warning : warnings) {
             report.addWarning(warning);
         }

@@ -108,10 +108,7 @@ public final class FilletManager {
 
         int maxWeight = getMaxWeightInGrade(data.gradeId());
         int fishWeight = getFishWeight(data.fishId());
-        int yield = config.calculateYield(fishWeight, maxWeight);
-        if (data.isRareTrophy()) yield = Math.max(1, (int) Math.round(yield * 0.5));
-        else if (data.isTrophy()) yield = Math.max(1, (int) Math.round(yield * 0.7));
-
+        // 산출량(yield)은 여기서 계산해도 쓰이지 않는다 — 수령 시점(claimFillet)에 다시 계산한다.
         int duration = config.calculateDuration(data.gradeId(), data.isTrophy(),
                 data.isRareTrophy(), fishWeight, maxWeight, quantity);
 
@@ -120,7 +117,62 @@ public final class FilletManager {
                 quantity, data.size(), data.isTrophy(), data.isRareTrophy(),
                 System.currentTimeMillis(), duration);
         storage.startFillet(slot);
+
+        // 순차 모드면 방금 등록한 슬롯이 앞선 가공 뒤로 밀린다.
+        List<FilletStorage.FilletActiveSlot> after = rechainSequential(player.getUniqueId());
+        if (after != null) {
+            for (FilletStorage.FilletActiveSlot s : after) {
+                if (s.slotIndex() == slotIndex) return s;
+            }
+        }
         return slot;
+    }
+
+    /**
+     * 순차 가공(config.yml {@code fillet.concurrent-mode: false})을 반영해 대기 중인 슬롯의
+     * 시작 시각을 앞 슬롯의 완료 시각에 맞춰 다시 잇는다.
+     *
+     * <p>완료 판정은 {@code startTimeMillis + durationSeconds}에서 파생되므로, 시작 시각만
+     * 미뤄 주면 나머지 로직(남은 시간 표시·완료 여부·수령)은 손대지 않아도 그대로 동작한다.
+     * 대기 중인 슬롯은 남은 시간이 "앞 순번 대기 + 자기 가공 시간"으로 표시된다.</p>
+     *
+     * <p>수령/취소로 앞 순번이 빠지면 뒤 순번이 그만큼 당겨진다.</p>
+     *
+     * @return 재계산 후의 슬롯 목록. 동시 모드(기본값)면 null — 아무것도 하지 않는다.
+     */
+    private List<FilletStorage.FilletActiveSlot> rechainSequential(UUID uuid) {
+        if (config.isConcurrentMode()) return null;
+
+        List<FilletStorage.FilletActiveSlot> slots = storage.loadActiveSlots(uuid);
+        long now = System.currentTimeMillis();
+        long cursor = -1;
+
+        List<FilletStorage.FilletActiveSlot> ordered = new ArrayList<>(slots);
+        // 먼저 등록한(= 예정 시작이 이른) 것이 먼저 가공된다.
+        ordered.sort(java.util.Comparator.comparingLong(FilletStorage.FilletActiveSlot::startTimeMillis));
+
+        List<FilletStorage.FilletActiveSlot> result = new ArrayList<>(ordered.size());
+        for (FilletStorage.FilletActiveSlot s : ordered) {
+            if (s.isComplete()) {
+                // 이미 끝난 슬롯은 수령만 남았으므로 순서 계산에서 제외한다.
+                result.add(s);
+                continue;
+            }
+            // 첫 대기 슬롯: 이미 진행 중이면 시작 시각을 유지하고, 미래로 밀려 있었으면 지금 시작한다.
+            long newStart = (cursor < 0) ? Math.min(s.startTimeMillis(), now) : cursor;
+            cursor = newStart + s.durationSeconds() * 1000L;
+
+            if (newStart != s.startTimeMillis()) {
+                FilletStorage.FilletActiveSlot moved = new FilletStorage.FilletActiveSlot(
+                        s.uuid(), s.slotIndex(), s.fishId(), s.gradeId(), s.quantity(), s.size(),
+                        s.isTrophy(), s.isRareTrophy(), newStart, s.durationSeconds());
+                storage.startFillet(moved); // INSERT OR REPLACE
+                result.add(moved);
+            } else {
+                result.add(s);
+            }
+        }
+        return result;
     }
 
     // ── 틱 & 수령 ──
@@ -174,6 +226,8 @@ public final class FilletManager {
         }
 
         storage.removeFillet(uuid, slotIndex);
+        // 순차 모드면 뒤 순번이 앞당겨진다.
+        rechainSequential(uuid);
         return filletItem;
     }
     /** 가공 중인 슬롯을 취소하고 원본 물고기를 반환한다. 완료된 슬롯은 취소 불가. */
@@ -194,6 +248,8 @@ public final class FilletManager {
         if (item == null) return null;
 
         storage.removeFillet(uuid, slotIndex);
+        // 순차 모드면 뒤 순번이 앞당겨진다.
+        rechainSequential(uuid);
         return item;
     }
 

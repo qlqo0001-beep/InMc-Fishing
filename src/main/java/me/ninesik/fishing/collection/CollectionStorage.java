@@ -237,8 +237,6 @@ public class CollectionStorage {
         }
     }
 
-    public void delete(UUID uuid) { /* 필요 시 구현 */ }
-
     public boolean exists(UUID uuid) {
         return db.read("도감 존재 확인 (" + uuid + ")", c -> {
             try (PreparedStatement ps = c.prepareStatement(

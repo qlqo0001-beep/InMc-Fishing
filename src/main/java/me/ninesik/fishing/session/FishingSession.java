@@ -14,7 +14,6 @@ import java.util.UUID;
  * player는 Player 객체가 아닌 UUID만 보관하여 메모리 누수와 reload 시 참조 끊김을 방지한다.
  */
 public class FishingSession {
-    private volatile FishingState state;
     private final java.util.concurrent.atomic.AtomicReference<SessionState> sessionState =
             new java.util.concurrent.atomic.AtomicReference<>(SessionState.ACTIVE);
     private final UUID playerId;
@@ -31,7 +30,6 @@ public class FishingSession {
         this.gradeId = gradeId;
         this.sequence = new ArrayList<>(sequence);
         this.currentIndex = 0;
-        this.state = FishingState.MINIGAME;
     }
 
     public boolean tryClose() {
@@ -78,14 +76,6 @@ public class FishingSession {
                     + " (sequence size: " + sequence.size() + ")");
         }
         this.currentIndex = currentIndex;
-    }
-
-    public FishingState getState() {
-        return state;
-    }
-
-    public void setState(FishingState state) {
-        this.state = state;
     }
 
     public SessionState getSessionState() {

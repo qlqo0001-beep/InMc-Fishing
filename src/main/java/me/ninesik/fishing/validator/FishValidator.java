@@ -26,6 +26,8 @@ public class FishValidator {
         } else if ("mmoitems".equalsIgnoreCase(fish.getUseType())) {
             if (fish.getMmoitemsType() == null || fish.getMmoitemsType().isEmpty() ||
                 fish.getMmoitemsId() == null || fish.getMmoitemsId().isEmpty()) {
+                // 카운터를 올리지 않아 콘솔 리포트의 "Missing MMOItem"이 항상 0이었다.
+                report.incrementMissingMMOItem();
                 report.addWarning("Fish " + fish.getId() + "은(는) mmoitems 타입이지만 mmoitems-type 또는 mmoitems-id가 지정되지 않았습니다.");
             }
         }

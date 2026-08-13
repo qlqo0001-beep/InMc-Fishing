@@ -37,6 +37,9 @@ public class ValidatorManager {
         } else if ("mmoitems".equalsIgnoreCase(rod.getUseType())) {
             if (rod.getMmoitemsType() == null || rod.getMmoitemsType().isEmpty() ||
                 rod.getMmoitemsId() == null || rod.getMmoitemsId().isEmpty()) {
+                // 예전에는 경고만 남기고 카운터를 올리지 않아, 콘솔 리포트의
+                // "Missing MMOItem" 수치가 항상 0으로 표시됐다.
+                report.incrementMissingMMOItem();
                 report.addWarning("Rod " + rod.getId() + "은(는) mmoitems 타입이지만 mmoitems-type 또는 mmoitems-id가 지정되지 않았습니다.");
             }
         }

@@ -76,7 +76,6 @@ public class CollectionEntry {
     public void setMaxSlots(int maxSlots) { this.maxSlots = maxSlots; }
     public void setTotalCaught(int totalCaught) { this.totalCaught = totalCaught; }
     public void setFirstCaught(LocalDateTime firstCaught) { this.firstCaught = firstCaught; }
-    public void setGradeId(String gradeId) { /* gradeId는 final이 아닌 경우에만 사용 */ }
     public void setSmallestSize(double smallestSize) { this.smallestSize = smallestSize; }
     public void setLargestSize(double largestSize) { this.largestSize = largestSize; }
     public void setTrophyCount(int trophyCount) { this.trophyCount = trophyCount; }
