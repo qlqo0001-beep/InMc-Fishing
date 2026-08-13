@@ -525,6 +525,9 @@ public class FishingListener implements Listener {
         lastLeftClickTick.remove(player.getUniqueId());
         hookInWater.remove(player.getUniqueId());
         cancelCastStatusTask(player.getUniqueId());
+        if (fishingMiniGame != null) {
+            fishingMiniGame.clearPlayer(player.getUniqueId());
+        }
     }
 
     /**
@@ -755,11 +758,7 @@ public class FishingListener implements Listener {
     }
 
     private boolean isAllowedWorld(Player player) {
-        List<String> worlds = configManager.getAllowedWorlds();
-        if (worlds == null || worlds.isEmpty()) {
-            return true;
-        }
-        return worlds.contains(player.getWorld().getName());
+        return configManager.isWorldAllowed(player.getWorld().getName());
     }
 
     /**

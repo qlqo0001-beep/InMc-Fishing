@@ -577,6 +577,11 @@ public class TournamentManager {
                 .toList();
     }
 
+    /** 퇴장 시 HUD 자원 정리 등, 리스너가 HUD에 직접 접근해야 할 때 쓴다. */
+    public TournamentHudManager getHudManager() {
+        return hudManager;
+    }
+
     private void executeCommands(Player player, List<String> commands) {
         me.ninesik.fishing.util.CommandRunner.execute(plugin, player, commands, "Tournament reward");
     }

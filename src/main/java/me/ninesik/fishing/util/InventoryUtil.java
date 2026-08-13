@@ -22,11 +22,14 @@ public final class InventoryUtil {
             return true;
         }
 
-        // 슬롯별 남은 공간 스냅샷 (null = 빈 슬롯)
+        // 슬롯별 상태 스냅샷. 아이템을 딥클론하지 않고 "무엇이 들어 있는지(contents)"와
+        // "몇 개 들어 있는지(amounts)"를 분리해, 시뮬레이션은 amounts만 변형한다.
+        // 예전에는 슬롯마다 ItemStack.clone()을 떠서 호출당 최대 36개를 복제했고,
+        // NetManager.removeAll처럼 루프 안에서 부르는 경로에서는 수천 개가 됐다.
         ItemStack[] contents = inventory.getStorageContents();
-        ItemStack[] snapshot = new ItemStack[contents.length];
+        int[] amounts = new int[contents.length];
         for (int i = 0; i < contents.length; i++) {
-            snapshot[i] = contents[i] != null ? contents[i].clone() : null;
+            amounts[i] = contents[i] != null ? contents[i].getAmount() : 0;
         }
 
         for (ItemStack toAdd : items) {
@@ -36,29 +39,29 @@ public final class InventoryUtil {
             int remaining = toAdd.getAmount();
 
             // 1) 같은 종류 스택에 합치기
-            for (int i = 0; i < snapshot.length && remaining > 0; i++) {
-                ItemStack slot = snapshot[i];
-                if (slot == null || !slot.isSimilar(toAdd)) {
+            for (int i = 0; i < contents.length && remaining > 0; i++) {
+                ItemStack slot = contents[i];
+                // amounts[i] == 0이면 이 시뮬레이션에서 빈 슬롯으로 취급된 자리다.
+                if (slot == null || amounts[i] == 0 || !slot.isSimilar(toAdd)) {
                     continue;
                 }
-                int space = slot.getMaxStackSize() - slot.getAmount();
+                int space = slot.getMaxStackSize() - amounts[i];
                 if (space <= 0) {
                     continue;
                 }
                 int used = Math.min(space, remaining);
-                slot.setAmount(slot.getAmount() + used);
+                amounts[i] += used;
                 remaining -= used;
             }
 
-            // 2) 빈 슬롯에 넣기
-            for (int i = 0; i < snapshot.length && remaining > 0; i++) {
-                if (snapshot[i] != null) {
+            // 2) 빈 슬롯에 넣기 — 그 자리를 toAdd가 차지한 것으로 기록한다.
+            for (int i = 0; i < contents.length && remaining > 0; i++) {
+                if (amounts[i] != 0) {
                     continue;
                 }
                 int used = Math.min(toAdd.getMaxStackSize(), remaining);
-                ItemStack placed = toAdd.clone();
-                placed.setAmount(used);
-                snapshot[i] = placed;
+                contents[i] = toAdd;
+                amounts[i] = used;
                 remaining -= used;
             }
 

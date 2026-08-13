@@ -24,5 +24,8 @@ public class TournamentListener implements Listener {
     @EventHandler
     public void onPlayerQuit(PlayerQuitEvent event) {
         tournamentManager.handleQuit(event.getPlayer());
+        // 참가 상태는 유지하되(사양), HUD 자원은 반드시 정리한다.
+        // 퇴장한 참가자는 온라인 순회 대상에서 빠지므로 보스바가 저절로 사라지지 않는다.
+        tournamentManager.getHudManager().handleQuit(event.getPlayer());
     }
 }

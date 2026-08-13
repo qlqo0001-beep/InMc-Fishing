@@ -6,6 +6,7 @@ import me.ninesik.fishing.model.Grade;
 import me.ninesik.fishing.registry.RegistryManager;
 import org.bukkit.entity.Player;
 
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
 
@@ -42,6 +43,12 @@ public class GradeRoller {
             return null;
         }
 
+        // 가중치는 한 번만 계산해 재사용한다. 예전에는 합계 루프와 추첨 루프에서 각각
+        // calculateFinalWeight를 불러 등급마다 2회씩 계산했다. 그 안에서
+        // ConfigManager.getPermissionModifier가 권한 노드를 전부 순회하며
+        // player.hasPermission()을 호출하므로, 입질 1회당 비용이 그대로 두 배였다.
+        // (LinkedHashMap — 추첨은 누적합이라 순회 순서가 결과에 영향을 준다)
+        Map<Grade, Double> weights = new LinkedHashMap<>();
         double totalWeight = 0;
 
         for (Grade grade : allGrades.values()) {
@@ -49,8 +56,8 @@ public class GradeRoller {
                     && !allowedGradeIds.contains(grade.getId().toLowerCase())) {
                 continue;
             }
-            double baseWeight = grade.getWeight();
-            double finalWeight = weightCalculator.calculateFinalWeight(player, grade, baseWeight, rod, bait);
+            double finalWeight = weightCalculator.calculateFinalWeight(player, grade, grade.getWeight(), rod, bait);
+            weights.put(grade, finalWeight);
             totalWeight += finalWeight;
         }
 
@@ -61,25 +68,16 @@ public class GradeRoller {
         double randomValue = randomService.nextDouble() * totalWeight;
         double cumulative = 0;
 
-        for (Grade grade : allGrades.values()) {
-            if (allowedGradeIds != null && !allowedGradeIds.isEmpty()
-                    && !allowedGradeIds.contains(grade.getId().toLowerCase())) {
-                continue;
-            }
-            double baseWeight = grade.getWeight();
-            double finalWeight = weightCalculator.calculateFinalWeight(player, grade, baseWeight, rod, bait);
-            cumulative += finalWeight;
-
+        for (Map.Entry<Grade, Double> entry : weights.entrySet()) {
+            cumulative += entry.getValue();
             if (randomValue <= cumulative) {
-                return grade;
+                return entry.getKey();
             }
         }
 
-        for (Grade grade : allGrades.values()) {
-            if (allowedGradeIds == null || allowedGradeIds.isEmpty()
-                    || allowedGradeIds.contains(grade.getId().toLowerCase())) {
-                return grade;
-            }
+        // 부동소수 오차로 마지막 구간을 넘어선 경우의 폴백.
+        for (Grade grade : weights.keySet()) {
+            return grade;
         }
         return null;
     }

@@ -432,5 +432,17 @@ public class FishingMiniGame implements MiniGame {
         timeBars.clear();
         autoCatchTasks.clear();
         autoCatchMode.clear();
+        // 예전에는 이 맵만 정리 대상에서 빠져 있었다.
+        testFightMode.clear();
+    }
+
+    /**
+     * 퇴장한 플레이어의 미니게임 상태를 정리한다.
+     *
+     * <p>{@code testFightMode}는 setTestFightMode(false)로만 지워졌다. 켜 둔 채로 퇴장하면
+     * 엔트리가 계속 남아 서버가 도는 동안 무한히 누적된다.</p>
+     */
+    public void clearPlayer(UUID uuid) {
+        testFightMode.remove(uuid);
     }
 }

@@ -443,6 +443,11 @@ public class TrophyFightManager {
     }
 
     private void tick() {
+        // 이 타이머는 1틱마다 돈다. 진행 중인 파이트가 없으면 할 일이 없으므로 즉시 빠진다.
+        // (인터벌 위상은 파이트 시작 시점 기준으로 다시 세면 되므로 tickCount를 멈춰도 무해하다)
+        if (sessions.isEmpty()) {
+            return;
+        }
         tickCount++;
         FightConfig config = configManager.getFightConfig();
         int particleInterval = config.general().particleInterval;
@@ -586,7 +591,7 @@ public class TrophyFightManager {
                 spawnParticles(player, session);
             }
             if (tickCount % soundInterval == 0) {
-                playSounds(player, session);
+                playSounds(player, session, config);
             }
 
             // 11. 성공/실패/타임아웃 확인
@@ -657,10 +662,9 @@ public class TrophyFightManager {
     }
 
     /** 물고기 상태에 따라 사운드를 출력한다 (config sound.state.<상태> 사용, 빈 문자열 = 무음). */
-    private void playSounds(Player player, FightSession session) {
+    private void playSounds(Player player, FightSession session, FightConfig config) {
         FishState state = session.getFishAI().getCurrentState();
-        String sound = configManager.getFightConfig().sound().getStateSound(state);
-        Sounds.play(player, sound);
+        Sounds.play(player, config.sound().getStateSound(state));
     }
 
     /** Fight 시작 시 플레이어 이동을 제한한다. (기존 이동/비행 상태를 저장해 두었다가 종료 시 복원) */

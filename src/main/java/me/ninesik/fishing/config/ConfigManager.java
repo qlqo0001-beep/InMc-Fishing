@@ -34,6 +34,11 @@ public class ConfigManager {
     private FileConfiguration fatigue;
     private FileConfiguration potions;
     private ItemFormatConfig itemFormat;
+    /** fight.yml을 파싱한 결과. load() 시점에만 만들고 그 뒤로는 재사용한다. */
+    private FightConfig fightConfig;
+    /** settings.allowed-worlds. 조회가 잦아 로드 시점에 한 번만 읽는다. */
+    private List<String> allowedWorlds = List.of();
+    private java.util.Set<String> allowedWorldSet = java.util.Set.of();
 
     public ConfigManager(InMcFishing plugin) {
         this.plugin = plugin;
@@ -52,6 +57,10 @@ public class ConfigManager {
         this.potions = loadResource("items/potions.yml");
         this.modifiers = loadResource("modifiers.yml");
         this.itemFormat = new ItemFormatConfig(loadResource("item-format.yml"));
+        // FightConfig는 여기서 한 번만 만든다 — getFightConfig() 주석 참고.
+        this.fightConfig = new FightConfig(this.fight);
+        this.allowedWorlds = List.copyOf(config.getStringList("settings.allowed-worlds"));
+        this.allowedWorldSet = java.util.Set.copyOf(this.allowedWorlds);
     }
 
     /** 리소스를 데이터 폴더에 최초 1회 저장하고 로드해서 반환한다. */
@@ -190,12 +199,19 @@ public class ConfigManager {
 
     /**
      * Trophy Fight 설정을 구조화된 {@link FightConfig} 객체로 반환한다.
-     * fight.yml 을 기반으로 로드한다 (개별 getter 대신 객체 자체를 반환해 유지보수를 용이하게 함).
+     *
+     * <p>예전에는 호출할 때마다 {@code new FightConfig(fight)}로 트리를 통째로 다시 만들었다.
+     * 생성자가 서브 config 8개와 HashMap 약 14개를 만들고 YAML 경로를 80회 가까이 조회하는데,
+     * {@code TrophyFightManager.tick()}이 <b>파이트가 0건이어도 매 틱(초당 20회)</b> 이걸
+     * 불렀고 사운드 재생 경로는 세션 루프 안에서 또 불렀다. 순수 낭비였다.</p>
+     *
+     * <p>이제 {@link #load()}에서 한 번만 만들고 재사용한다. /fishing reload가 load()를
+     * 거치므로 무효화는 자동이며, 반환 타입이 그대로라 호출처는 손댈 필요가 없다.</p>
      *
      * @return FightConfig 객체 (AI/HUD/Sound/Stats/General 카테고리 포함)
      */
     public FightConfig getFightConfig() {
-        return new FightConfig(fight);
+        return fightConfig;
     }
 
     // ===================== fatigue (유저 피드백: 자동 낚시 피로도 시스템) =====================
@@ -262,7 +278,18 @@ public class ConfigManager {
     }
 
     public List<String> getAllowedWorlds() {
-        return config.getStringList("settings.allowed-worlds");
+        return allowedWorlds;
+    }
+
+    /**
+     * 해당 월드에서 낚시가 허용되는지. 목록이 비어 있으면 모든 월드를 허용한다.
+     *
+     * <p>{@code getStringList()}는 호출할 때마다 새 ArrayList를 만든다. 이 판정은 입질과
+     * 캐스트 상태 액션바(찌를 던진 플레이어당 초당 1회)에서 불리므로, 로드 시점에 Set으로
+     * 캐시해 매번 리스트를 새로 만들지 않게 한다.</p>
+     */
+    public boolean isWorldAllowed(String worldName) {
+        return allowedWorldSet.isEmpty() || allowedWorldSet.contains(worldName);
     }
 
     public boolean isMinigameOffToggleAllowed() {
