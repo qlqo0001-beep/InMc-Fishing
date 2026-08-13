@@ -6,6 +6,7 @@ import me.ninesik.fishing.config.ConfigManager;
 import me.ninesik.fishing.config.ItemFormatConfig;
 import me.ninesik.fishing.fatigue.FatiguePotionItem;
 import me.ninesik.fishing.fatigue.PlayerFatigueManager;
+import me.ninesik.fishing.fight.BalanceDump;
 import me.ninesik.fishing.fight.FightSession;
 import me.ninesik.fishing.fight.TrophyFightManager;
 import me.ninesik.fishing.fillet.FilletGui;
@@ -39,12 +40,17 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.jetbrains.annotations.NotNull;
 
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
@@ -109,6 +115,7 @@ public class FishingCommand implements CommandExecutor, TabCompleter {
             case "reload" -> handleReload(sender);
             case "debug" -> handleDebug(sender);
             case "simulate" -> handleSimulate(sender, args);
+            case "dumpbalance" -> handleDumpBalance(sender);
             case "info" -> handleInfo(sender);
             case "collection", "col", "도감" -> handleCollection(sender);
             case "rank", "ranking", "랭킹" -> handleRank(sender);
@@ -345,6 +352,44 @@ public class FishingCommand implements CommandExecutor, TabCompleter {
         Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
             Map<String, Long> asyncResult = rollEngine.simulate(simulationCount);
             Bukkit.getScheduler().runTask(plugin, () -> printSimulationResult(sender, simulationCount, asyncResult));
+        });
+    }
+
+    /**
+     * 파이트 밸런스 골든 덤프를 파일로 떨군다.
+     *
+     * <p><b>임시 명령어다.</b> 밸런스 수식을 fight.yml로 이관하는 작업의 전후로 실행해
+     * diff가 0줄인지 확인하는 용도이며, 이관이 검증되면 {@link BalanceDump}와 함께 삭제한다.</p>
+     */
+    private void handleDumpBalance(CommandSender sender) {
+        if (!sender.hasPermission("infishing.admin")) {
+            sender.sendMessage("§c권한이 없습니다.");
+            return;
+        }
+
+        sender.sendMessage("§e[InMc-Fishing] §7밸런스 덤프 생성 중...");
+
+        // 전이 히스토그램만 수십만 회 표본을 돌린다. 메인 스레드에서 하면 서버가 멈추므로
+        // 계산은 비동기, 결과 안내만 메인 스레드로 되돌린다 (.clinerules 비동기 경계).
+        Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
+            Path target = plugin.getDataFolder().toPath().resolve("balance-dump.txt");
+            String error = null;
+            try {
+                Files.createDirectories(target.getParent());
+                Files.write(target, BalanceDump.generate(), StandardCharsets.UTF_8);
+            } catch (IOException | RuntimeException e) {
+                error = e.getMessage();
+                plugin.getLogger().log(Level.SEVERE, "밸런스 덤프 생성 실패", e);
+            }
+
+            final String failure = error;
+            Bukkit.getScheduler().runTask(plugin, () -> {
+                if (failure != null) {
+                    sender.sendMessage("§c밸런스 덤프 생성에 실패했습니다: " + failure);
+                } else {
+                    sender.sendMessage("§a밸런스 덤프 완료: §f" + target);
+                }
+            });
         });
     }
 

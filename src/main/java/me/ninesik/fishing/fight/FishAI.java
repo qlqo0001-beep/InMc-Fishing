@@ -17,7 +17,15 @@ import java.util.Random;
  */
 public class FishAI {
 
-    private final Random random = new Random();
+    private Random random = new Random();
+
+    /**
+     * 난수원을 교체한다. {@link BalanceDump}가 밸런스 골든 덤프를 결정적으로 만들기 위해서만 쓴다
+     * (같은 시드 → 같은 전이 히스토그램). 게임 로직에서는 호출하지 않는다.
+     */
+    void setRandom(Random random) {
+        this.random = random;
+    }
 
     /**
      * LINE_TANGLE(줄 엉킴) 상태로 전이할 확률 (0.0 ~ 1.0).
