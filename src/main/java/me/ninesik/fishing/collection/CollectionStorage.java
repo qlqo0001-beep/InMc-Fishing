@@ -21,6 +21,18 @@ import java.util.*;
  */
 public class CollectionStorage {
 
+    /**
+     * 물고기에 속하지 않는 전역 보상 키(등급 전체 등록/퍼펙트, 도감 전체 완성)를
+     * {@code collection_rewards}에 담기 위한 센티널 fish_id.
+     *
+     * <p>이 테이블의 PK가 {@code (uuid, fish_id, reward_key)}라 실제 물고기 행과 충돌하지 않고,
+     * save()가 이미 uuid 단위로 DELETE 후 재INSERT하므로 저장 경로를 그대로 쓸 수 있다.
+     * 덕분에 스키마 변경(ALTER/신규 테이블)이 전혀 필요 없다.</p>
+     *
+     * <p>{@code FishLoader}가 이 값을 물고기 ID로 쓰지 못하게 막는다.</p>
+     */
+    public static final String GLOBAL_REWARD_FISH_ID = "__global__";
+
     private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
     private final DatabaseManager db;
 
@@ -37,12 +49,19 @@ public class CollectionStorage {
         return db.readOrThrow(c -> loadInternal(c, playerUuid));
     }
 
+    /**
+     * 모든 조회 조건이 {@code uuid} 하나뿐이므로 테이블당 1회씩만 읽고 메모리에서 묶는다.
+     * 예전에는 엔트리마다 sizes/rewards 서브쿼리를 돌려 물고기 100종이면 200회가 넘는
+     * 쿼리가 나갔다(도감 GUI를 열 때는 이게 메인 스레드에서 실행된다).
+     */
     private CollectionData loadInternal(Connection c, UUID playerUuid) throws SQLException {
         CollectionData data = new CollectionData(playerUuid);
+        String uuidStr = playerUuid.toString();
+        Map<String, CollectionEntry> entries = data.getEntries();
 
-        // player_name 읽기
+        // player_name
         try (PreparedStatement ps = c.prepareStatement("SELECT player_name FROM player_data WHERE uuid = ?")) {
-            ps.setString(1, playerUuid.toString());
+            ps.setString(1, uuidStr);
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) data.setPlayerName(rs.getString("player_name"));
             }
@@ -50,11 +69,11 @@ public class CollectionStorage {
 
         // collection_entries
         try (PreparedStatement ps = c.prepareStatement("SELECT * FROM collection_entries WHERE uuid = ?")) {
-            ps.setString(1, playerUuid.toString());
+            ps.setString(1, uuidStr);
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
                     String fishId = rs.getString("fish_id");
-                    CollectionEntry entry = CollectionEntry.builder()
+                    entries.put(fishId.toLowerCase(), CollectionEntry.builder()
                             .fishId(fishId)
                             .gradeId(rs.getString("grade_id"))
                             .status(parseStatus(rs.getString("status")))
@@ -67,38 +86,53 @@ public class CollectionStorage {
                             .largestSize(rs.getDouble("largest_size"))
                             .trophyCount(rs.getInt("trophy_count"))
                             .rareTrophyCount(rs.getInt("rare_trophy_count"))
-                            .build();
+                            .build());
+                }
+            }
+        }
 
-                    // sizes
-                    List<Double> sizes = new ArrayList<>();
-                    try (PreparedStatement ps2 = c.prepareStatement(
-                            "SELECT size FROM collection_sizes WHERE uuid = ? AND fish_id = ? ORDER BY idx")) {
-                        ps2.setString(1, playerUuid.toString());
-                        ps2.setString(2, fishId);
-                        try (ResultSet rs2 = ps2.executeQuery()) {
-                            while (rs2.next()) sizes.add(rs2.getDouble("size"));
-                        }
-                    }
-                    entry.setRegisteredSizes(sizes);
+        // collection_sizes — idx 순서가 곧 등록 순서(해제는 LIFO)라 정렬을 유지한다.
+        Map<String, List<Double>> sizesByFish = new HashMap<>();
+        try (PreparedStatement ps = c.prepareStatement(
+                "SELECT fish_id, size FROM collection_sizes WHERE uuid = ? ORDER BY fish_id, idx")) {
+            ps.setString(1, uuidStr);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    sizesByFish.computeIfAbsent(rs.getString("fish_id").toLowerCase(), k -> new ArrayList<>())
+                            .add(rs.getDouble("size"));
+                }
+            }
+        }
+        sizesByFish.forEach((fishId, sizes) -> {
+            CollectionEntry entry = entries.get(fishId);
+            if (entry != null) entry.setRegisteredSizes(sizes);
+        });
 
-                    // rewards
-                    try (PreparedStatement ps2 = c.prepareStatement(
-                            "SELECT reward_key, claimed FROM collection_rewards WHERE uuid = ? AND fish_id = ?")) {
-                        ps2.setString(1, playerUuid.toString());
-                        ps2.setString(2, fishId);
-                        try (ResultSet rs2 = ps2.executeQuery()) {
-                            while (rs2.next())
-                                entry.getRewardsClaimed().put(rs2.getString("reward_key"), rs2.getInt("claimed") != 0);
-                        }
+        // collection_rewards — 물고기별 키와 전역 키(__global__)를 한 번에 읽는다.
+        try (PreparedStatement ps = c.prepareStatement(
+                "SELECT fish_id, reward_key, claimed FROM collection_rewards WHERE uuid = ?")) {
+            ps.setString(1, uuidStr);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    String fishId = rs.getString("fish_id");
+                    String rewardKey = rs.getString("reward_key");
+                    boolean claimed = rs.getInt("claimed") != 0;
+
+                    if (GLOBAL_REWARD_FISH_ID.equals(fishId)) {
+                        // 등급 전체 등록/퍼펙트, 도감 전체 완성 — 예전에는 복원되지 않아
+                        // 재접속마다 보상이 다시 지급됐다.
+                        if (claimed) data.getClaimedRewards().add(rewardKey);
+                    } else {
+                        CollectionEntry entry = entries.get(fishId.toLowerCase());
+                        if (entry != null) entry.getRewardsClaimed().put(rewardKey, claimed);
                     }
-                    data.getEntries().put(fishId.toLowerCase(), entry);
                 }
             }
         }
 
         // pending_rewards
         try (PreparedStatement ps = c.prepareStatement("SELECT * FROM pending_rewards WHERE uuid = ?")) {
-            ps.setString(1, playerUuid.toString());
+            ps.setString(1, uuidStr);
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
                     data.getPendingMilestoneRewards().add(new PendingMilestoneReward(
@@ -165,6 +199,17 @@ public class CollectionStorage {
                     pr.addBatch();
                 }
             }
+
+            // 물고기에 속하지 않는 전역 보상 키. 이게 없으면 재접속 때마다
+            // 등급 전체 등록/퍼펙트/도감 완성 보상이 다시 지급된다.
+            for (String rewardKey : data.getClaimedRewards()) {
+                pr.setString(1, uuid.toString());
+                pr.setString(2, GLOBAL_REWARD_FISH_ID);
+                pr.setString(3, rewardKey);
+                pr.setInt(4, 1);
+                pr.addBatch();
+            }
+
             pe.executeBatch();
             ps.executeBatch();
             pr.executeBatch();

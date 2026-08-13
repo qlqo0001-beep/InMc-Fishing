@@ -239,10 +239,10 @@ public class CollectionRewardService {
             if (!isGradeAllRegistered(data, gradeId)) continue;
 
             List<String> commands = getStringList("rewards.grade-all-registered." + gradeId.toUpperCase());
-            if (commands.isEmpty()) {
-                markClaimed(data, claimedKey);
-                continue;
-            }
+            // 보상이 비어 있으면 claimed로 굳히지 않는다. claimedRewards가 영속화되므로,
+            // 여기서 표시해 버리면 어드민이 나중에 collections.yml을 채워도
+            // 이미 조건을 달성한 플레이어는 영원히 받지 못한다.
+            if (commands.isEmpty()) continue;
 
             String desc = rewardDescription("grade-all-registered", Map.of("grade", gradeId.toUpperCase()));
             explain(player, desc);
@@ -263,10 +263,8 @@ public class CollectionRewardService {
             if (!isGradeAllPerfect(data, gradeId)) continue;
 
             List<String> commands = getStringList("rewards.grade-all-perfect." + gradeId.toUpperCase());
-            if (commands.isEmpty()) {
-                markClaimed(data, claimedKey);
-                continue;
-            }
+            // 보상이 비어 있으면 claimed로 굳히지 않는다 (위 grade-all-registered와 같은 이유).
+            if (commands.isEmpty()) continue;
 
             String desc = rewardDescription("grade-all-perfect", Map.of("grade", gradeId.toUpperCase()));
             explain(player, desc);
@@ -286,10 +284,8 @@ public class CollectionRewardService {
         if (!isFullCompletion(data)) return;
 
         List<String> commands = getStringList("rewards.full-completion");
-        if (commands.isEmpty()) {
-            markClaimed(data, claimedKey);
-            return;
-        }
+        // 보상이 비어 있으면 claimed로 굳히지 않는다 (위 grade-all-registered와 같은 이유).
+        if (commands.isEmpty()) return;
 
         String desc = rewardDescription("full-completion", Map.of());
         explain(player, desc);

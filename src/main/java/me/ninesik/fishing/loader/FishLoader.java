@@ -1,5 +1,6 @@
 package me.ninesik.fishing.loader;
 
+import me.ninesik.fishing.collection.CollectionStorage;
 import me.ninesik.fishing.model.Fish;
 import me.ninesik.fishing.model.Grade;
 import org.bukkit.configuration.ConfigurationSection;
@@ -56,6 +57,14 @@ public class FishLoader {
 
                     if (fishMap.containsKey(id)) {
                         errors.add("중복된 물고기/아이템 ID: '" + id + "' (" + gradeId + "-grade.yml)");
+                        continue;
+                    }
+
+                    // 도감 DB에서 전역 보상 키를 담는 데 쓰는 예약어라, 물고기 ID로 쓰면
+                    // 그 플레이어의 전역 보상 기록과 섞인다.
+                    if (CollectionStorage.GLOBAL_REWARD_FISH_ID.equalsIgnoreCase(id)) {
+                        errors.add(gradeId + "-grade.yml: '" + CollectionStorage.GLOBAL_REWARD_FISH_ID
+                                + "'은(는) 예약된 ID라 물고기에 사용할 수 없습니다.");
                         continue;
                     }
 
