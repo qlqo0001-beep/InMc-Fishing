@@ -202,7 +202,7 @@ public class RankingGui extends AbstractGui {
                     double size = entry.getBestSize(selectedFishId);
                     lore.add(ChatColor.GRAY + "사이즈: " + ChatColor.AQUA + String.format("%.1f", size) + "cm");
                     Fish fish = registryManager.getFishRegistry().getById(selectedFishId);
-                    if (fish != null && fish.hasSize() && (size >= fish.getAvgSize() * 1.5 || size >= fish.getMaxSize() * 0.9)) {
+                    if (isTrophySize(fish, size)) {
                         lore.add(ChatColor.GOLD + "🏆 트로피 달성");
                     }
                 } else {
@@ -257,9 +257,21 @@ public class RankingGui extends AbstractGui {
     }
 
     private boolean isTrophyFish(String fishId, double size) {
-        Fish fish = registryManager.getFishRegistry().getById(fishId);
+        return isTrophySize(registryManager.getFishRegistry().getById(fishId), size);
+    }
+
+    /**
+     * 트로피 판정을 RewardService에 위임한다.
+     *
+     * <p>예전에는 여기에 1.5/0.9가 하드코딩돼 있어, 어드민이 collections.yml의 임계값을
+     * 바꿔도 랭킹 GUI의 트로피 표시만 옛 기준을 따랐다.</p>
+     */
+    private boolean isTrophySize(Fish fish, double size) {
         if (fish == null || !fish.hasSize()) return false;
-        return size >= fish.getAvgSize() * 1.5 || size >= fish.getMaxSize() * 0.9;
+        var rewardService = me.ninesik.fishing.InMcFishing.getInstance()
+                .getFishingService().getRewardService();
+        return rewardService.isRareTrophyBySize(fish, size)
+                || rewardService.isTrophyBySize(fish, size);
     }
 
     @Override

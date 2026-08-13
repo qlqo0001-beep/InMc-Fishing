@@ -102,8 +102,9 @@ public class CollectionRewardService {
 
         double avg = fish.getAvgSize();
         double max = fish.getMaxSize();
-        double trophyThreshold = rewardConfig.getDouble("trophies.trophy-threshold", 1.5);
-        double rareThreshold = rewardConfig.getDouble("trophies.rare-trophy-threshold", 0.9);
+        // 기본값을 여기서 또 적지 않고 getter를 쓴다 (collections.yml 로딩은 이 클래스가 단일 출처).
+        double trophyThreshold = getTrophyThreshold();
+        double rareThreshold = getRareTrophyThreshold();
 
         // 레어 트로피 먼저 평가 (레어 조건을 만족하면 일반 트로피도 함께 지급)
         boolean gotRare = false;

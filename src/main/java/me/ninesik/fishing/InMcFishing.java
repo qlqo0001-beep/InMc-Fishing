@@ -135,14 +135,6 @@ public final class InMcFishing extends JavaPlugin {
                 collectionManager.getRewardService().getRareTrophyLore()
         );
 
-        // 롤 시점 트로피 판정도 같은 collections.yml 값을 쓰도록 주입한다.
-        // (이전에는 RollEngine에 1.5/0.9가 하드코딩돼 있어, 어드민이 임계값을 바꾸면
-        //  판정과 Lore/도감 표시가 어긋났다)
-        fishingService.getRollEngine().setTrophyThresholds(
-                collectionManager.getRewardService().getTrophyThreshold(),
-                collectionManager.getRewardService().getRareTrophyThreshold()
-        );
-
         // 어망 시스템 초기화 (100칸 보관함)
         netManager = new me.ninesik.fishing.net.NetManager(
                 this, registryManager, fishingService.getRewardService());

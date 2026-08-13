@@ -9,6 +9,7 @@ import me.ninesik.fishing.model.Rod;
 import me.ninesik.fishing.registry.FishRegistry;
 import me.ninesik.fishing.registry.GradeRegistry;
 import me.ninesik.fishing.registry.RegistryManager;
+import me.ninesik.fishing.service.RewardService;
 import org.bukkit.entity.Player;
 
 import java.util.LinkedHashMap;
@@ -25,36 +26,24 @@ public class RollEngine {
     private final RegistryManager registryManager;
 
     /**
-     * 트로피 판정 임계값. 기본값은 RewardService/CollectionRewardService와 동일하며,
-     * 실제 값은 collections.yml을 읽은 뒤 setTrophyThresholds()로 주입된다.
+     * 트로피 판정은 자체 임계값을 두지 않고 {@link RewardService}에 위임한다.
      *
-     * <p>예전에는 이 두 값이 여기 하드코딩돼 있어, 어드민이 collections.yml의
-     * 임계값을 바꾸면 "롤 시점 판정은 비트로피인데 아이템 Lore/도감은 트로피"처럼
-     * 판정과 표시가 어긋났다.</p>
+     * <p>예전에는 여기에 임계값 사본이 있어, 어드민이 collections.yml을 바꾸면
+     * "롤 시점 판정은 비트로피인데 아이템 Lore/도감은 트로피"처럼 판정과 표시가 어긋났다.
+     * 값을 네 곳에 복제하는 대신 판정 자체를 한 곳에 모았다.</p>
      */
-    private double trophyThreshold = 1.5;
-    private double rareTrophyThreshold = 0.9;
+    private final RewardService rewardService;
 
     public RollEngine(RandomService randomService, RegistryManager registryManager,
-                      DependencyManager dependencyManager, ConfigManager configManager) {
+                      DependencyManager dependencyManager, ConfigManager configManager,
+                      RewardService rewardService) {
         this.randomService = randomService;
         this.configManager = configManager;
         this.registryManager = registryManager;
+        this.rewardService = rewardService;
         this.weightCalculator = new WeightCalculator(dependencyManager, configManager);
         this.gradeRoller = new GradeRoller(randomService, weightCalculator, registryManager);
         this.rewardRoller = new RewardRoller(randomService, registryManager, dependencyManager);
-    }
-
-    /**
-     * 트로피 판정 임계값을 주입한다 (collections.yml 단일 출처).
-     * InMcFishing.onEnable()에서 RewardService.setTrophyConfig()와 같은 값으로 호출한다.
-     *
-     * @param trophyThreshold     avgSize × 이 값 이상 → 일반 트로피
-     * @param rareTrophyThreshold maxSize × 이 값 이상 → 레어 트로피
-     */
-    public void setTrophyThresholds(double trophyThreshold, double rareTrophyThreshold) {
-        if (trophyThreshold > 0) this.trophyThreshold = trophyThreshold;
-        if (rareTrophyThreshold > 0) this.rareTrophyThreshold = rareTrophyThreshold;
     }
 
     public RollResult roll(Player player, Rod rod) {
@@ -116,18 +105,10 @@ public class RollEngine {
         }
 
         // 6. 트로피 사전 판정 (패치예정.md: RollEngine이 RewardEntry를 생성하는 시점에 미리 판정)
-        // 단일 임계값 사용: Fight 전용 임계값을 별도로 두지 않고 기존 트로피 임계값을 공유.
-        // 임계값은 collections.yml → setTrophyThresholds()로 주입된 값을 쓴다
-        // (RewardService/CollectionRewardService와 같은 출처).
-        boolean isTrophy = false;
-        boolean isRareTrophy = false;
-        if (rewardFish.hasSize() && size > 0) {
-            if (size >= rewardFish.getMaxSize() * rareTrophyThreshold) {
-                isRareTrophy = true;
-            } else if (size >= rewardFish.getAvgSize() * trophyThreshold) {
-                isTrophy = true;
-            }
-        }
+        // 판정 로직과 임계값을 여기 복제하지 않고 RewardService에 위임한다 — 롤 시점 판정과
+        // 아이템 Lore/도감/랭킹 표시가 항상 같은 기준을 쓰게 하기 위함.
+        boolean isRareTrophy = rewardService.isRareTrophyBySize(rewardFish, size);
+        boolean isTrophy = !isRareTrophy && rewardService.isTrophyBySize(rewardFish, size);
 
         return new RollResult(rewardFish, finalGrade, rolledGrade, isDouble, isBigFish, size, isTrophy, isRareTrophy);
     }

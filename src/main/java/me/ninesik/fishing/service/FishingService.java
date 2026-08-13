@@ -42,13 +42,15 @@ public class FishingService {
         this.configManager = new ConfigManager((me.ninesik.fishing.InMcFishing) plugin);
         this.sessionManager = new FishingSessionManager();
         this.miniGameManager = new MiniGameManager();
+        // RollEngine이 트로피 판정을 RewardService에 위임하므로 RewardService를 먼저 만든다.
+        this.rewardService = new RewardService(plugin, dependencyManager, configManager);
         this.rollEngine = new RollEngine(
                 new me.ninesik.fishing.reward.RandomService(),
                 registryManager,
                 dependencyManager,
-                configManager
+                configManager,
+                rewardService
         );
-        this.rewardService = new RewardService(plugin, dependencyManager, configManager);
         this.playerPreferenceManager = playerPreferenceManager;
         // 유저 피드백(피로도 시스템): configManager가 막 생성된 시점에 바로 만들어야
         // registryManager/dependencyManager/playerPreferenceManager를 모두 갖춘 상태로 생성할 수 있다.
@@ -122,6 +124,15 @@ public class FishingService {
                 inMcFishing.getCollectionManager().reload();
                 // 접속 중인 플레이어의 도감을 새 Registry와 맞춘다 (추가된 물고기 등록 가능해짐).
                 inMcFishing.getCollectionManager().resyncAllCached();
+
+                // 트로피 임계값·Lore를 다시 주입한다. 예전에는 onEnable에서만 주입해,
+                // 리로드 후 collections.yml 값과 실제 판정이 어긋난 채로 남았다.
+                var crs = inMcFishing.getCollectionManager().getRewardService();
+                rewardService.setTrophyConfig(
+                        crs.getTrophyThreshold(),
+                        crs.getRareTrophyThreshold(),
+                        crs.getTrophyLore(),
+                        crs.getRareTrophyLore());
             }
             if (inMcFishing.getTournamentManager() != null) {
                 inMcFishing.getTournamentManager().reload();
