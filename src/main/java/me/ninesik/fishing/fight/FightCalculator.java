@@ -1,5 +1,7 @@
 package me.ninesik.fishing.fight;
 
+import java.util.function.Supplier;
+
 /**
  * Trophy Fight 핵심 수식 계산기.
  *
@@ -11,66 +13,28 @@ package me.ninesik.fishing.fight;
  */
 public class FightCalculator {
 
-    // ===== 릴 풀기(우클릭) 계수 =====
-    // 피드백(fish/피드백.md)에서 확정한 릴 풀기 효과.
-    // 이 값들은 베이스밸런스 — 추후 config.yml trophy-fight 섹션으로 이동 가능.
     /**
-     * 릴 풀기 시 거리 증가의 기본 배율. (0 < 값).
+     * 현재 유효한 {@link FightConfig}를 돌려주는 공급자.
      *
-     * <p><b>밸런스 수정 (피드백: "거리값이 너무 빠르게 증가하거나 줄어든다"):</b>
-     * 이 값은 물고기 상태 배수와 곱해지기 전에 Tick(1/20초)마다 그대로 더해지는
-     * 고정값이었다. 기존 1.0이면 FINAL_STRUGGLE(상태 배수 ×6.0) 상태에서 우클릭을
-     * 하는 것만으로 초당 120에 달하는 거리가 추가되어, Distance 상한(기본 250)을
-     * 순식간에 넘겨 줄이 끊어졌다. {@link #FISH_ESCAPE_COEFFICIENT}와 동일한 비율(1/7.5 수준)로
-     * 낮춰 다른 Distance 계산과 시간 축을 맞춘다.</p>
+     * <p>인스턴스를 직접 들지 않는 이유는 /fishing reload가 FightConfig를 새 객체로
+     * 교체하기 때문이다. ConfigManager를 직접 참조하지 않고 공급자만 받는 덕에,
+     * 밸런스 검증 도구({@link BalanceDump})가 서버 없이도 이 계산기를 쓸 수 있다.</p>
+     *
+     * <p>FightConfig는 ConfigManager가 load() 시점에 한 번만 만들어 캐시하므로
+     * 매 틱 조회해도 비용이 없다.</p>
      */
-    private static final double RELEASE_BASE = 0.13;
-    /** 연타당 콤보 1씩 증가 시 탠션 감소 가산량. (우클릭 연타 시 -2.0씩 감소가 커진다) */
-    private static final double RELEASE_TENSION_PER_COMBO = 2.0;
-    /** 릴 풀기 시 Reel State 회복 비율 (maxReelState 기준, 모든 상태 동일). */
-    private static final double RELEASE_REEL_REGEN_RATIO = 0.008;
+    private final Supplier<FightConfig> configSupplier;
 
-    // ===== Distance 계수 (밸런스 수정) =====
-    /**
-     * 물고기가 도망가며 자연히 늘어나는 거리의 기본 계수.
-     *
-     * <p><b>밸런스 수정 (피드백: "낚싯대로 힘 싸움을 하기도 전에 A~S급 물고기들은
-     * 거리가 급속도로 멀어져서 줄을 끊고 도망가버린다"):</b> 기존 값 0.03은 Tick(1/20초)마다
-     * 그대로 적용되어, 등급 난이도 배수가 곱해지는 A~S급(등급 배수 최대 2.5, Rare Trophy
-     * 포함 시 최대 3.75)에서는 초당 90 이상의 거리가 늘어났다. Distance 상한이 기본 250인
-     * 상황에서 플레이어가 첫 입력을 넣기도 전에(릴 그레이스 타임 250ms) 줄이 끊어질 수밖에
-     * 없었다. 0.004로 낮춰(기존 대비 약 1/7.5) 등급별 난이도 곡선은 그대로 유지하면서도,
-     * 최상급 물고기와 마주쳐도 최소 수 초의 반응 시간을 확보하도록 한다.</p>
-     */
-    private static final double FISH_ESCAPE_COEFFICIENT = 0.004;
-    /**
-     * 릴 감기 시 기본 회수량 계수 (Stamina와 무관하게 항상 일부 적용).
-     *
-     * <p><b>밸런스 수정 (피드백: "낚싯대 릴 파워에서 거리를 감소시키는 옵션이 너무 강하다"):</b>
-     * 기존 0.12는 별도의 {@code reelEfficiency = min(1, reelPower/100)}과 함께 곱해져,
-     * reelPower가 커질수록 감소량이 reelPower의 제곱에 비례해 폭증했다(30→90이면 9배).
-     * reelEfficiency를 제거하고 reelPower를 선형으로만 적용하도록 바꾸면서, 기본
-     * 낚싯대(reelPower=30) 기준 결과값은 기존과 동일하게 유지되도록
-     * {@code 0.12 × (30/100) = 0.036}으로 재계산했다.</p>
-     */
-    private static final double BASE_REEL_COEFFICIENT = 0.036;
-    /**
-     * 릴 감기 시 추가 회수량 계수 (물고기가 지칠수록[exhaustionFactor↑] 커짐).
-     *
-     * <p>위 {@link #BASE_REEL_COEFFICIENT}와 동일한 이유로 재계산: {@code 0.35 × (30/100) = 0.105}.</p>
-     */
-    private static final double BONUS_REEL_COEFFICIENT = 0.105;
-    /**
-     * 기절(STUNNED) 상태에서 릴 감기 시 Distance 감소 계수.
-     *
-     * <p>피드백: "물고기가 기절하면 끌려오는 거리가 너무 많이 끌려와서 별로다."
-     * STUNNED는 Power/Resistance가 모두 0인 유일한 상태라 calculateDistanceChange()의
-     * resistanceFactor·exhaustionFactor가 항상 이론적 최댓값(1.0)에 도달해, 전체 상태 중
-     * 가장 빠르게 Distance가 줄어드는 상태가 되어버렸다. baseReel/bonusReel 합산 구조에서
-     * 완전히 분리해 이 계수 하나로만 감소 속도를 제어한다.
-     * (초기값 — 테스트 후 조정 가능)</p>
-     */
-    private static final double STUNNED_PULL_COEFFICIENT = 0.03;
+    public FightCalculator(Supplier<FightConfig> configSupplier) {
+        this.configSupplier = configSupplier;
+    }
+
+    private FightConfig.CalcConfig calc() {
+        return configSupplier.get().calc();
+    }
+
+    // 수식 계수는 전부 fight.yml의 trophy-fight.calc.* 로 이관됐다.
+    // 각 계수의 의미와 "왜 이 값인가"에 대한 밸런스 이력은 FightConfig.CalcConfig 주석에 있다.
 
     /**
      * Fish Stamina 감소량을 계산한다.
@@ -92,7 +56,7 @@ public class FightCalculator {
     public double calculateStaminaDecrease(double reelPower, double reelStateRatio, FishState state) {
         if (reelPower <= 0) return 0.0;
         double reelEfficiency = Math.max(0.0, Math.min(1.0, reelStateRatio));
-        double base = reelPower * 0.01 * reelEfficiency;
+        double base = reelPower * calc().staminaDecreasePerReelPower * reelEfficiency;
          double stateMultiplier = switch (state) {
              case CHARGE -> 1.5;        // 돌진 — 스태미너를 더 많이 줄인다
              case FINAL_STRUGGLE -> 0.0; // 발악 — 스태미너가 줄어들지 않는다
@@ -166,7 +130,7 @@ public class FightCalculator {
      * ({@link #calculateStaminaDecrease})에는 그대로 영향을 준다.</p>
      *
      * <p>기절(STUNNED) 상태는 Power/Resistance가 동시에 0인 유일한 상태라 공식 구조상
-     * 회수 속도가 최대가 되었고, 이를 독립 계수 {@link #STUNNED_PULL_COEFFICIENT}로 분리해
+     * 회수 속도가 최대가 되었고, 이를 독립 계수 { calc.stunned-pull-coefficient}로 분리해
      * 제어한다 (피드백: "물고기가 기절하면 끌려오는 거리가 너무 많이 끌려와서 별로다").</p>
      *
      * @param reelPower Distance 계산에 사용할 Reel Power. 호출부에서 낚싯대 보너스를
@@ -185,10 +149,10 @@ public class FightCalculator {
         // 최댓값 1.0이 되어, 공식을 그대로 쓰면 전체 상태 중 가장 빠르게 Distance가 줄어들었다.
         // 릴을 감지 않으면 기존의 fishEscape=0(도망 없음)과 동일하도록 0.0 반환 — 회귀 없음.)
         if (state == FishState.STUNNED) {
-            return isReeling ? -(reelPower * STUNNED_PULL_COEFFICIENT) : 0.0;
+            return isReeling ? -(reelPower * calc().stunnedPullCoefficient) : 0.0;
         }
 
-        double fishEscape = fishPower * FISH_ESCAPE_COEFFICIENT;
+        double fishEscape = fishPower * calc().fishEscapeCoefficient;
 
         if (!isReeling) {
             return fishEscape;
@@ -204,7 +168,7 @@ public class FightCalculator {
         // 유지되도록 계수를 재조정했다(30 × 기존계수 × 0.3 = 30 × 새 계수).
         // 결과적으로 낚싯대가 좋아질수록 거리 감소가 "비례해서" 강해지되, 이전처럼
         // 압도적으로 폭증하지는 않는다.
-        double resistanceFactor = 100.0 / (100.0 + Math.max(0.0, fishResistance));
+        double resistanceFactor = calc().resistanceSoftening / (calc().resistanceSoftening + Math.max(0.0, fishResistance));
         double exhaustionFactor = 1.0 - Math.max(0.0, Math.min(1.0, staminaRatio));
 
         // 피드백: 천천히 이동(SLOW_MOVE) 상태일 때 릴을 감으면 거리를 많이 줄인다.
@@ -219,9 +183,9 @@ public class FightCalculator {
         };
 
         // 기본 회수량: Stamina와 무관하게 릴을 감기만 하면 항상 일부 적용된다. (reelPower에 선형 비례)
-        double baseReel = reelPower * BASE_REEL_COEFFICIENT * resistanceFactor * distanceModifier;
+        double baseReel = reelPower * calc().baseReelCoefficient * resistanceFactor * distanceModifier;
         // 추가 회수량: 물고기가 지칠수록(Stamina↓) 커진다. (reelPower에 선형 비례)
-        double bonusReel = reelPower * BONUS_REEL_COEFFICIENT * exhaustionFactor * resistanceFactor;
+        double bonusReel = reelPower * calc().bonusReelCoefficient * exhaustionFactor * resistanceFactor;
 
         return fishEscape - (baseReel + bonusReel);
     }
@@ -260,7 +224,7 @@ public class FightCalculator {
 
         // 대기(릴 미감기): 기본 장력 감소(-2.0) + 자동 장력 상승
         double autoTension = state.getAutoTensionRate();
-        return -2.0 + autoTension;
+        return calc().idleTensionBase + autoTension;
     }
 
     /**
@@ -300,8 +264,8 @@ public class FightCalculator {
         if (!isReeling) {
             return 0.0;
         }
-        double durabilityFactor = 100.0 / (100.0 + Math.max(0.0, reelDurability));
-        return -(fishPower + fishResistance) * 0.006 * durabilityFactor;
+        double durabilityFactor = calc().durabilitySoftening / (calc().durabilitySoftening + Math.max(0.0, reelDurability));
+        return -(fishPower + fishResistance) * calc().reelStateDecay * durabilityFactor;
     }
 
     /**
@@ -315,7 +279,7 @@ public class FightCalculator {
      * @return Reel State 회복량 (항상 0 이상)
      */
     public double calculateReelStateRegen(double maxReelState) {
-        return Math.max(0.0, maxReelState) * 0.0015;
+        return Math.max(0.0, maxReelState) * calc().reelStateIdleRegenRatio;
     }
 
     // ===================== 릴 풀기(우클릭) =====================
@@ -327,7 +291,7 @@ public class FightCalculator {
     /**
      * 릴 풀기(우클릭) 시 Distance 증가량을 계산한다.
      *
-     * <p>공식: {@code distanceChange = fishEscape + RELEASE_BASE * 상태배수}</p>
+     * <p>공식: { distanceChange = fishEscape + calc.release-base × 상태배수}</p>
      * <ul>
      *   <li>{@code fishEscape} — 물고기가 도망가며 자연히 늘어나는 거리</li>
      *   <li>{@code 상태배수} — 피드백 표 그대로, 물고기가 강하게 움직일수록
@@ -340,7 +304,7 @@ public class FightCalculator {
      * @return Distance 증가량 (항상 0 이상 — 릴 풀기는 줄을 풀어주는 행동)
      */
     public double calculateReleaseDistanceChange(double fishPower, FishState state) {
-        double fishEscape = fishPower * FISH_ESCAPE_COEFFICIENT;
+        double fishEscape = fishPower * calc().fishEscapeCoefficient;
         double stateMultiplier = switch (state) {
             case REST -> 0.5;          // 휴식 — 거리 조금 증가
             case SLOW_MOVE -> 1.0;     // 천천히 이동 — 거리 조금 증가
@@ -355,7 +319,7 @@ public class FightCalculator {
             case STUNNED -> 0.5;       // 기절 — 우클릭해도 거리 별로 안 늘어남
             case DIVE -> 4.0;          // 잠수 — 우클릭해도 거리 크게 늘어남
         };
-        return fishEscape + RELEASE_BASE * stateMultiplier;
+        return fishEscape + calc().releaseBase * stateMultiplier;
     }
 
     /**
@@ -367,7 +331,7 @@ public class FightCalculator {
      * @return Tension 감소량 (항상 0보다 작음)
      */
     public double calculateReleaseTensionDecrease(int combo) {
-        return -(RELEASE_TENSION_PER_COMBO * Math.max(1, combo));
+        return -(calc().releaseTensionPerCombo * Math.max(1, combo));
     }
 
     /**
@@ -378,7 +342,7 @@ public class FightCalculator {
      * @return Reel State 회복량 (항상 0 이상)
      */
     public double calculateReleaseReelStateRegen(double maxReelState) {
-        return Math.max(0.0, maxReelState) * RELEASE_REEL_REGEN_RATIO;
+        return Math.max(0.0, maxReelState) * calc().releaseReelRegenRatio;
     }
 
 }

@@ -34,8 +34,10 @@ public class FightConfig {
     private final IntroConfig intro;
     private final LineTangleConfig lineTangle;
     private final ActionPowerConfig actionPower;
+    private final CalcConfig calc;
 
     public FightConfig(FileConfiguration config) {
+        this.calc = new CalcConfig(config);
         this.ai = new AiConfig(config);
         this.hud = new HudConfig(config);
         this.sound = new SoundConfig(config);
@@ -44,6 +46,10 @@ public class FightConfig {
         this.intro = new IntroConfig(config);
         this.lineTangle = new LineTangleConfig(config);
         this.actionPower = new ActionPowerConfig(config);
+    }
+
+    public CalcConfig calc() {
+        return calc;
     }
 
     public AiConfig ai() {
@@ -413,6 +419,64 @@ public class FightConfig {
                         "trophy-fight.stats.min-distance-with-stamina." + grade, 50.0));
             }
             return Collections.unmodifiableMap(map);
+        }
+    }
+
+    // ===================== Calc (핵심 수식 계수) =====================
+
+    /**
+     * {@link FightCalculator}의 수식 계수.
+     *
+     * <p>예전에는 전부 FightCalculator의 {@code private static final} 상수여서 어드민이
+     * 손댈 수 없었다. 파일 상단 주석에도 "추후 config로 이동 가능"이라고만 적혀 있었다.</p>
+     *
+     * <p><b>모든 기본값은 이관 전 하드코딩 값과 문자 그대로 같다.</b> fight.yml을 갱신하지
+     * 않은 서버는 밸런스가 조금도 바뀌지 않는다.</p>
+     */
+    public static class CalcConfig {
+        /** 우클릭(릴 풀기) 기본 거리 증가 배율. */
+        public final double releaseBase;
+        /** 우클릭 콤보 1당 장력 감소량. */
+        public final double releaseTensionPerCombo;
+        /** 우클릭 시 릴 HP 회복 비율 (maxReelState 대비). */
+        public final double releaseReelRegenRatio;
+        /** 물고기 도주 거리 계수 (fishPower에 곱함). */
+        public final double fishEscapeCoefficient;
+        /** 릴 감기 기본 회수 계수 (reelPower에 곱함). */
+        public final double baseReelCoefficient;
+        /** 물고기가 지칠수록 붙는 추가 회수 계수. */
+        public final double bonusReelCoefficient;
+        /** 기절 상태에서 릴을 감을 때의 독립 견인 계수. */
+        public final double stunnedPullCoefficient;
+        /** 릴 파워 1당 스테미나 감소량. */
+        public final double staminaDecreasePerReelPower;
+        /** 릴 감기 시 릴 HP 감소 계수. */
+        public final double reelStateDecay;
+        /** 릴을 감지 않을 때의 릴 HP 회복 비율 (maxReelState 대비). */
+        public final double reelStateIdleRegenRatio;
+        /** 릴을 감지 않을 때의 기본 장력 변화량 (음수 = 감소). */
+        public final double idleTensionBase;
+        /** 저항 감쇠식 {@code S / (S + resistance)}의 S. 클수록 저항의 영향이 약해진다. */
+        public final double resistanceSoftening;
+        /** 내구도 감쇠식 {@code S / (S + durability)}의 S. */
+        public final double durabilitySoftening;
+
+        public CalcConfig(FileConfiguration config) {
+            String p = "trophy-fight.calc.";
+            this.releaseBase = config.getDouble(p + "release-base", 0.13);
+            this.releaseTensionPerCombo = config.getDouble(p + "release-tension-per-combo", 2.0);
+            this.releaseReelRegenRatio = config.getDouble(p + "release-reel-regen-ratio", 0.008);
+            this.fishEscapeCoefficient = config.getDouble(p + "fish-escape-coefficient", 0.004);
+            this.baseReelCoefficient = config.getDouble(p + "base-reel-coefficient", 0.036);
+            this.bonusReelCoefficient = config.getDouble(p + "bonus-reel-coefficient", 0.105);
+            this.stunnedPullCoefficient = config.getDouble(p + "stunned-pull-coefficient", 0.03);
+            this.staminaDecreasePerReelPower = config.getDouble(p + "stamina-decrease-per-reel-power", 0.01);
+            this.reelStateDecay = config.getDouble(p + "reel-state-decay", 0.006);
+            this.reelStateIdleRegenRatio = config.getDouble(p + "reel-state-idle-regen-ratio", 0.0015);
+            this.idleTensionBase = config.getDouble(p + "idle-tension-base", -2.0);
+            // 0이면 0으로 나누게 되므로 하한을 건다.
+            this.resistanceSoftening = Math.max(0.0001, config.getDouble(p + "resistance-softening", 100.0));
+            this.durabilitySoftening = Math.max(0.0001, config.getDouble(p + "durability-softening", 100.0));
         }
     }
 

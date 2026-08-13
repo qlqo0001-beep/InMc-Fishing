@@ -66,9 +66,12 @@ public final class BalanceDump {
 
     /**
      * 골든 덤프를 생성한다. 순수 계산만 하므로 비동기 스레드에서 호출해도 안전하다
-     * (Bukkit API를 전혀 쓰지 않는다).
+     * (Bukkit 스케줄러·월드·플레이어를 건드리지 않는다).
+     *
+     * @param fightConfig 밸런스 수치의 출처. 게임이 쓰는 것과 같은 객체를 넘겨야
+     *                    "덤프가 통과했는데 실제 동작은 다르다"는 상황이 생기지 않는다.
      */
-    public static List<String> generate() {
+    public static List<String> generate(FightConfig fightConfig) {
         List<String> out = new ArrayList<>();
         out.add("# InMc-Fishing 파이트 밸런스 골든 덤프");
         out.add("# 이 파일은 Phase 6(밸런스 config화) 전후 비교용이다. diff가 0줄이어야 한다.");
@@ -79,7 +82,7 @@ public final class BalanceDump {
         dumpFishAiStats(out);
         dumpStateDurations(out);
         dumpTransitions(out);
-        dumpCalculator(out);
+        dumpCalculator(out, fightConfig);
 
         return out;
     }
@@ -208,8 +211,8 @@ public final class BalanceDump {
 
     // ===== 5. FightCalculator 출력 격자 =====
 
-    private static void dumpCalculator(List<String> out) {
-        FightCalculator calc = new FightCalculator();
+    private static void dumpCalculator(List<String> out, FightConfig fightConfig) {
+        FightCalculator calc = new FightCalculator(() -> fightConfig);
 
         out.add("## [5-1] calculateStaminaDecrease(reelPower, reelStateRatio, state)");
         for (double reelPower : new double[]{0.0, 1.0, 25.0, 50.0, 100.0}) {

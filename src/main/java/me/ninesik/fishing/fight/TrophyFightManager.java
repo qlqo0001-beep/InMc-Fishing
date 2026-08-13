@@ -75,7 +75,7 @@ public class TrophyFightManager {
      * 서버 크래시 후 접속 시 {@link #restoreOnJoin}이 이 값을 읽어 이동 제한을 되돌린다.
      */
     private final NamespacedKey movementKey;
-    private final FightCalculator calculator = new FightCalculator();
+    private final FightCalculator calculator;
     private final FightHUD hud = new FightHUD();
     private BukkitTask tickTask;
     private int tickCount = 0;
@@ -87,6 +87,7 @@ public class TrophyFightManager {
         this.rewardService = rewardService;
         this.rodLookup = rodLookup;
         this.movementKey = new NamespacedKey(plugin, "fight_movement");
+        this.calculator = new FightCalculator(configManager::getFightConfig);
     }
 
     /**

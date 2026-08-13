@@ -380,7 +380,7 @@ public class FishingCommand implements CommandExecutor, TabCompleter {
             String error = null;
             try {
                 Files.createDirectories(target.getParent());
-                Files.write(target, BalanceDump.generate(), StandardCharsets.UTF_8);
+                Files.write(target, BalanceDump.generate(configManager.getFightConfig()), StandardCharsets.UTF_8);
             } catch (IOException | RuntimeException e) {
                 error = e.getMessage();
                 plugin.getLogger().log(Level.SEVERE, "밸런스 덤프 생성 실패", e);
