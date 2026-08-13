@@ -385,7 +385,9 @@ public class FightConfig {
             // 기존 max-tension 키를 그대로 쓰는 배포 서버 호환성을 위해 fallback으로 읽는다.
             this.defaultLineStrength = config.getDouble("trophy-fight.stats.default-line-strength",
                     config.getDouble("trophy-fight.stats.max-tension", 100.0));
-            this.defaultReelState = config.getDouble("trophy-fight.stats.default-reel-state", 100.0);
+            // 0이면 릴 상태 비율이 0/0 = NaN이 되어 파이트가 붕괴한다. 로드 시점에 하한을 건다.
+            // (max-distance / max-time-seconds는 0에 "제한 없음"이라는 의미가 있어 하한을 걸지 않는다)
+            this.defaultReelState = Math.max(1.0, config.getDouble("trophy-fight.stats.default-reel-state", 100.0));
             this.defaultReelPower = config.getDouble("trophy-fight.stats.default-reel-power", 30.0);
             this.defaultReelDurability = config.getDouble("trophy-fight.stats.default-reel-durability", 30.0);
             this.gradeDifficultyMultipliers = loadGradeMultipliers(config);

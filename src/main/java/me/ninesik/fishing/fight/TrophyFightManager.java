@@ -485,8 +485,13 @@ public class TrophyFightManager {
             // 릴을 감는 동안에는 감소(상태별 배수), 감지 않는 동안에는 서서히 회복된다
             // (패치예정.md 피드백: "릴을 당기지 않고 내버려두면 스테미나가 천천히 차야 함").
             if (isReeling) {
+                // maxReelState는 fight.yml의 default-reel-state에서 오므로 0이 될 수 있다.
+                // 0/0 = NaN이 stamina로 전파되면 파이트 수치가 통째로 붕괴한다.
+                // (위 스테미나 비율은 이미 같은 가드를 갖고 있어 일관성도 맞춘다)
+                double maxReelState = session.getMaxReelState();
+                double reelStateRatio = maxReelState > 0 ? session.getReelState() / maxReelState : 0.0;
                 double staminaDecrease = calculator.calculateStaminaDecrease(
-                        session.getReelPower(), session.getReelState() / session.getMaxReelState(), fishState);
+                        session.getReelPower(), reelStateRatio, fishState);
                 session.decreaseStamina(staminaDecrease);
             } else {
                 double staminaRegen = calculator.calculateStaminaRegen(

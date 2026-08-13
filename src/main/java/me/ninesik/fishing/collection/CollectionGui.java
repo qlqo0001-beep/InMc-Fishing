@@ -70,8 +70,10 @@ public class CollectionGui extends AbstractGui {
 
     private double calculateProgress(CollectionData data) {
         long active = data.getActiveEntryCount();
-        if (active == 0) return 0;
-        return (double) data.getTotalRegisteredSlots() / (active * collectionManager.getDefaultMaxSlots());
+        // default-max-slots를 0으로 두면 분모가 0이 되어 진행도가 Infinity%로 표시된다.
+        long denominator = active * collectionManager.getDefaultMaxSlots();
+        if (denominator <= 0) return 0;
+        return (double) data.getTotalRegisteredSlots() / denominator;
     }
 
     private String buildProgressBar(double progress) {

@@ -225,6 +225,8 @@ public class TournamentHudManager {
 
     private double getProgress(Tournament tournament) {
         long totalMillis = TimeUnit.MINUTES.toMillis(tournament.getDurationMinutes());
+        // duration-minutes가 0이면 Infinity가 나온다 (아래 클램프에 걸리긴 하나 의도치 않은 값).
+        if (totalMillis <= 0) return 0.0;
         long elapsedMillis = System.currentTimeMillis() - tournament.getStartTimeMillis();
         return 1.0 - ((double) elapsedMillis / totalMillis);
     }
