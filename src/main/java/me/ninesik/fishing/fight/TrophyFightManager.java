@@ -8,8 +8,10 @@ import me.ninesik.fishing.service.RewardService;
 import me.ninesik.fishing.util.Sounds;
 import me.ninesik.fishing.util.Texts;
 import org.bukkit.Bukkit;
+import org.bukkit.NamespacedKey;
 import org.bukkit.Particle;
 import org.bukkit.entity.Player;
+import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.scheduler.BukkitTask;
 
 import java.util.Collection;
@@ -68,6 +70,11 @@ public class TrophyFightManager {
     private final Map<UUID, List<BukkitTask>> introTasks = new ConcurrentHashMap<>();
     /** Fight 시작 시 저장한 플레이어 이동/비행 상태 스냅샷 (종료 시 복원용). */
     private final Map<UUID, MovementSnapshot> movementSnapshots = new ConcurrentHashMap<>();
+    /**
+     * 이동 스냅샷을 플레이어 PDC에 남길 때 쓰는 키. 매번 생성하지 않도록 필드로 둔다.
+     * 서버 크래시 후 접속 시 {@link #restoreOnJoin}이 이 값을 읽어 이동 제한을 되돌린다.
+     */
+    private final NamespacedKey movementKey;
     private final FightCalculator calculator = new FightCalculator();
     private final FightHUD hud = new FightHUD();
     private BukkitTask tickTask;
@@ -79,6 +86,7 @@ public class TrophyFightManager {
         this.configManager = configManager;
         this.rewardService = rewardService;
         this.rodLookup = rodLookup;
+        this.movementKey = new NamespacedKey(plugin, "fight_movement");
     }
 
     /**
@@ -658,9 +666,13 @@ public class TrophyFightManager {
     /** Fight 시작 시 플레이어 이동을 제한한다. (기존 이동/비행 상태를 저장해 두었다가 종료 시 복원) */
     private void restrictMovement(Player player) {
         UUID uuid = player.getUniqueId();
-        movementSnapshots.put(uuid, new MovementSnapshot(
+        MovementSnapshot snapshot = new MovementSnapshot(
                 player.getWalkSpeed(), player.getFlySpeed(),
-                player.getAllowFlight(), player.isFlying()));
+                player.getAllowFlight(), player.isFlying());
+        movementSnapshots.put(uuid, snapshot);
+        // 메모리 맵과 별개로 플레이어 PDC에도 남긴다 — 아래 restoreOnJoin 주석 참고.
+        player.getPersistentDataContainer().set(movementKey, PersistentDataType.STRING, snapshot.serialize());
+
         player.setWalkSpeed(0.0f);
         player.setFlySpeed(0.0f);
         player.setAllowFlight(true);
@@ -670,6 +682,13 @@ public class TrophyFightManager {
     /** Fight 종료 시 플레이어 이동 제한을 해제하고 저장해 둔 기존 상태를 복원한다. */
     private void releaseMovement(Player player) {
         MovementSnapshot snap = movementSnapshots.remove(player.getUniqueId());
+        if (snap == null) {
+            // 메모리 맵이 비었으면 PDC에 남은 스냅샷을 쓴다 (서버가 죽었다 살아난 경우).
+            snap = MovementSnapshot.deserialize(
+                    player.getPersistentDataContainer().get(movementKey, PersistentDataType.STRING));
+        }
+        player.getPersistentDataContainer().remove(movementKey);
+
         if (snap != null) {
             player.setWalkSpeed(snap.walkSpeed);
             player.setFlySpeed(snap.flySpeed);
@@ -684,6 +703,40 @@ public class TrophyFightManager {
         }
     }
 
+    /**
+     * 접속 시 파이트 도중 서버가 죽어 남아 있는 이동 제한을 복원한다.
+     *
+     * <p>{@code walkSpeed}·{@code allowFlight}·{@code flying}은 vanilla playerdata.dat에
+     * 저장되므로, 파이트 중 서버가 크래시하거나 플레이어가 오프라인인 채로 종료되면
+     * <b>걷지 못하고 비행이 켜진 상태가 그대로 영속</b>된다. 예전에는 이걸 되돌리는 경로가
+     * 아예 없었다.</p>
+     *
+     * <p>스냅샷을 DB가 아니라 PDC에 두는 이유: Bukkit PDC는 walkSpeed와 <b>같은
+     * playerdata.dat에 함께</b> 기록된다. 그래서 "walkSpeed=0이 저장됐다"와 "스냅샷이 있다"가
+     * 항상 같이 참이거나 같이 거짓이다. DB에 두면 이 원자성이 깨져, 이동 제한은 저장되지
+     * 않았는데 복원만 도는 경우가 생긴다.</p>
+     *
+     * <p>플래그가 없으면 아무것도 하지 않는다 — 무조건 기본값으로 되돌리면 다른 플러그인이
+     * 걸어 둔 이동 속도를 매 접속마다 파괴한다.</p>
+     */
+    public void restoreOnJoin(Player player) {
+        String raw = player.getPersistentDataContainer().get(movementKey, PersistentDataType.STRING);
+        if (raw == null) return;
+
+        MovementSnapshot snap = MovementSnapshot.deserialize(raw);
+        player.getPersistentDataContainer().remove(movementKey);
+        if (snap == null) {
+            plugin.getLogger().warning("이동 상태 스냅샷을 해석하지 못했습니다: " + player.getName() + " (" + raw + ")");
+            return;
+        }
+
+        player.setWalkSpeed(snap.walkSpeed);
+        player.setFlySpeed(snap.flySpeed);
+        player.setAllowFlight(snap.allowFlight);
+        player.setFlying(snap.flying);
+        plugin.getLogger().info("파이트 도중 서버가 종료되어 이동 상태를 복원했습니다: " + player.getName());
+    }
+
     /** Fight 시작 전 플레이어의 이동/비행 상태 스냅샷. */
     private static final class MovementSnapshot {
         final float walkSpeed;
@@ -695,6 +748,25 @@ public class TrophyFightManager {
             this.flySpeed = flySpeed;
             this.allowFlight = allowFlight;
             this.flying = flying;
+        }
+
+        /** PDC 저장용. 로케일에 흔들리지 않도록 고정 포맷을 쓴다. */
+        String serialize() {
+            return walkSpeed + ";" + flySpeed + ";" + allowFlight + ";" + flying;
+        }
+
+        /** 해석에 실패하면 null — 호출자가 기본값 폴백을 쓰게 한다. */
+        static MovementSnapshot deserialize(String raw) {
+            if (raw == null) return null;
+            String[] parts = raw.split(";");
+            if (parts.length != 4) return null;
+            try {
+                return new MovementSnapshot(
+                        Float.parseFloat(parts[0]), Float.parseFloat(parts[1]),
+                        Boolean.parseBoolean(parts[2]), Boolean.parseBoolean(parts[3]));
+            } catch (NumberFormatException e) {
+                return null;
+            }
         }
     }
 

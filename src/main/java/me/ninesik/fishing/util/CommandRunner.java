@@ -30,7 +30,23 @@ public final class CommandRunner {
      */
     public static void execute(JavaPlugin plugin, Player player, List<String> commands,
                                String logPrefix, Map<String, String> placeholders) {
-        if (commands == null || commands.isEmpty() || player == null) {
+        if (player == null) return;
+        execute(plugin, player.getName(), player.getUniqueId(), commands, logPrefix, placeholders);
+    }
+
+    /**
+     * 대상이 오프라인이어도 실행할 수 있는 형태.
+     *
+     * <p>대회 종료 시점에 우승자가 접속 중이 아니면 보상이 통째로 사라지던 문제 때문에 추가했다.
+     * 명령어 자체가 오프라인 플레이어를 지원하는지는 서버 설정에 달렸으므로(이코노미·메일
+     * 플러그인은 대개 지원한다), 실패하면 아래 로그에 남는다 — 예전에는 로그조차 없었다.</p>
+     *
+     * @param playerName {player} 치환에 쓸 이름
+     * @param uuid       {uuid} 치환에 쓸 UUID
+     */
+    public static void execute(JavaPlugin plugin, String playerName, java.util.UUID uuid,
+                               List<String> commands, String logPrefix, Map<String, String> placeholders) {
+        if (commands == null || commands.isEmpty() || playerName == null) {
             return;
         }
 
@@ -39,8 +55,8 @@ public final class CommandRunner {
         if (placeholders != null) {
             merged.putAll(placeholders);
         }
-        merged.put("player", player.getName());
-        merged.put("uuid", player.getUniqueId().toString());
+        merged.put("player", playerName);
+        merged.put("uuid", uuid != null ? uuid.toString() : "");
 
         for (String raw : commands) {
             if (raw == null || raw.isBlank()) continue;
@@ -58,7 +74,7 @@ public final class CommandRunner {
             if (command.regionMatches(true, 0, "broadcast ", 0, "broadcast ".length())) {
                 String message = command.substring("broadcast ".length());
                 Bukkit.broadcastMessage(message);
-                logger.info(logPrefix + " broadcast sent for " + player.getName() + ": " + ChatColor.stripColor(message));
+                logger.info(logPrefix + " broadcast sent for " + playerName + ": " + ChatColor.stripColor(message));
                 continue;
             }
 
@@ -66,12 +82,12 @@ public final class CommandRunner {
             try {
                 boolean ok = Bukkit.dispatchCommand(Bukkit.getConsoleSender(), command);
                 if (ok) {
-                    logger.info(logPrefix + " executed for " + player.getName() + ": /" + command);
+                    logger.info(logPrefix + " executed for " + playerName + ": /" + command);
                 } else {
-                    logger.warning(logPrefix + " returned false for " + player.getName() + ": /" + command);
+                    logger.warning(logPrefix + " returned false for " + playerName + ": /" + command);
                 }
             } catch (Exception e) {
-                logger.warning(logPrefix + " failed for " + player.getName()
+                logger.warning(logPrefix + " failed for " + playerName
                         + ": /" + command + " (" + e.getMessage() + ")");
             }
         }

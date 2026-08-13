@@ -26,18 +26,22 @@ import me.ninesik.fishing.util.Texts;
 import io.papermc.paper.event.entity.FishHookStateChangeEvent;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
+import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.entity.FishHook;
 import org.bukkit.entity.Player;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.event.player.PlayerDropItemEvent;
 import org.bukkit.event.player.PlayerFishEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerItemHeldEvent;
+import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
+import org.bukkit.event.player.PlayerTeleportEvent;
 import org.bukkit.event.player.PlayerChangedWorldEvent;
 import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemStack;
@@ -523,8 +527,40 @@ public class FishingListener implements Listener {
         cancelCastStatusTask(player.getUniqueId());
     }
 
+    /**
+     * 파이트 도중 서버가 죽어 playerdata에 영속된 이동 제한(walkSpeed 0 / 비행 ON)을 되돌린다.
+     * MONITOR 우선순위 — 다른 플러그인이 접속 처리를 끝낸 뒤 마지막에 손댄다.
+     */
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void onPlayerJoin(PlayerJoinEvent event) {
+        if (trophyFightManager != null) {
+            trophyFightManager.restoreOnJoin(event.getPlayer());
+        }
+    }
+
     @EventHandler
     public void onPlayerChangedWorld(PlayerChangedWorldEvent event) {
+        cleanupPlayer(event.getPlayer());
+    }
+
+    /**
+     * 같은 월드 안에서의 이탈(/tp, 엔더펄, 포탈)도 정리한다.
+     *
+     * <p>예전에는 PlayerTeleportEvent 핸들러가 아예 없어, 파이트나 미니게임 도중 텔레포트하면
+     * 세션과 이동 제한이 그대로 남았다. PlayerChangedWorldEvent는 월드 이동만 잡는다.</p>
+     *
+     * <p>{@code cleanupPlayer}는 멱등이라 월드 이동 시 두 핸들러가 겹쳐 호출돼도 안전하다.</p>
+     */
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onPlayerTeleport(PlayerTeleportEvent event) {
+        Location from = event.getFrom();
+        Location to = event.getTo();
+        if (to == null) return;
+        // 안티치트 되돌림처럼 사실상 제자리인 이동은 무시한다 (파이트가 엉뚱하게 취소되지 않도록).
+        if (from.getWorld() != null && from.getWorld().equals(to.getWorld())
+                && from.distanceSquared(to) < 4.0) {
+            return;
+        }
         cleanupPlayer(event.getPlayer());
     }
 

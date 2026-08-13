@@ -17,6 +17,8 @@ import java.time.DayOfWeek;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
+import me.ninesik.fishing.util.PlayerNameResolver;
+
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -369,7 +371,11 @@ public class TournamentManager {
             if (!tournament.isRunning()) continue;
 
             TournamentEntry entry = tournament.getEntries().get(player.getUniqueId());
-            if (entry == null || entry.getPlayerName() == null) continue; // 참가자만 점수 반영
+            if (entry == null) continue; // 참가자만 점수 반영
+            // 이름이 비어 있다고 배제하지 않는다 — 지금 낚고 있으니 확실히 참가자다.
+            // (예전에는 이 가드 때문에 시작 시점에 오프라인이던 참가자가 영구히 제외됐다)
+            // 접속 중인 본인이 있으니 이름을 최신값으로 갱신한다 (닉네임 변경·"???" 해소).
+            entry.setPlayerName(player.getName());
 
             switch (tournament.getType()) {
                 case GRADE -> {
@@ -430,11 +436,13 @@ public class TournamentManager {
         tournament.start();
         startedToday.add(tournament.getId().toLowerCase());
 
-        // 복원된 상태에서는 playerName이 없을 수 있으므로 온라인 플레이어 이름으로 채운다
+        // 복원된 상태에서는 playerName이 없을 수 있으므로 채워 둔다.
+        // 예전에는 온라인 플레이어만 채웠는데, handleFishCatch가 playerName == null을
+        // "참가자 아님"으로 취급해서 시작 시점에 오프라인이던 사전 신청자는 이후 접속해도
+        // 점수가 영원히 집계되지 않았다(참가비는 이미 징수된 채로).
         for (TournamentEntry entry : tournament.getEntries().values()) {
-            Player p = Bukkit.getPlayer(entry.getPlayerUuid());
-            if (p != null && entry.getPlayerName() == null) {
-                entry.setPlayerName(p.getName());
+            if (entry.getPlayerName() == null) {
+                entry.setPlayerName(PlayerNameResolver.resolve(plugin, entry.getPlayerUuid()));
             }
         }
 
@@ -522,14 +530,21 @@ public class TournamentManager {
             }
         }
 
-        // 보상 지급 (퇴장한 플레이어 제외)
+        // 보상 지급 (자진 퇴장한 플레이어만 제외)
+        //
+        // 예전에는 Bukkit.getPlayer()가 null이면 그냥 continue 해서, 종료 시점에 접속 중이
+        // 아니면 1등이어도 보상이 통째로 사라졌다. 로그조차 남지 않았다.
+        // 이제 오프라인이어도 명령어를 실행한다 — 이코노미·메일 계열은 대개 오프라인을
+        // 지원하고, 지원하지 않는 명령어는 CommandRunner가 실패를 로그로 남긴다.
         Map<String, List<String>> rewards = tournament.getRewards();
         for (int i = 0; i < ranked.size(); i++) {
             TournamentEntry entry = ranked.get(i);
             if (entry.hasLeft()) continue;
 
-            Player player = Bukkit.getPlayer(entry.getPlayerUuid());
-            if (player == null) continue;
+            UUID uuid = entry.getPlayerUuid();
+            String name = entry.getPlayerName() != null
+                    ? entry.getPlayerName()
+                    : PlayerNameResolver.resolve(plugin, uuid);
 
             String rankKey = switch (i) {
                 case 0 -> "1st";
@@ -538,12 +553,12 @@ public class TournamentManager {
                 default -> null;
             };
             if (rankKey != null && rewards.containsKey(rankKey)) {
-                executeCommands(player, rewards.get(rankKey));
+                executeCommands(name, uuid, rewards.get(rankKey));
             }
 
             // 참가상
             if (!tournament.getParticipationReward().isEmpty()) {
-                executeCommands(player, tournament.getParticipationReward());
+                executeCommands(name, uuid, tournament.getParticipationReward());
             }
         }
 
@@ -564,6 +579,11 @@ public class TournamentManager {
 
     private void executeCommands(Player player, List<String> commands) {
         me.ninesik.fishing.util.CommandRunner.execute(plugin, player, commands, "Tournament reward");
+    }
+
+    /** 오프라인 참가자에게도 지급할 수 있는 형태 (대회 종료 보상). */
+    private void executeCommands(String playerName, UUID uuid, List<String> commands) {
+        me.ninesik.fishing.util.CommandRunner.execute(plugin, playerName, uuid, commands, "Tournament reward", null);
     }
 
     private void checkSchedules() {

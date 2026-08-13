@@ -33,7 +33,11 @@ public class RankingManager {
 
     private final Map<UUID, RankingEntry> rankings = new ConcurrentHashMap<>();
     private final Queue<UUID> updateQueue = new ConcurrentLinkedQueue<>();
+    /** updateQueue에 이미 들어 있는 UUID. 같은 플레이어가 큐에 중복으로 쌓이는 걸 막는다. */
+    private final java.util.Set<UUID> queued = ConcurrentHashMap.newKeySet();
     private int taskId = -1;
+    /** realtime 모드에서 큐를 비우는 태스크. saveAsync 주기 태스크와 별개다. */
+    private int queueTaskId = -1;
 
     public RankingManager(InMcFishing plugin, CollectionManager collectionManager) {
         this.plugin = plugin;
@@ -66,7 +70,16 @@ public class RankingManager {
             rankings.put(entry.getPlayerUuid(), entry);
         }
 
-        if ("periodic".equals(updateMode)) {
+        // 예전에는 "periodic"일 때만 스케줄러를 켰다. realtime 모드에서는 queueUpdate가
+        // 계속 쌓기만 하고 processQueueBatch를 부르는 곳이 없어, 랭킹이 영원히 갱신되지
+        // 않으면서 큐만 무한히 자랐다. 알 수 없는 모드는 periodic으로 폴백한다.
+        if ("realtime".equals(updateMode)) {
+            startRealtimeUpdate();
+        } else {
+            if (!"periodic".equals(updateMode)) {
+                plugin.getLogger().warning("collections.yml의 rankings.update-mode 값이 올바르지 않습니다: '"
+                        + updateMode + "' — periodic으로 동작합니다.");
+            }
             startPeriodicUpdate();
         }
     }
@@ -76,7 +89,23 @@ public class RankingManager {
             Bukkit.getScheduler().cancelTask(taskId);
             taskId = -1;
         }
+        if (queueTaskId != -1) {
+            Bukkit.getScheduler().cancelTask(queueTaskId);
+            queueTaskId = -1;
+        }
+        // realtime 모드에서 아직 큐에 남은 항목을 반영한 뒤 저장한다 (마지막 등록 유실 방지).
+        drainQueue();
         save();
+    }
+
+    /** 큐에 남은 항목을 모두 반영한다. 종료 시점에만 쓴다. */
+    private void drainQueue() {
+        UUID uuid;
+        while ((uuid = updateQueue.poll()) != null) {
+            queued.remove(uuid);
+            Player player = Bukkit.getPlayer(uuid);
+            updatePlayer(uuid, player != null ? player.getName() : null);
+        }
     }
 
     /**
@@ -112,7 +141,11 @@ public class RankingManager {
      */
     public void queueUpdate(UUID uuid) {
         if (!enabled || !"realtime".equals(updateMode)) return;
-        updateQueue.offer(uuid);
+        // 같은 플레이어가 연속으로 등록해도 큐에는 한 번만 들어간다.
+        // (중복 제거가 없으면 큐 크기가 등록 횟수만큼 무한정 커진다)
+        if (queued.add(uuid)) {
+            updateQueue.offer(uuid);
+        }
     }
 
     /**
@@ -125,6 +158,7 @@ public class RankingManager {
         while (processed < queueBatchSize && !updateQueue.isEmpty()) {
             UUID uuid = updateQueue.poll();
             if (uuid == null) continue;
+            queued.remove(uuid);
             Player player = Bukkit.getPlayer(uuid);
             updatePlayer(uuid, player != null ? player.getName() : null);
             processed++;
@@ -209,17 +243,28 @@ public class RankingManager {
         Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> storage.save(snapshot));
     }
 
+    /**
+     * realtime 모드: 1초마다 큐를 batch 단위로 비우고, update-interval-seconds 주기로 파일에 저장한다.
+     * 등록 직후 랭킹에 반영되는 것이 이 모드의 목적이므로 갱신 주기는 짧게 두고,
+     * 디스크 쓰기만 기존 주기를 따른다.
+     */
+    private void startRealtimeUpdate() {
+        queueTaskId = Bukkit.getScheduler().runTaskTimer(
+                plugin, this::processQueueBatch, 20L, 20L).getTaskId();
+        taskId = Bukkit.getScheduler().runTaskTimer(
+                plugin, this::saveAsync,
+                updateIntervalSeconds * 20L, updateIntervalSeconds * 20L).getTaskId();
+    }
+
     private void startPeriodicUpdate() {
-        taskId = Bukkit.getScheduler().runTaskTimerAsynchronously(plugin, () -> {
-            // Bukkit API(player name/온라인 목록)는 메인 스레드에서만 접근 가능하다.
-            Bukkit.getScheduler().runTask(plugin, () -> {
-                for (Player player : Bukkit.getOnlinePlayers()) {
-                    updatePlayer(player);
-                }
-                // 파일 저장은 다시 비동기로 내보낸다 (.clinerules "파일 저장은 async").
-                // 이전에는 여기서 ranking.yml 쓰기가 메인 스레드에서 주기적으로 일어났다.
-                saveAsync();
-            });
+        // 예전에는 runTaskTimerAsynchronously로 시작해 곧바로 runTask로 메인 스레드에
+        // 되돌렸다 — 비동기 래핑이 아무 일도 하지 않으면서 스케줄 홉만 한 번 더 늘렸다.
+        // 실제 비동기가 필요한 파일 쓰기는 saveAsync()가 따로 처리한다.
+        taskId = Bukkit.getScheduler().runTaskTimer(plugin, () -> {
+            for (Player player : Bukkit.getOnlinePlayers()) {
+                updatePlayer(player);
+            }
+            saveAsync();
         }, updateIntervalSeconds * 20L, updateIntervalSeconds * 20L).getTaskId();
     }
 
