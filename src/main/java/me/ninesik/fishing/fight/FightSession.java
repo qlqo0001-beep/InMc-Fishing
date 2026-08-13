@@ -53,7 +53,7 @@ public class FightSession {
      * 마지막으로 릴 감기(좌클릭) 입력이 들어온 시각(ms).
      * 패치예정.md §712-713: "좌클릭 연타 = 감기 / 클릭을 멈추면 정지".
      * Minecraft는 "누르고 있음"을 서버로 전달하지 않으므로(각 클릭이 개별 이벤트),
-     * 클릭이 들어올 때마다 이 시각을 갱신하고, 최근 {@link #REEL_GRACE_MS} 이내에
+     * 클릭이 들어올 때마다 이 시각을 갱신하고, 최근 {@code reel-grace-millis} 이내에
      * 클릭이 없었으면 자동으로 "정지"로 간주한다. 우클릭 등 명시적 정지 입력이 없어도
      * 클릭을 멈추기만 하면 자연히 꺼진다.
      *
@@ -67,11 +67,11 @@ public class FightSession {
     private long lastReelClickAt = 0L;
 
     /** 릴 감기 유지 유예 시간(ms). 연타 텀보다 넉넉하게 설정. */
-    private static final long REEL_GRACE_MS = 250L;
+    private final long reelGraceMillis;
 
     /**
      * 마지막으로 릴 풀기(우클릭) 입력이 들어온 시각(ms).
-     * 좌클릭(릴 감기)과 같은 방식으로, 최근 {@link #RELEASE_GRACE_MS} 이내에
+     * 좌클릭(릴 감기)과 같은 방식으로, 최근 {@code release-grace-millis} 이내에
      * 우클릭이 있었으면 {@link #isReleasing()}이 true를 반환한다.
      * 피드백(fish/피드백.md): 우클릭 = 릴 풀기 — Distance 증가 + Tension 감소 + Reel State 회복.
      * 릴 기계는 좌/우가 동시에 눌리지 않는다고 가정하므로(유령 클릭 필터로 방지),
@@ -80,7 +80,7 @@ public class FightSession {
     private long lastReleaseClickAt = 0L;
 
     /** 릴 풀기 유지 유예 시간(ms). 릴 감기와 동일하게 설정. */
-    private static final long RELEASE_GRACE_MS = 250L;
+    private final long releaseGraceMillis;
 
     /**
      * 릴 풀기(우클릭) 연타 콤보. 같은 콤보 윈도우 내 재우클릭마다 증가하여,
@@ -91,9 +91,9 @@ public class FightSession {
     /** 마지막 우클릭 콤보 갱신 시각(ms). */
     private long lastReleaseComboAt = 0L;
     /** 콤보 유지 윈도우(ms) — 이 시간 내 재우클릭이면 콤보가 유지된다. */
-    private static final long RELEASE_COMBO_WINDOW_MS = 250L;
+    private final long releaseComboWindowMillis;
     /** 연타 콤보 상한 (무한 증가 방지). */
-    private static final int MAX_RELEASE_COMBO = 10;
+    private final int maxReleaseCombo;
 
     /** Reel State 상한값 (initStats에서 설정, 기본 100). */
     private double maxReelState = 100.0;
@@ -164,8 +164,12 @@ public class FightSession {
      * @param fish     Fight 대상 물고기 스냅샷
      * @param startTime Fight 시작 시각 (System.currentTimeMillis())
      */
-    public FightSession(UUID playerId, FishSnapshot fish, long startTime) {
+    public FightSession(UUID playerId, FishSnapshot fish, long startTime, FightConfig.CalcConfig input) {
         this.playerId = playerId;
+        this.reelGraceMillis = input.reelGraceMillis;
+        this.releaseGraceMillis = input.releaseGraceMillis;
+        this.releaseComboWindowMillis = input.releaseComboWindowMillis;
+        this.maxReleaseCombo = input.maxReleaseCombo;
         this.fish = fish;
         this.startTime = startTime;
         this.state = FightState.WAITING;
@@ -217,12 +221,12 @@ public class FightSession {
 
     /**
      * 현재 릴을 감고 있는 상태인지 판정한다.
-     * 마지막 좌클릭 이후 {@link #REEL_GRACE_MS} 이내면 true.
+     * 마지막 좌클릭 이후 {@code reel-grace-millis} 이내면 true.
      * 별도의 "정지" 입력이 없어도 클릭을 멈추면 자동으로 false가 된다
      * (패치예정.md §712-713).
      */
     public boolean isReeling() {
-        return System.currentTimeMillis() - lastReelClickAt <= REEL_GRACE_MS;
+        return System.currentTimeMillis() - lastReelClickAt <= reelGraceMillis;
     }
 
     /**
@@ -361,16 +365,16 @@ public class FightSession {
 
     /**
      * 현재 릴을 풀고 있는 상태인지 판정한다.
-     * 마지막 우클릭 이후 {@link #RELEASE_GRACE_MS} 이내면 true.
+     * 마지막 우클릭 이후 {@code release-grace-millis} 이내면 true.
      * 릴 감기와 마찬가지로 클릭을 멈추면 자동으로 false가 된다.
      */
     public boolean isReleasing() {
-        return System.currentTimeMillis() - lastReleaseClickAt <= RELEASE_GRACE_MS;
+        return System.currentTimeMillis() - lastReleaseClickAt <= releaseGraceMillis;
     }
 
     /**
      * 좌클릭(릴 감기) 입력이 들어왔음을 기록한다.
-     * 이후 {@link #REEL_GRACE_MS} 동안은 {@link #isReeling()}이 true를 반환한다.
+     * 이후 {@code reel-grace-millis} 동안은 {@link #isReeling()}이 true를 반환한다.
      * 릴 풀기 상태는 초기화하고(좌/우 상호 배타), 우클릭 연타 콤보도 리셋한다 (피드백).
      */
     public void registerReelClick() {
@@ -381,14 +385,14 @@ public class FightSession {
 
     /**
      * 우클릭(릴 풀기) 입력이 들어왔음을 기록한다.
-     * 이후 {@link #RELEASE_GRACE_MS} 동안은 {@link #isReleasing()}이 true를 반환한다.
+     * 이후 {@code release-grace-millis} 동안은 {@link #isReleasing()}이 true를 반환한다.
      * 릴 감기 상태는 초기화한다 (좌/우 상호 배타).
-     * 같은 {@link #RELEASE_COMBO_WINDOW_MS} 이내에 다시 우클릭하면 연타 콤보가 증가한다 (피드백).
+     * 같은 {@code release-combo-window-millis} 이내에 다시 우클릭하면 연타 콤보가 증가한다 (피드백).
      */
     public void registerReleaseClick() {
         long now = System.currentTimeMillis();
-        if (now - lastReleaseComboAt <= RELEASE_COMBO_WINDOW_MS) {
-            releaseCombo = Math.min(MAX_RELEASE_COMBO, releaseCombo + 1);
+        if (now - lastReleaseComboAt <= releaseComboWindowMillis) {
+            releaseCombo = Math.min(maxReleaseCombo, releaseCombo + 1);
         } else {
             releaseCombo = 1;
         }

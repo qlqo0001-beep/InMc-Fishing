@@ -43,7 +43,7 @@ import java.util.function.Function;
  */
 public class TrophyFightManager {
 
-    private static final double RARE_TROPHY_DIFFICULTY_MULTIPLIER = 1.5;
+    // 파이트 난이도·입력 관련 상수는 fight.yml의 trophy-fight.calc.* / trophy-fight.input.* 로 이관됐다.
     /**
      * 낚싯대 Reel Power 보너스가 거리 회수(Distance 감소)에 반영되는 비율.
      *
@@ -55,7 +55,7 @@ public class TrophyFightManager {
      * (이전에 제거된 {@code defaultReelPower + rodBonusReelPower*0.1} 공식을
      * 죽은 필드 대신 실제 낚싯대 보너스로 복원한 것 — PROGRESS.md 참고)</p>
      */
-    private static final double ROD_BONUS_DISTANCE_RATIO = 0.1;
+
 
     private final InMcFishing plugin;
     private final ConfigManager configManager;
@@ -255,7 +255,8 @@ public class TrophyFightManager {
         }
 
         FishSnapshot snapshot = FishSnapshot.of(reward.getFish(), reward.getGrade());
-        FightSession session = new FightSession(uuid, snapshot, System.currentTimeMillis());
+        FightSession session = new FightSession(uuid, snapshot, System.currentTimeMillis(),
+                configManager.getFightConfig().calc());
         session.setReward(reward);
         session.setPractice(practice);
 
@@ -298,7 +299,7 @@ public class TrophyFightManager {
 
         String gradeId = reward.getGrade().getId().toLowerCase();
         double gradeMultiplier = stats.gradeDifficultyMultipliers.getOrDefault(gradeId, 1.0);
-        double rareMultiplier = reward.isRareTrophy() ? RARE_TROPHY_DIFFICULTY_MULTIPLIER : 1.0;
+        double rareMultiplier = reward.isRareTrophy() ? config.calc().rareTrophyDifficultyMultiplier : 1.0;
         double difficulty = gradeMultiplier * rareMultiplier;
 
         double stamina = stats.defaultStamina * difficulty;
@@ -327,7 +328,7 @@ public class TrophyFightManager {
         FightConfig.ActionPowerConfig apConfig = config.actionPower();
         int maxAP = apConfig.gradeMax.getOrDefault(gradeId, 5);
         if (reward.isRareTrophy()) {
-            maxAP *= 2;
+            maxAP *= config.calc().rareTrophyActionPowerMultiplier;
         }
         // AI는 시작 시점의 상태 수치를 스냅샷으로 들고 끝까지 간다
         // (진행 중 /fishing reload로 규칙이 바뀌면 설명할 수 없는 실패가 생긴다).
@@ -543,7 +544,7 @@ public class TrophyFightManager {
             {
                 double defaultReelPower = config.stats().defaultReelPower;
                 double rodBonus = Math.max(0, session.getReelPower() - defaultReelPower);
-                effectiveReelPower = defaultReelPower + rodBonus * ROD_BONUS_DISTANCE_RATIO;
+                effectiveReelPower = defaultReelPower + rodBonus * config.calc().rodBonusDistanceRatio;
             }
             if (isReleasing) {
                 distanceChange = calculator.calculateReleaseDistanceChange(session.getPower(), fishState);

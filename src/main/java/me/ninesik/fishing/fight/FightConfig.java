@@ -228,6 +228,15 @@ public class FightConfig {
          * 서브 타이틀 초후변화 양옆에 1개씩 배치하자."
          */
         public final String stateSubtitleFormat;
+        /**
+         * 행동력(AP) ActionBar 노출 여부. 기본 OFF — AP는 원래 플레이어에게 보이지
+         * 않는 내부 난이도 수치였고, 켜는 순간 화면 정보량이 늘어나므로 서버 운영자가
+         * 명시적으로 선택하게 한다.
+         */
+        public final boolean showActionPower;
+        /** show-action-power가 true일 때 ActionBar 뒤에 덧붙는 포맷. {action_power}/{max_action_power} 치환 */
+        public final String actionPowerFormat;
+
         /** 상태별 타이틀 색상 — FishState 이름(소문자, _를 -로) → 색상 코드 */
         public final Map<String, String> stateColors;
 
@@ -239,6 +248,9 @@ public class FightConfig {
         }
 
         public HudConfig(FileConfiguration config) {
+            this.showActionPower = config.getBoolean("trophy-fight.hud.show-action-power", false);
+            this.actionPowerFormat = config.getString("trophy-fight.hud.action-power-format",
+                    " &d행동력 &f{action_power}&7/&f{max_action_power}");
             this.barColorSafe = config.getString("trophy-fight.hud.bar-color-safe", "&a");
             this.barColorWarning = config.getString("trophy-fight.hud.bar-color-warning", "&e");
             this.barColorDanger = config.getString("trophy-fight.hud.bar-color-danger", "&c");
@@ -738,7 +750,35 @@ public class FightConfig {
             // 0이면 0으로 나누게 되므로 하한을 건다.
             this.resistanceSoftening = Math.max(0.0001, config.getDouble(p + "resistance-softening", 100.0));
             this.durabilitySoftening = Math.max(0.0001, config.getDouble(p + "durability-softening", 100.0));
+
+            this.rareTrophyDifficultyMultiplier =
+                    config.getDouble(p + "rare-trophy-difficulty-multiplier", 1.5);
+            this.rareTrophyActionPowerMultiplier =
+                    Math.max(1, config.getInt(p + "rare-trophy-action-power-multiplier", 2));
+            this.rodBonusDistanceRatio = config.getDouble(p + "rod-bonus-distance-ratio", 0.1);
+
+            String i = "trophy-fight.input.";
+            this.reelGraceMillis = Math.max(0, config.getLong(i + "reel-grace-millis", 250L));
+            this.releaseGraceMillis = Math.max(0, config.getLong(i + "release-grace-millis", 250L));
+            this.releaseComboWindowMillis = Math.max(0, config.getLong(i + "release-combo-window-millis", 250L));
+            this.maxReleaseCombo = Math.max(1, config.getInt(i + "max-release-combo", 10));
         }
+
+        /** 레어 트로피의 스탯 난이도 배수. */
+        public final double rareTrophyDifficultyMultiplier;
+        /** 레어 트로피의 행동력 배수. fight.yml 주석에만 있고 키가 없던 값이다. */
+        public final int rareTrophyActionPowerMultiplier;
+        /** 낚싯대 릴 파워 보너스가 거리 회수에 반영되는 비율. */
+        public final double rodBonusDistanceRatio;
+
+        /** 좌클릭 유예(ms). 이 시간 안에 다시 누르면 계속 릴을 감는 것으로 친다. */
+        public final long reelGraceMillis;
+        /** 우클릭 유예(ms). */
+        public final long releaseGraceMillis;
+        /** 우클릭 연타 콤보로 인정되는 간격(ms). */
+        public final long releaseComboWindowMillis;
+        /** 우클릭 연타 콤보 상한. */
+        public final int maxReleaseCombo;
     }
 
     // ===================== General =====================

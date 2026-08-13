@@ -298,6 +298,11 @@ trophy-fight:
     bossbar-title-format: "거리: {distance} / {max_distance} M"
     # ActionBar 텍스트 ({stamina}/{reel}/{distance}/{max_distance} = 각 수치)
     actionbar-format: "물고기 채력 {stamina}% | 릴 상태 {reel}% | 거리 {distance}/{max_distance}M"
+    # 행동력(AP) 노출 — 물고기가 행동을 할 때마다 소모하는 내부 수치입니다.
+    # 원래 플레이어에게 보이지 않는 난이도 요소라 기본값은 꺼짐(false)입니다.
+    # true로 켜면 위 actionbar-format 뒤에 아래 형식이 덧붙습니다.
+    show-action-power: false
+    action-power-format: " &d행동력 &f{action_power}&7/&f{max_action_power}"
     # Fish AI 상태 타이틀(메인) — {state_color} = 아래 state-color 설정, {state} = 상태 이름.
     # 아래 state-guide.<state>.title/subtitle 이 없을 때만 폴백으로 사용된다.
     state-title-format: "{state_color}{state} ({remaining_seconds}초)"
@@ -450,6 +455,27 @@ trophy-fight:
     # 계산식: 이 값 / (이 값 + 저항). 예) 100이면 저항 100에서 효과가 절반.
     resistance-softening: 100.0
     durability-softening: 100.0
+
+    # 레어 트로피 보정 — 일반 트로피 대비 스탯 난이도와 행동력이 얼마나 오르는지.
+    # 등급 난이도 배수(stats.grade-difficulty-multipliers)와 곱해집니다.
+    rare-trophy-difficulty-multiplier: 1.5
+    rare-trophy-action-power-multiplier: 2
+    # 낚싯대 릴 파워 보너스가 "거리 회수"에 반영되는 비율.
+    # 기본 릴 파워를 초과한 만큼만 이 비율로 곱해집니다 (0이면 거리에는 영향 없음).
+    rod-bonus-distance-ratio: 0.1
+
+  # --- 입력 판정 ---
+  # 마우스 클릭이 "누르고 있는 중"으로 인정되는 시간입니다. 값이 작을수록 연타를
+  # 빠르게 해야 하고, 크면 한 번 눌러도 오래 유지됩니다.
+  input:
+    # 좌클릭(릴 감기) 유예. 마지막 클릭 후 이 시간 안이면 계속 감는 중으로 봅니다.
+    reel-grace-millis: 250
+    # 우클릭(줄 풀기) 유예.
+    release-grace-millis: 250
+    # 우클릭 연타가 "콤보"로 이어지는 간격. 이 간격을 넘기면 콤보가 1로 초기화됩니다.
+    release-combo-window-millis: 250
+    # 콤보 상한 (표시·피드백용).
+    max-release-combo: 10
 
   # --- 스탯 설정 ---
   # Fight 핵심 스탯 기본값

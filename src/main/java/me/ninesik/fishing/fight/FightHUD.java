@@ -133,6 +133,16 @@ public class FightHUD {
         placeholders.put("distance", round0(session.getDistance()));
         placeholders.put("max_distance", maxDistance > 0 ? round0(maxDistance) : "-");
         String message = Texts.apply(hudConfig.actionBarFormat, placeholders);
+        // 행동력(AP)은 지금까지 어디에도 표시되지 않아 "보이지 않는 난이도"로만 작동했다.
+        // 서버 성격에 따라 노출할 수 있도록 키를 두되, 기존 플레이어 경험이 바뀌지
+        // 않도록 기본값은 OFF다.
+        if (hudConfig.showActionPower) {
+            FishAI ai = session.getFishAI();
+            placeholders.clear();
+            placeholders.put("action_power", String.valueOf(ai.getCurrentActionPower()));
+            placeholders.put("max_action_power", String.valueOf(ai.getMaxActionPower()));
+            message += Texts.apply(hudConfig.actionPowerFormat, placeholders);
+        }
         Texts.sendActionBar(player, Texts.colorize(message));
     }
 
