@@ -15,6 +15,7 @@ import me.ninesik.fishing.model.Rod;
 import me.ninesik.fishing.player.PlayerPreferenceManager;
 import me.ninesik.fishing.registry.BaitRegistry;
 import me.ninesik.fishing.registry.FishRegistry;
+import me.ninesik.fishing.registry.RegistryManager;
 import me.ninesik.fishing.registry.RodRegistry;
 import me.ninesik.fishing.reward.RollEngine;
 import me.ninesik.fishing.reward.RollEngine.RollResult;
@@ -51,9 +52,8 @@ import java.util.UUID;
 public class FishingListener implements Listener {
     private final me.ninesik.fishing.InMcFishing plugin;
     private final DependencyManager dependencyManager;
-    private RodRegistry rodRegistry;
-    private FishRegistry fishRegistry;
-    private BaitRegistry baitRegistry;
+    /** Registry 인스턴스를 보관하면 /fishing reload 후 옛 목록을 계속 보게 된다. */
+    private final RegistryManager registryManager;
     private final FishingSessionManager sessionManager;
     private final MiniGameManager miniGameManager;
     private final RollEngine rollEngine;
@@ -83,8 +83,7 @@ public class FishingListener implements Listener {
             .build();
 
     public FishingListener(me.ninesik.fishing.InMcFishing plugin,
-                           DependencyManager dependencyManager, RodRegistry rodRegistry,
-                           FishRegistry fishRegistry, BaitRegistry baitRegistry,
+                           DependencyManager dependencyManager, RegistryManager registryManager,
                            FishingSessionManager sessionManager, MiniGameManager miniGameManager,
                            RollEngine rollEngine, ConfigManager configManager,
                            FishingMiniGame fishingMiniGame, RewardService rewardService,
@@ -93,9 +92,7 @@ public class FishingListener implements Listener {
                            TrophyFightManager trophyFightManager) {
         this.plugin = plugin;
         this.dependencyManager = dependencyManager;
-        this.rodRegistry = rodRegistry;
-        this.fishRegistry = fishRegistry;
-        this.baitRegistry = baitRegistry;
+        this.registryManager = registryManager;
         this.sessionManager = sessionManager;
         this.miniGameManager = miniGameManager;
         this.rollEngine = rollEngine;
@@ -563,6 +560,9 @@ public class FishingListener implements Listener {
         if (item == null || item.getType() == Material.AIR) {
             return new RodLookupResult.NotARod();
         }
+        // 아래 두 순회에서 매번 조회하지 않도록 한 번만 캡처한다.
+        RodRegistry rodRegistry = registryManager.getRodRegistry();
+        if (rodRegistry == null) return new RodLookupResult.NotARod();
 
         // MMOItems 아이템 확인
         if (dependencyManager.getMMOItems().isAvailable() &&
@@ -613,6 +613,7 @@ public class FishingListener implements Listener {
      * @return 매칭된 Bait, 없으면 null
      */
     private Bait lookupBait(Player player) {
+        BaitRegistry baitRegistry = registryManager.getBaitRegistry();
         if (baitRegistry == null) return null;
         ItemStack item = player.getInventory().getItemInOffHand();
         if (item == null || item.getType() == Material.AIR) return null;
@@ -656,6 +657,7 @@ public class FishingListener implements Listener {
      * items/*.yml에서 fatigue-recovery가 0보다 큰 물고기(물약)를 찾는다.
      */
     private Fish findFatiguePotion(ItemStack item) {
+        FishRegistry fishRegistry = registryManager.getFishRegistry();
         if (item == null || fishRegistry == null) return null;
 
         // 1순위: PDC의 fish_id로 정확히 판정한다. 이름 부분일치(contains)는 이름이 짧은
@@ -738,12 +740,6 @@ public class FishingListener implements Listener {
         return null;
     }
 
-    /** 리로드 시 새로 교체된 RodRegistry/FishRegistry/BaitRegistry를 재주입한다. */
-    public void setRegistries(RodRegistry rodRegistry, FishRegistry fishRegistry, BaitRegistry baitRegistry) {
-        this.rodRegistry = rodRegistry;
-        this.fishRegistry = fishRegistry;
-        this.baitRegistry = baitRegistry;
-    }
 
     public TrophyFightManager getTrophyFightManager() {
         return trophyFightManager;

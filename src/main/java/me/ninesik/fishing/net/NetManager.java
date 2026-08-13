@@ -5,6 +5,7 @@ import me.ninesik.fishing.InMcFishing;
 import me.ninesik.fishing.model.Fish;
 import me.ninesik.fishing.model.RewardEntry;
 import me.ninesik.fishing.registry.FishRegistry;
+import me.ninesik.fishing.registry.RegistryManager;
 import me.ninesik.fishing.service.RewardService;
 import org.bukkit.ChatColor;
 import org.bukkit.entity.Player;
@@ -26,7 +27,8 @@ import java.util.concurrent.ConcurrentHashMap;
 public class NetManager {
 
     private final InMcFishing plugin;
-    private FishRegistry fishRegistry;
+    /** Registry 인스턴스를 보관하면 /fishing reload 후 옛 물고기 목록을 계속 보게 된다. */
+    private final RegistryManager registryManager;
     private final RewardService rewardService;
     private final NetStorage storage;
     private final me.ninesik.fishing.storage.DatabaseManager db;
@@ -36,18 +38,13 @@ public class NetManager {
 
     private int maxSize;
 
-    public NetManager(InMcFishing plugin, FishRegistry fishRegistry, RewardService rewardService) {
+    public NetManager(InMcFishing plugin, RegistryManager registryManager, RewardService rewardService) {
         this.plugin = plugin;
-        this.fishRegistry = fishRegistry;
+        this.registryManager = registryManager;
         this.rewardService = rewardService;
         this.db = plugin.getDatabaseManager();
         this.storage = new NetStorage(this.db);
         this.maxSize = plugin.getConfig().getInt("net.max-size", 100);
-    }
-
-    /** 리로드 시 새로 교체된 FishRegistry를 재주입한다. */
-    public void setFishRegistry(FishRegistry fishRegistry) {
-        this.fishRegistry = fishRegistry;
     }
 
     public int getMaxSize() {
@@ -146,7 +143,7 @@ public class NetManager {
         if (data == null || data.fishId() == null || data.fishId().isEmpty()) {
             return false;
         }
-        Fish fish = fishRegistry.getById(data.fishId());
+        Fish fish = registryManager.getFishRegistry().getById(data.fishId());
         if (fish == null) {
             return false;
         }
@@ -176,7 +173,7 @@ public class NetManager {
         NetEntry entry = data.remove(index);
         if (entry == null) return false;
 
-        Fish fish = fishRegistry.getById(entry.getFishId());
+        Fish fish = registryManager.getFishRegistry().getById(entry.getFishId());
         if (fish == null) {
             player.sendMessage(ChatColor.RED + "이 물고기는 더 이상 존재하지 않습니다.");
             return false;
@@ -210,6 +207,8 @@ public class NetManager {
         if (data == null || data.size() == 0) return 0;
 
         int removed = 0;
+        // 어망 최대 100마리를 도는 루프라 밖에서 1회만 조회한다.
+        FishRegistry fishRegistry = registryManager.getFishRegistry();
         while (data.size() > 0) {
             NetEntry entry = data.getEntries().get(0);
             Fish fish = fishRegistry.getById(entry.getFishId());
@@ -246,7 +245,7 @@ public class NetManager {
             player.sendMessage(ChatColor.YELLOW + "어망 데이터를 불러오는 중입니다. 잠시 후 다시 시도해 주세요.");
             return;
         }
-        new NetGui(player, this, rewardService, fishRegistry).open();
+        new NetGui(player, this, rewardService, registryManager).open();
     }
 
     /**

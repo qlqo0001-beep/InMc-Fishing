@@ -8,6 +8,7 @@ import me.ninesik.fishing.model.Grade;
 import me.ninesik.fishing.model.Rod;
 import me.ninesik.fishing.registry.FishRegistry;
 import me.ninesik.fishing.registry.GradeRegistry;
+import me.ninesik.fishing.registry.RegistryManager;
 import org.bukkit.entity.Player;
 
 import java.util.LinkedHashMap;
@@ -20,8 +21,8 @@ public class RollEngine {
     private final RewardRoller rewardRoller;
     private final WeightCalculator weightCalculator;
     private final ConfigManager configManager;
-    private GradeRegistry gradeRegistry;
-    private FishRegistry fishRegistry;
+    /** Registry 인스턴스를 보관하면 /fishing reload 후 옛 데이터를 계속 보게 된다. */
+    private final RegistryManager registryManager;
 
     /**
      * 트로피 판정 임계값. 기본값은 RewardService/CollectionRewardService와 동일하며,
@@ -34,25 +35,14 @@ public class RollEngine {
     private double trophyThreshold = 1.5;
     private double rareTrophyThreshold = 0.9;
 
-    public RollEngine(RandomService randomService, GradeRegistry gradeRegistry, FishRegistry fishRegistry, DependencyManager dependencyManager, ConfigManager configManager) {
+    public RollEngine(RandomService randomService, RegistryManager registryManager,
+                      DependencyManager dependencyManager, ConfigManager configManager) {
         this.randomService = randomService;
         this.configManager = configManager;
-        this.gradeRegistry = gradeRegistry;
-        this.fishRegistry = fishRegistry;
+        this.registryManager = registryManager;
         this.weightCalculator = new WeightCalculator(dependencyManager, configManager);
-        this.gradeRoller = new GradeRoller(randomService, weightCalculator, gradeRegistry);
-        this.rewardRoller = new RewardRoller(randomService, fishRegistry, dependencyManager);
-    }
-
-    /**
-     * 리로드 시 새로 교체된 GradeRegistry/FishRegistry를 재주입하고,
-     * 내부 GradeRoller/RewardRoller에도 전파한다.
-     */
-    public void setRegistries(GradeRegistry gradeRegistry, FishRegistry fishRegistry) {
-        this.gradeRegistry = gradeRegistry;
-        this.fishRegistry = fishRegistry;
-        this.gradeRoller.setGradeRegistry(gradeRegistry);
-        this.rewardRoller.setFishRegistry(fishRegistry);
+        this.gradeRoller = new GradeRoller(randomService, weightCalculator, registryManager);
+        this.rewardRoller = new RewardRoller(randomService, registryManager, dependencyManager);
     }
 
     /**
@@ -91,7 +81,7 @@ public class RollEngine {
             // 29.3: S 등급은 승급 없음, 대어 메시지 미출력
             String nextId = rolledGrade.getNextGradeId();
             if (nextId != null) {
-                Grade next = gradeRegistry.getById(nextId);
+                Grade next = registryManager.getGradeRegistry().getById(nextId);
                 if (next != null) {
                     isBigFish = true;
                     finalGrade = next;
@@ -173,15 +163,19 @@ public class RollEngine {
         long bigFishCount = 0;
         long doubleCount = 0;
 
+        // count가 최대 1천만이라, 루프 안에서 조회하지 않도록 진입 시 1회만 캡처한다.
+        GradeRegistry grades = registryManager.getGradeRegistry();
+        FishRegistry fishes = registryManager.getFishRegistry();
+
         // 등급 목록 초기화
-        for (Grade g : gradeRegistry.getAll().values()) {
+        for (Grade g : grades.getAll().values()) {
             gradeCounts.put(g.getId().toUpperCase(), 0L);
         }
 
         // 등급별 weight 합계
         Map<Grade, Integer> gradeWeights = new LinkedHashMap<>();
         int totalWeight = 0;
-        for (Grade g : gradeRegistry.getAll().values()) {
+        for (Grade g : grades.getAll().values()) {
             gradeWeights.put(g, g.getWeight());
             totalWeight += g.getWeight();
         }
@@ -207,7 +201,7 @@ public class RollEngine {
             if (randomService.nextDouble() * 100 < configManager.getBigFishChance()) {
                 String nextId = rolledGrade.getNextGradeId();
                 if (nextId != null) {
-                    Grade next = gradeRegistry.getById(nextId);
+                    Grade next = grades.getById(nextId);
                     if (next != null) {
                         isBigFish = true;
                         finalGrade = next;
@@ -216,7 +210,7 @@ public class RollEngine {
             }
 
             // 아이템 선택 (weight 기반)
-            List<Fish> fishList = fishRegistry.getByGrade(finalGrade);
+            List<Fish> fishList = fishes.getByGrade(finalGrade);
             if (fishList.isEmpty()) continue;
 
             int itemTotalWeight = fishList.stream().mapToInt(Fish::getWeight).sum();

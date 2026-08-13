@@ -3,7 +3,7 @@ package me.ninesik.fishing.ranking;
 import me.ninesik.fishing.gui.AbstractGui;
 import me.ninesik.fishing.gui.GuiItems;
 import me.ninesik.fishing.model.Fish;
-import me.ninesik.fishing.registry.FishRegistry;
+import me.ninesik.fishing.registry.RegistryManager;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
@@ -30,16 +30,17 @@ public class RankingGui extends AbstractGui {
     private static final int CONTENT_END = 44;
 
     private final RankingManager rankingManager;
-    private final FishRegistry fishRegistry;
+    /** GUI가 열린 채로 /fishing reload가 일어나도 최신 목록을 보도록 매니저를 들고 있는다. */
+    private final RegistryManager registryManager;
     private String currentTab = "COLLECTION";
     private int page = 0;
     // 사이즈 랭킹 2단계: null이면 물고기 목록, 값이 있으면 해당 물고기 랭킹
     private String selectedFishId = null;
 
-    public RankingGui(Player player, RankingManager rankingManager, FishRegistry fishRegistry) {
+    public RankingGui(Player player, RankingManager rankingManager, RegistryManager registryManager) {
         super(player, ROWS, ChatColor.GOLD + "낚시 랭킹");
         this.rankingManager = rankingManager;
-        this.fishRegistry = fishRegistry;
+        this.registryManager = registryManager;
     }
 
     @Override
@@ -112,7 +113,7 @@ public class RankingGui extends AbstractGui {
      */
     private void renderSizeFishList() {
         Set<String> caught = rankingManager.getCaughtFishIds(player.getUniqueId());
-        List<Fish> fishes = new ArrayList<>(fishRegistry.getAll().values().stream()
+        List<Fish> fishes = new ArrayList<>(registryManager.getFishRegistry().getAll().values().stream()
                 .filter(Fish::hasSize)
                 .sorted(Comparator.comparing(f -> f.getGrade().getId()))
                 .toList());
@@ -171,7 +172,7 @@ public class RankingGui extends AbstractGui {
         int totalSize = switch (currentTab) {
             case "COLLECTION" -> rankingManager.getTop(rankingManager.getDisplayCount()).size();
             case "SIZE" -> selectedFishId == null
-                    ? (int) fishRegistry.getAll().values().stream().filter(Fish::hasSize).count()
+                    ? (int) registryManager.getFishRegistry().getAll().values().stream().filter(Fish::hasSize).count()
                     : rankingManager.getTopBySize(selectedFishId, rankingManager.getDisplayCount()).size();
             case "TROPHY" -> rankingManager.getTopByTrophies(rankingManager.getDisplayCount()).size();
             default -> rankingManager.getTop(rankingManager.getDisplayCount()).size();
@@ -200,14 +201,14 @@ public class RankingGui extends AbstractGui {
                 if (selectedFishId != null) {
                     double size = entry.getBestSize(selectedFishId);
                     lore.add(ChatColor.GRAY + "사이즈: " + ChatColor.AQUA + String.format("%.1f", size) + "cm");
-                    Fish fish = fishRegistry.getById(selectedFishId);
+                    Fish fish = registryManager.getFishRegistry().getById(selectedFishId);
                     if (fish != null && fish.hasSize() && (size >= fish.getAvgSize() * 1.5 || size >= fish.getMaxSize() * 0.9)) {
                         lore.add(ChatColor.GOLD + "🏆 트로피 달성");
                     }
                 } else {
                     Map.Entry<String, Double> best = findBestSize(entry);
                     if (best != null) {
-                        Fish fish = fishRegistry.getById(best.getKey());
+                        Fish fish = registryManager.getFishRegistry().getById(best.getKey());
                         String fishName = fish != null && fish.getVanillaName() != null
                                 ? fish.getVanillaName()
                                 : best.getKey();
@@ -256,7 +257,7 @@ public class RankingGui extends AbstractGui {
     }
 
     private boolean isTrophyFish(String fishId, double size) {
-        Fish fish = fishRegistry.getById(fishId);
+        Fish fish = registryManager.getFishRegistry().getById(fishId);
         if (fish == null || !fish.hasSize()) return false;
         return size >= fish.getAvgSize() * 1.5 || size >= fish.getMaxSize() * 0.9;
     }
@@ -310,7 +311,7 @@ public class RankingGui extends AbstractGui {
     }
 
     private Fish getFishAtSlot(int slot) {
-        List<Fish> fishes = new ArrayList<>(fishRegistry.getAll().values().stream()
+        List<Fish> fishes = new ArrayList<>(registryManager.getFishRegistry().getAll().values().stream()
                 .filter(Fish::hasSize)
                 .sorted(Comparator.comparing(f -> f.getGrade().getId()))
                 .toList());

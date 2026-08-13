@@ -8,10 +8,7 @@ import me.ninesik.fishing.listener.FishingListener;
 import me.ninesik.fishing.minigame.FishingMiniGame;
 import me.ninesik.fishing.minigame.MiniGameManager;
 import me.ninesik.fishing.player.PlayerPreferenceManager;
-import me.ninesik.fishing.registry.BaitRegistry;
-import me.ninesik.fishing.registry.FishRegistry;
-import me.ninesik.fishing.registry.GradeRegistry;
-import me.ninesik.fishing.registry.RodRegistry;
+import me.ninesik.fishing.registry.RegistryManager;
 import me.ninesik.fishing.reward.RollEngine;
 import me.ninesik.fishing.session.FishingSessionManager;
 import org.bukkit.event.HandlerList;
@@ -20,10 +17,11 @@ import org.bukkit.plugin.java.JavaPlugin;
 public class FishingService {
     private final JavaPlugin plugin;
     private final DependencyManager dependencyManager;
-    private final RodRegistry rodRegistry;
-    private final GradeRegistry gradeRegistry;
-    private final FishRegistry fishRegistry;
-    private final BaitRegistry baitRegistry;
+    /**
+     * 개별 Registry가 아니라 매니저를 들고 다닌다. /fishing reload는 Registry를 새 객체로
+     * 통째 교체하므로, 인스턴스를 보관하면 리로드가 게임플레이에 반영되지 않는다.
+     */
+    private final RegistryManager registryManager;
     private final ConfigManager configManager;
     private final FishingSessionManager sessionManager;
     private final MiniGameManager miniGameManager;
@@ -36,33 +34,28 @@ public class FishingService {
     private TrophyFightManager trophyFightManager;
 
     public FishingService(JavaPlugin plugin, DependencyManager dependencyManager,
-                          RodRegistry rodRegistry, GradeRegistry gradeRegistry,
-                          FishRegistry fishRegistry, BaitRegistry baitRegistry,
+                          RegistryManager registryManager,
                           PlayerPreferenceManager playerPreferenceManager) {
         this.plugin = plugin;
         this.dependencyManager = dependencyManager;
-        this.rodRegistry = rodRegistry;
-        this.gradeRegistry = gradeRegistry;
-        this.fishRegistry = fishRegistry;
-        this.baitRegistry = baitRegistry;
+        this.registryManager = registryManager;
         this.configManager = new ConfigManager((me.ninesik.fishing.InMcFishing) plugin);
         this.sessionManager = new FishingSessionManager();
         this.miniGameManager = new MiniGameManager();
         this.rollEngine = new RollEngine(
                 new me.ninesik.fishing.reward.RandomService(),
-                gradeRegistry,
-                fishRegistry,
+                registryManager,
                 dependencyManager,
                 configManager
         );
         this.rewardService = new RewardService(plugin, dependencyManager, configManager);
         this.playerPreferenceManager = playerPreferenceManager;
         // 유저 피드백(피로도 시스템): configManager가 막 생성된 시점에 바로 만들어야
-        // rodRegistry/dependencyManager/playerPreferenceManager를 모두 갖춘 상태로 생성할 수 있다.
+        // registryManager/dependencyManager/playerPreferenceManager를 모두 갖춘 상태로 생성할 수 있다.
         this.fatigueManager = new PlayerFatigueManager(
                 (me.ninesik.fishing.InMcFishing) plugin,
                 configManager,
-                rodRegistry,
+                registryManager,
                 dependencyManager,
                 playerPreferenceManager
         );
@@ -84,7 +77,7 @@ public class FishingService {
                 sessionManager,
                 rewardService,
                 configManager,
-                gradeRegistry,
+                registryManager,
                 fatigueManager
         );
         // FishingMiniGame에 TrophyFightManager 주입
@@ -93,9 +86,7 @@ public class FishingService {
         this.fishingListener = new FishingListener(
                 (me.ninesik.fishing.InMcFishing) plugin,
                 dependencyManager,
-                rodRegistry,
-                fishRegistry,
-                baitRegistry,
+                registryManager,
                 sessionManager,
                 miniGameManager,
                 rollEngine,
@@ -121,9 +112,16 @@ public class FishingService {
         configManager.load();
         if (plugin instanceof me.ninesik.fishing.InMcFishing inMcFishing) {
             // Registry 재로드 — grades.yml, items/*-grade.yml(물고기), items/rod.yml(낚싯대) (피드백)
-            inMcFishing.reloadRegistries();
+            // 실패하면 loadRegistries()가 registryManager.load()를 호출하지 않아 기존 Registry가
+            // 그대로 유지된다. 예전에는 반환값을 버려서 어드민이 실패를 알 수 없었다.
+            if (!inMcFishing.reloadRegistries()) {
+                plugin.getLogger().warning(
+                        "Registry 재로드에 실패했습니다. 기존 설정을 유지합니다. 위 오류 로그를 확인하세요.");
+            }
             if (inMcFishing.getCollectionManager() != null) {
                 inMcFishing.getCollectionManager().reload();
+                // 접속 중인 플레이어의 도감을 새 Registry와 맞춘다 (추가된 물고기 등록 가능해짐).
+                inMcFishing.getCollectionManager().resyncAllCached();
             }
             if (inMcFishing.getTournamentManager() != null) {
                 inMcFishing.getTournamentManager().reload();

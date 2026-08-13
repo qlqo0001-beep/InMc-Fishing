@@ -3,29 +3,26 @@ package me.ninesik.fishing.reward;
 import me.ninesik.fishing.dependency.DependencyManager;
 import me.ninesik.fishing.model.Fish;
 import me.ninesik.fishing.model.Grade;
-import me.ninesik.fishing.registry.FishRegistry;
+import me.ninesik.fishing.registry.RegistryManager;
 import org.bukkit.entity.Player;
 
 import java.util.List;
 
 public class RewardRoller {
     private final RandomService randomService;
-    private FishRegistry fishRegistry;
+    /** {@link GradeRoller}와 같은 이유로 Registry 인스턴스를 보관하지 않고 매니저를 통해 조회한다. */
+    private final RegistryManager registryManager;
     private final DependencyManager dependencyManager;
 
-    public RewardRoller(RandomService randomService, FishRegistry fishRegistry, DependencyManager dependencyManager) {
+    public RewardRoller(RandomService randomService, RegistryManager registryManager,
+                        DependencyManager dependencyManager) {
         this.randomService = randomService;
-        this.fishRegistry = fishRegistry;
+        this.registryManager = registryManager;
         this.dependencyManager = dependencyManager;
     }
 
-    /** 리로드 시 새로 교체된 FishRegistry를 재주입한다. */
-    public void setFishRegistry(FishRegistry fishRegistry) {
-        this.fishRegistry = fishRegistry;
-    }
-
     public Fish rollReward(Player player, Grade grade) {
-        List<Fish> fishList = fishRegistry.getByGrade(grade);
+        List<Fish> fishList = registryManager.getFishRegistry().getByGrade(grade);
         
         if (fishList == null || fishList.isEmpty()) {
             return null;

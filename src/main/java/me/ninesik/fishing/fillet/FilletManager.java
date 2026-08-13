@@ -3,8 +3,7 @@ package me.ninesik.fishing.fillet;
 import me.ninesik.fishing.InMcFishing;
 import me.ninesik.fishing.model.Fish;
 import me.ninesik.fishing.model.Grade;
-import me.ninesik.fishing.registry.FishRegistry;
-import me.ninesik.fishing.registry.GradeRegistry;
+import me.ninesik.fishing.registry.RegistryManager;
 import me.ninesik.fishing.service.RewardService;
 import me.ninesik.fishing.storage.DatabaseManager;
 import me.ninesik.fishing.util.Texts;
@@ -36,23 +35,21 @@ public final class FilletManager {
     private final FilletStorage storage;
     private final FilletConfig config;
     private final RewardService rewardService;
-    private final FishRegistry fishRegistry;
-    private final GradeRegistry gradeRegistry;
+    /** Registry 인스턴스를 보관하면 /fishing reload 후 옛 목록을 계속 보게 된다. */
+    private final RegistryManager registryManager;
 
     private final Map<String, FilletItemDef> itemDefs = new ConcurrentHashMap<>();
     private final Map<UUID, FilletGui> openGuis = new ConcurrentHashMap<>();
     private int schedulerTaskId = -1;
 
     public FilletManager(InMcFishing plugin, DatabaseManager db, FilletConfig config,
-                         RewardService rewardService, FishRegistry fishRegistry,
-                         GradeRegistry gradeRegistry) {
+                         RewardService rewardService, RegistryManager registryManager) {
         this.plugin = plugin;
         this.db = db;
         this.storage = new FilletStorage(db);
         this.config = config;
         this.rewardService = rewardService;
-        this.fishRegistry = fishRegistry;
-        this.gradeRegistry = gradeRegistry;
+        this.registryManager = registryManager;
     }
 
     public void load() { loadItemDefinitions(); }
@@ -179,7 +176,7 @@ public final class FilletManager {
         }
         if (target == null || target.isComplete()) return null;
 
-        Fish fish = fishRegistry.getById(target.fishId());
+        Fish fish = registryManager.getFishRegistry().getById(target.fishId());
         if (fish == null) return null;
 
         ItemStack item = rewardService.createItemStack(fish, target.quantity(),
@@ -227,14 +224,14 @@ public final class FilletManager {
     }
 
     private int getMaxWeightInGrade(String gradeId) {
-        Grade grade = gradeRegistry.getById(gradeId);
+        Grade grade = registryManager.getGradeRegistry().getById(gradeId);
         if (grade == null) return 10;
-        List<Fish> fishes = fishRegistry.getByGrade(grade);
+        List<Fish> fishes = registryManager.getFishRegistry().getByGrade(grade);
         return fishes.stream().mapToInt(Fish::getWeight).max().orElse(10);
     }
 
     private int getFishWeight(String fishId) {
-        Fish fish = fishRegistry.getById(fishId);
+        Fish fish = registryManager.getFishRegistry().getById(fishId);
         return fish != null ? fish.getWeight() : 10;
     }
 

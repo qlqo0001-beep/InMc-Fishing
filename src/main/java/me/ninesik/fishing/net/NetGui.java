@@ -3,7 +3,7 @@ package me.ninesik.fishing.net;
 import me.ninesik.fishing.gui.AbstractGui;
 import me.ninesik.fishing.gui.GuiItems;
 import me.ninesik.fishing.model.Fish;
-import me.ninesik.fishing.registry.FishRegistry;
+import me.ninesik.fishing.registry.RegistryManager;
 import me.ninesik.fishing.service.RewardService;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
@@ -33,15 +33,16 @@ public class NetGui extends AbstractGui {
 
     private final NetManager netManager;
     private final RewardService rewardService;
-    private final FishRegistry fishRegistry;
+    /** GUI가 열린 채로 /fishing reload가 일어나도 최신 목록을 보도록 매니저를 들고 있는다. */
+    private final RegistryManager registryManager;
     private NetData.SortMode sortMode = NetData.SortMode.TYPE;
     private int page = 0;
 
-    public NetGui(Player player, NetManager netManager, RewardService rewardService, FishRegistry fishRegistry) {
+    public NetGui(Player player, NetManager netManager, RewardService rewardService, RegistryManager registryManager) {
         super(player, ROWS, ChatColor.DARK_AQUA + "어망");
         this.netManager = netManager;
         this.rewardService = rewardService;
-        this.fishRegistry = fishRegistry;
+        this.registryManager = registryManager;
     }
 
     @Override
@@ -124,7 +125,7 @@ public class NetGui extends AbstractGui {
     }
 
     private ItemStack buildFishIcon(NetEntry entry) {
-        Fish fish = fishRegistry.getById(entry.getFishId());
+        Fish fish = registryManager.getFishRegistry().getById(entry.getFishId());
         if (fish == null) {
             ItemStack unknown = new ItemStack(Material.BARRIER, 1);
             ItemMeta meta = unknown.getItemMeta();

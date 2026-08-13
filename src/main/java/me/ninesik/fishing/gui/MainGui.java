@@ -266,7 +266,7 @@ public class MainGui extends AbstractGui {
                 }
                 player.closeInventory();
                 new me.ninesik.fishing.ranking.RankingGui(
-                        player, rank, plugin().getRegistryManager().getFishRegistry()).open();
+                        player, rank, plugin().getRegistryManager()).open();
             }
             case SLOT_TOURNAMENT -> {
                 TournamentManager t = plugin().getTournamentManager();

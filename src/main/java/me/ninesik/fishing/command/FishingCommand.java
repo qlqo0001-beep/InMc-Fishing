@@ -63,9 +63,6 @@ public class FishingCommand implements CommandExecutor, TabCompleter {
     private final FishingService fishingService;
     private final ConfigManager configManager;
     private final FishingSessionManager sessionManager;
-    private GradeRegistry gradeRegistry;
-    private FishRegistry fishRegistry;
-    private RodRegistry rodRegistry;
     private final RewardService rewardService;
     private final FishingMiniGame fishingMiniGame;
     private final RollEngine rollEngine;
@@ -81,9 +78,6 @@ public class FishingCommand implements CommandExecutor, TabCompleter {
         this.fishingService = plugin.getFishingService();
         this.configManager = fishingService.getConfigManager();
         this.sessionManager = fishingService.getSessionManager();
-        this.gradeRegistry = plugin.getRegistryManager().getGradeRegistry();
-        this.fishRegistry = plugin.getRegistryManager().getFishRegistry();
-        this.rodRegistry = plugin.getRegistryManager().getRodRegistry();
         this.rewardService = fishingService.getRewardService();
         this.fishingMiniGame = fishingService.getFishingMiniGame();
         this.rollEngine = fishingService.getRollEngine();
@@ -95,12 +89,11 @@ public class FishingCommand implements CommandExecutor, TabCompleter {
         this.logger = plugin.getLogger();
     }
 
-    /** 리로드 시 새로 교체된 Grade/Fish/Rod Registry를 재주입한다. */
-    public void setRegistries(GradeRegistry gradeRegistry, FishRegistry fishRegistry, RodRegistry rodRegistry) {
-        this.gradeRegistry = gradeRegistry;
-        this.fishRegistry = fishRegistry;
-        this.rodRegistry = rodRegistry;
-    }
+    // Registry는 /fishing reload 때 새 객체로 통째 교체되므로 인스턴스를 필드에 담지 않는다.
+    // 필드로 들고 있던 시절에는 리로드해도 명령어가 계속 옛 목록을 보여줬다.
+    private GradeRegistry gradeRegistry() { return plugin.getRegistryManager().getGradeRegistry(); }
+    private FishRegistry fishRegistry() { return plugin.getRegistryManager().getFishRegistry(); }
+    private RodRegistry rodRegistry() { return plugin.getRegistryManager().getRodRegistry(); }
 
     @Override
     public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command,
@@ -225,7 +218,7 @@ public class FishingCommand implements CommandExecutor, TabCompleter {
 
         if (args.length == 2 && args[0].equalsIgnoreCase("list")) {
             List<String> grades = new ArrayList<>();
-            for (String id : gradeRegistry.getAll().keySet()) {
+            for (String id : gradeRegistry().getAll().keySet()) {
                 if (id.toUpperCase().startsWith(args[1].toUpperCase())) {
                     grades.add(id.toUpperCase());
                 }
@@ -235,7 +228,7 @@ public class FishingCommand implements CommandExecutor, TabCompleter {
 
         if (args.length == 2 && args[0].equalsIgnoreCase("testfight")) {
             List<String> grades = new ArrayList<>();
-            for (String id : gradeRegistry.getAll().keySet()) {
+            for (String id : gradeRegistry().getAll().keySet()) {
                 if (id.toUpperCase().startsWith(args[1].toUpperCase())) {
                     grades.add(id.toUpperCase());
                 }
@@ -257,7 +250,7 @@ public class FishingCommand implements CommandExecutor, TabCompleter {
                 Integer.parseInt(args[1]);
                 if (args.length == 3) {
                     List<String> grades = new ArrayList<>();
-                    for (String id : gradeRegistry.getAll().keySet()) {
+                    for (String id : gradeRegistry().getAll().keySet()) {
                         if (id.toUpperCase().startsWith(args[2].toUpperCase())) {
                             grades.add(id.toUpperCase());
                         }
@@ -296,9 +289,9 @@ public class FishingCommand implements CommandExecutor, TabCompleter {
         }
 
         sender.sendMessage("§6===== InMc-Fishing Debug =====");
-        sender.sendMessage("§e등급: §f" + gradeRegistry.getAll().size() + "개");
-        sender.sendMessage("§e물고기: §f" + fishRegistry.getAll().size() + "개");
-        sender.sendMessage("§e낚싯대: §f" + rodRegistry.getAll().size() + "개");
+        sender.sendMessage("§e등급: §f" + gradeRegistry().getAll().size() + "개");
+        sender.sendMessage("§e물고기: §f" + fishRegistry().getAll().size() + "개");
+        sender.sendMessage("§e낚싯대: §f" + rodRegistry().getAll().size() + "개");
         sender.sendMessage("§e활성 세션: §f" + sessionManager.getActiveSessionCount());
         sender.sendMessage("§e설정 리로드 가능: §f" + configManager.isEnabled());
         sender.sendMessage("§e허용 월드: §f" + configManager.getAllowedWorlds());
@@ -433,9 +426,9 @@ public class FishingCommand implements CommandExecutor, TabCompleter {
         sender.sendMessage("§6===== InMc-Fishing =====");
         sender.sendMessage("§e버전: §f" + plugin.getDescription().getVersion());
         sender.sendMessage("§eAPI: §f" + plugin.getDescription().getAPIVersion());
-        sender.sendMessage("§e등급: §f" + gradeRegistry.getAll().size() + "개");
-        sender.sendMessage("§e물고기: §f" + fishRegistry.getAll().size() + "개");
-        sender.sendMessage("§e낚싯대: §f" + rodRegistry.getAll().size() + "개");
+        sender.sendMessage("§e등급: §f" + gradeRegistry().getAll().size() + "개");
+        sender.sendMessage("§e물고기: §f" + fishRegistry().getAll().size() + "개");
+        sender.sendMessage("§e낚싯대: §f" + rodRegistry().getAll().size() + "개");
         if (sender instanceof Player player) {
             sender.sendMessage("§e미니게임 중: §f" + fishingMiniGame.isActive(player));
         }
@@ -512,7 +505,7 @@ public class FishingCommand implements CommandExecutor, TabCompleter {
             return;
         }
 
-        Grade grade = gradeRegistry.getById(args[1].toLowerCase());
+        Grade grade = gradeRegistry().getById(args[1].toLowerCase());
         if (grade == null) {
             sender.sendMessage("§c존재하지 않는 등급입니다: " + args[1]);
             return;
@@ -534,7 +527,7 @@ public class FishingCommand implements CommandExecutor, TabCompleter {
 
         // 등급에 맞는 물고기 찾기 (첫 번째 매치)
         Fish testFish = null;
-        for (Fish fish : fishRegistry.getAll().values()) {
+        for (Fish fish : fishRegistry().getAll().values()) {
             if (fish.getGrade() != null && fish.getGrade().getId().equalsIgnoreCase(grade.getId())) {
                 testFish = fish;
                 break;
@@ -630,7 +623,7 @@ public class FishingCommand implements CommandExecutor, TabCompleter {
             player.sendMessage("§c손에 물고기 아이템을 들고 사용해야 합니다.");
             return;
         }
-        Fish fish = fishRegistry.getById(data.fishId());
+        Fish fish = fishRegistry().getById(data.fishId());
         if (fish == null) {
             player.sendMessage("§c존재하지 않는 물고기입니다.");
             return;
@@ -867,7 +860,7 @@ public class FishingCommand implements CommandExecutor, TabCompleter {
             sender.sendMessage("§c랭킹 시스템이 비활성화되어 있습니다.");
             return;
         }
-        new me.ninesik.fishing.ranking.RankingGui(player, rankingManager, fishRegistry).open();
+        new me.ninesik.fishing.ranking.RankingGui(player, rankingManager, plugin.getRegistryManager()).open();
     }
 
     private void handleTournament(CommandSender sender, String[] args) {
@@ -1014,7 +1007,7 @@ public class FishingCommand implements CommandExecutor, TabCompleter {
             return;
         }
         String gradeId = args[3].toLowerCase();
-        if (gradeRegistry.getById(gradeId) == null) {
+        if (gradeRegistry().getById(gradeId) == null) {
             sender.sendMessage("§c존재하지 않는 등급입니다: " + args[3]);
             return;
         }
@@ -1037,7 +1030,7 @@ public class FishingCommand implements CommandExecutor, TabCompleter {
             sender.sendMessage("§c플레이어를 찾을 수 없습니다: " + args[2]);
             return;
         }
-        Fish fish = fishRegistry.getById(args[3]);
+        Fish fish = fishRegistry().getById(args[3]);
         if (fish == null) {
             sender.sendMessage("§c존재하지 않는 물고기 ID입니다: " + args[3]);
             return;
@@ -1083,7 +1076,7 @@ public class FishingCommand implements CommandExecutor, TabCompleter {
             sender.sendMessage("§c플레이어를 찾을 수 없습니다: " + args[2]);
             return;
         }
-        Fish fish = fishRegistry.getById(args[3]);
+        Fish fish = fishRegistry().getById(args[3]);
         if (fish == null) {
             sender.sendMessage("§c존재하지 않는 물고기 ID입니다: " + args[3]);
             return;
@@ -1107,7 +1100,7 @@ public class FishingCommand implements CommandExecutor, TabCompleter {
             sender.sendMessage("§c플레이어를 찾을 수 없습니다: " + args[2]);
             return;
         }
-        Fish fish = fishRegistry.getById(args[3]);
+        Fish fish = fishRegistry().getById(args[3]);
         if (fish == null || !fish.hasSize()) {
             sender.sendMessage("§c존재하지 않거나 사이즈 정보가 없는 물고기 ID입니다: " + args[3]);
             return;
@@ -1135,7 +1128,7 @@ public class FishingCommand implements CommandExecutor, TabCompleter {
             sender.sendMessage("§c플레이어를 찾을 수 없습니다: " + args[2]);
             return;
         }
-        Rod rod = rodRegistry.getById(args[3]);
+        Rod rod = rodRegistry().getById(args[3]);
         if (rod == null) {
             sender.sendMessage("§c존재하지 않는 낚싯대 ID입니다: " + args[3]);
             return;
@@ -1232,7 +1225,7 @@ public class FishingCommand implements CommandExecutor, TabCompleter {
             return;
         }
         String gradeId = args[3].toLowerCase();
-        if (gradeRegistry.getById(gradeId) == null) {
+        if (gradeRegistry().getById(gradeId) == null) {
             sender.sendMessage("§c존재하지 않는 등급입니다: " + args[3] + " (f~s)");
             return;
         }
@@ -1406,7 +1399,7 @@ public class FishingCommand implements CommandExecutor, TabCompleter {
         }
         String gradeFilter = args.length >= 2 ? args[1].toLowerCase() : null;
         sender.sendMessage("§6===== 물고기 목록 =====");
-        for (Fish fish : fishRegistry.getAll().values()) {
+        for (Fish fish : fishRegistry().getAll().values()) {
             if (gradeFilter != null && !fish.getGrade().getId().equalsIgnoreCase(gradeFilter)) continue;
             String gradeColor = fish.getGrade().getColor();
             sender.sendMessage("§7[" + ChatColor.translateAlternateColorCodes('&', gradeColor)
@@ -1452,7 +1445,7 @@ public class FishingCommand implements CommandExecutor, TabCompleter {
         }
         if (args.length == 4 && ("net".equalsIgnoreCase(args[1]) || "fish".equalsIgnoreCase(args[1]) || "trophy".equalsIgnoreCase(args[1]))) {
             List<String> ids = new ArrayList<>();
-            for (Fish fish : fishRegistry.getAll().values()) {
+            for (Fish fish : fishRegistry().getAll().values()) {
                 if (fish.getId().toLowerCase().startsWith(args[3].toLowerCase())) {
                     ids.add(fish.getId());
                 }
@@ -1461,7 +1454,7 @@ public class FishingCommand implements CommandExecutor, TabCompleter {
         }
         if (args.length == 4 && "potion".equalsIgnoreCase(args[1])) {
             List<String> grades = new ArrayList<>();
-            for (String id : gradeRegistry.getAll().keySet()) {
+            for (String id : gradeRegistry().getAll().keySet()) {
                 if (id.toLowerCase().startsWith(args[3].toLowerCase())) {
                     grades.add(id.toLowerCase());
                 }
@@ -1470,7 +1463,7 @@ public class FishingCommand implements CommandExecutor, TabCompleter {
         }
         if (args.length == 4 && "rod".equalsIgnoreCase(args[1])) {
             List<String> ids = new ArrayList<>();
-            for (String id : rodRegistry.getAll().keySet()) {
+            for (String id : rodRegistry().getAll().keySet()) {
                 if (id.toLowerCase().startsWith(args[3].toLowerCase())) {
                     ids.add(id);
                 }
@@ -1488,7 +1481,7 @@ public class FishingCommand implements CommandExecutor, TabCompleter {
         }
         if (args.length == 4 && "fillet".equalsIgnoreCase(args[1])) {
             List<String> grades = new ArrayList<>();
-            for (String id : gradeRegistry.getAll().keySet()) {
+            for (String id : gradeRegistry().getAll().keySet()) {
                 if (id.toLowerCase().startsWith(args[3].toLowerCase())) grades.add(id.toLowerCase());
             }
             return grades;

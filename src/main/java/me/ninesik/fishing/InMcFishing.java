@@ -21,10 +21,6 @@ import me.ninesik.fishing.model.Bait;
 import me.ninesik.fishing.player.PlayerPreferenceListener;
 import me.ninesik.fishing.player.PlayerPreferenceManager;
 import me.ninesik.fishing.registry.RegistryManager;
-import me.ninesik.fishing.registry.BaitRegistry;
-import me.ninesik.fishing.registry.FishRegistry;
-import me.ninesik.fishing.registry.GradeRegistry;
-import me.ninesik.fishing.registry.RodRegistry;
 import me.ninesik.fishing.service.FishingService;
 import me.ninesik.fishing.storage.DatabaseManager;
 import me.ninesik.fishing.validator.ValidationReport;
@@ -109,10 +105,7 @@ public final class InMcFishing extends JavaPlugin {
         fishingService = new FishingService(
                 this,
                 dependencyManager,
-                registryManager.getRodRegistry(),
-                registryManager.getGradeRegistry(),
-                registryManager.getFishRegistry(),
-                registryManager.getBaitRegistry(),
+                registryManager,
                 playerPreferenceManager
         );
         fishingService.initialize();
@@ -132,7 +125,7 @@ public final class InMcFishing extends JavaPlugin {
         fatigueManager.startScheduler();
 
         // 도감 시스템 초기화
-        collectionManager = new CollectionManager(this, registryManager.getFishRegistry(), fishingService.getRewardService());
+        collectionManager = new CollectionManager(this, registryManager, fishingService.getRewardService());
 
         // RewardService에 트로피 Lore 설정 동기화 (collectionRewardService와 동일한 값 사용)
         fishingService.getRewardService().setTrophyConfig(
@@ -152,7 +145,7 @@ public final class InMcFishing extends JavaPlugin {
 
         // 어망 시스템 초기화 (100칸 보관함)
         netManager = new me.ninesik.fishing.net.NetManager(
-                this, registryManager.getFishRegistry(), fishingService.getRewardService());
+                this, registryManager, fishingService.getRewardService());
         fishingService.getRewardService().setNetManager(netManager);
         collectionManager.setNetManager(netManager);
         getServer().getPluginManager().registerEvents(
@@ -176,8 +169,7 @@ public final class InMcFishing extends JavaPlugin {
         // 생선 살 가공 시스템 초기화
         FilletConfig filletConfig = new FilletConfig(getConfig().getConfigurationSection("fillet"));
         filletManager = new FilletManager(this, databaseManager, filletConfig,
-                fishingService.getRewardService(), registryManager.getFishRegistry(),
-                registryManager.getGradeRegistry());
+                fishingService.getRewardService(), registryManager);
         filletManager.load();
         filletManager.startScheduler();
 
@@ -321,23 +313,6 @@ public final class InMcFishing extends JavaPlugin {
      */
     public boolean reloadRegistries() {
         return loadRegistries();
-    }
-
-    /**
-     * /fishing reload 시 새로 교체된 Registry를 플러그인이 소유한 관리자(GUI·도감·어망·명령어)에 재주입한다.
-     * (RollEngine/FishingListener 등 FishingService 소유 컴포넌트는 fishingService.refreshRegistries로 처리)
-     */
-    public void refreshRegistries(RodRegistry rodRegistry, GradeRegistry gradeRegistry,
-                                     FishRegistry fishRegistry, BaitRegistry baitRegistry) {
-        if (collectionManager != null) {
-            collectionManager.setFishRegistry(fishRegistry);
-        }
-        if (netManager != null) {
-            netManager.setFishRegistry(fishRegistry);
-        }
-        if (fishingCommand != null) {
-            fishingCommand.setRegistries(gradeRegistry, fishRegistry, rodRegistry);
-        }
     }
 
     public static InMcFishing getInstance() {

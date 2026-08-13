@@ -6,6 +6,7 @@ import me.ninesik.fishing.dependency.DependencyManager;
 import me.ninesik.fishing.model.Rod;
 import me.ninesik.fishing.player.PlayerPreferenceManager;
 import me.ninesik.fishing.registry.RodFinder;
+import me.ninesik.fishing.registry.RegistryManager;
 import me.ninesik.fishing.registry.RodRegistry;
 import org.bukkit.Bukkit;
 import org.bukkit.configuration.file.FileConfiguration;
@@ -39,7 +40,8 @@ public class PlayerFatigueManager {
 
     private final InMcFishing plugin;
     private final ConfigManager configManager;
-    private RodRegistry rodRegistry;
+    /** Registry 인스턴스를 보관하면 /fishing reload 후 옛 낚싯대 목록을 계속 보게 된다. */
+    private final RegistryManager registryManager;
     private final DependencyManager dependencyManager;
     private final PlayerPreferenceManager playerPreferenceManager;
     private final File dataDir;
@@ -53,22 +55,17 @@ public class PlayerFatigueManager {
     private int elapsedSeconds = 0;
 
     public PlayerFatigueManager(InMcFishing plugin, ConfigManager configManager,
-                                 RodRegistry rodRegistry, DependencyManager dependencyManager,
+                                 RegistryManager registryManager, DependencyManager dependencyManager,
                                  PlayerPreferenceManager playerPreferenceManager) {
         this.plugin = plugin;
         this.configManager = configManager;
-        this.rodRegistry = rodRegistry;
+        this.registryManager = registryManager;
         this.dependencyManager = dependencyManager;
         this.playerPreferenceManager = playerPreferenceManager;
         this.dataDir = new File(plugin.getDataFolder(), "fatigue");
         if (!dataDir.exists()) {
             dataDir.mkdirs();
         }
-    }
-
-    /** 리로드 시 새로 교체된 RodRegistry를 재주입한다. */
-    public void setRodRegistry(RodRegistry rodRegistry) {
-        this.rodRegistry = rodRegistry;
     }
 
     /**
@@ -101,13 +98,15 @@ public class PlayerFatigueManager {
         elapsedSeconds = 0;
 
         int baseAmount = configManager.getFatigueRecoveryAmount();
+        // 온라인 전원을 순회하므로 루프 밖에서 1회만 조회한다.
+        RodRegistry rods = registryManager.getRodRegistry();
         for (Player player : Bukkit.getOnlinePlayers()) {
             UUID uuid = player.getUniqueId();
             if (!fatigueCache.containsKey(uuid)) {
                 continue;
             }
             int rodBonus = 0;
-            Rod rod = RodFinder.findHeldRod(player, rodRegistry, dependencyManager);
+            Rod rod = RodFinder.findHeldRod(player, rods, dependencyManager);
             if (rod != null) {
                 rodBonus = rod.getFatigueRecoveryBonus();
             }
@@ -172,7 +171,7 @@ public class PlayerFatigueManager {
     public int getEffectiveMax(Player player) {
         int base = configManager.getFatigueDefaultMax();
         int rodBonus = 0;
-        Rod rod = RodFinder.findHeldRod(player, rodRegistry, dependencyManager);
+        Rod rod = RodFinder.findHeldRod(player, registryManager.getRodRegistry(), dependencyManager);
         if (rod != null) {
             rodBonus = rod.getMaxFatigueBonus();
         }
@@ -186,7 +185,7 @@ public class PlayerFatigueManager {
      */
     public int getEffectiveRecoveryAmount(Player player) {
         int rodBonus = 0;
-        Rod rod = RodFinder.findHeldRod(player, rodRegistry, dependencyManager);
+        Rod rod = RodFinder.findHeldRod(player, registryManager.getRodRegistry(), dependencyManager);
         if (rod != null) {
             rodBonus = rod.getFatigueRecoveryBonus();
         }

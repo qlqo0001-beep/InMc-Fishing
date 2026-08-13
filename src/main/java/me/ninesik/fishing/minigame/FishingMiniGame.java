@@ -5,7 +5,7 @@ import me.ninesik.fishing.fatigue.PlayerFatigueManager;
 import me.ninesik.fishing.fight.TrophyFightManager;
 import me.ninesik.fishing.model.Grade;
 import me.ninesik.fishing.model.RewardEntry;
-import me.ninesik.fishing.registry.GradeRegistry;
+import me.ninesik.fishing.registry.RegistryManager;
 import me.ninesik.fishing.service.RewardService;
 import me.ninesik.fishing.session.FishingSession;
 import me.ninesik.fishing.session.FishingSessionManager;
@@ -33,7 +33,8 @@ public class FishingMiniGame implements MiniGame {
     private final FishingSessionManager sessionManager;
     private final RewardService rewardService;
     private final ConfigManager configManager;
-    private GradeRegistry gradeRegistry;
+    /** Registry 인스턴스를 보관하면 /fishing reload 후 옛 등급 목록을 계속 보게 된다. */
+    private final RegistryManager registryManager;
     private final PlayerFatigueManager fatigueManager;
     private TrophyFightManager trophyFightManager;
 
@@ -78,11 +79,6 @@ public class FishingMiniGame implements MiniGame {
         this.trophyFightManager = trophyFightManager;
     }
 
-    /** 리로드 시 새로 교체된 GradeRegistry를 재주입한다. */
-    public void setGradeRegistry(GradeRegistry gradeRegistry) {
-        this.gradeRegistry = gradeRegistry;
-    }
-
     /**
      * 트로피 파이트 테스트 모드를 설정한다 (피드백 - 테스트 명령어).
      * 켜면 해당 플레이어가 잡는 물고기가 기본 L/R 클릭 미니게임 대신
@@ -114,14 +110,14 @@ public class FishingMiniGame implements MiniGame {
                            FishingSessionManager sessionManager,
                            RewardService rewardService,
                            ConfigManager configManager,
-                           GradeRegistry gradeRegistry,
+                           RegistryManager registryManager,
                            PlayerFatigueManager fatigueManager) {
         this.plugin = plugin;
         this.gameManager = gameManager;
         this.sessionManager = sessionManager;
         this.rewardService = rewardService;
         this.configManager = configManager;
-        this.gradeRegistry = gradeRegistry;
+        this.registryManager = registryManager;
         this.fatigueManager = fatigueManager;
     }
 
@@ -373,7 +369,7 @@ public class FishingMiniGame implements MiniGame {
         RewardEntry reward = pendingRewards.get(player.getUniqueId());
         FishingSession session = sessionManager.getSession(player);
         if (session == null) return null;
-        GameSession gs = new GameSession(player, gradeRegistry.getById(session.getGradeId()), reward);
+        GameSession gs = new GameSession(player, registryManager.getGradeRegistry().getById(session.getGradeId()), reward);
         gs.setActive(session.isActive());
         return gs;
     }

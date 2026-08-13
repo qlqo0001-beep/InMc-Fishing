@@ -8,6 +8,7 @@ import me.ninesik.fishing.net.NetEntry;
 import me.ninesik.fishing.net.NetManager;
 import me.ninesik.fishing.ranking.RankingManager;
 import me.ninesik.fishing.registry.FishRegistry;
+import me.ninesik.fishing.registry.RegistryManager;
 import me.ninesik.fishing.service.RewardService;
 import me.ninesik.fishing.util.Sounds;
 import org.bukkit.Bukkit;
@@ -32,7 +33,8 @@ import java.util.concurrent.ConcurrentHashMap;
 public class CollectionManager {
 
     private final InMcFishing plugin;
-    private FishRegistry fishRegistry;
+    /** Registry 인스턴스를 보관하면 /fishing reload 후 옛 물고기 목록을 계속 보게 된다. */
+    private final RegistryManager registryManager;
     private final RewardService rewardService;
     private final CollectionStorage storage;
     private final me.ninesik.fishing.storage.DatabaseManager db;
@@ -65,9 +67,9 @@ public class CollectionManager {
     private String unlockHiddenText;
     private List<UnlockTier> unlockTiers;
 
-    public CollectionManager(InMcFishing plugin, FishRegistry fishRegistry, RewardService rewardService) {
+    public CollectionManager(InMcFishing plugin, RegistryManager registryManager, RewardService rewardService) {
         this.plugin = plugin;
-        this.fishRegistry = fishRegistry;
+        this.registryManager = registryManager;
         this.rewardService = rewardService;
         this.db = plugin.getDatabaseManager();
         this.storage = new CollectionStorage(this.db);
@@ -81,10 +83,6 @@ public class CollectionManager {
         loadUnlockConfig();
     }
 
-    /** 리로드 시 새로 교체된 FishRegistry를 재주입한다. */
-    public void setFishRegistry(FishRegistry fishRegistry) {
-        this.fishRegistry = fishRegistry;
-    }
 
     /**
      * collections.yml의 unlock 섹션을 로드한다.
@@ -206,6 +204,8 @@ public class CollectionManager {
      * - Registry에 있는 항목 → ACTIVE (기존에 없으면 새로 생성)
      */
     public void syncWithRegistry(CollectionData data) {
+        FishRegistry fishRegistry = registryManager.getFishRegistry();
+
         // 기존 항목 중 Registry에 없는 것은 INACTIVE 처리
         for (CollectionEntry entry : data.getEntries().values()) {
             Fish fish = fishRegistry.getById(entry.getFishId());
@@ -243,7 +243,7 @@ public class CollectionManager {
             return;
         }
 
-        Fish fish = fishRegistry.getById(fishId);
+        Fish fish = registryManager.getFishRegistry().getById(fishId);
         if (fish == null) return;
 
         CollectionEntry entry = data.getOrCreateEntry(fishId, fish.getGrade().getId());
@@ -269,7 +269,7 @@ public class CollectionManager {
     public boolean registerFish(Player player, String fishId) {
         if (!enabled) return false;
 
-        Fish fish = fishRegistry.getById(fishId);
+        Fish fish = registryManager.getFishRegistry().getById(fishId);
         if (fish == null) return false;
 
         CollectionData data = cache.get(player.getUniqueId());
@@ -332,7 +332,7 @@ public class CollectionManager {
 
         // 저장된 사이즈로 물고기 아이템 생성 (랜덤 아님)
         double size = entry.unregisterFish();
-        Fish fish = fishRegistry.getById(fishId);
+        Fish fish = registryManager.getFishRegistry().getById(fishId);
         if (fish != null) {
             ItemStack item = rewardService.createItemStack(fish, 1, size);
             if (item != null) {
@@ -396,7 +396,7 @@ public class CollectionManager {
         if (data == null) return 0;
 
         int registered = 0;
-        for (Fish fish : fishRegistry.getAll().values()) {
+        for (Fish fish : registryManager.getFishRegistry().getAll().values()) {
             if (!gradeId.equalsIgnoreCase(fish.getGrade().getId())) continue;
 
             CollectionEntry entry = data.getEntry(fish.getId());
@@ -422,7 +422,7 @@ public class CollectionManager {
         if (data == null) return 0;
 
         int registered = 0;
-        for (Fish fish : fishRegistry.getAll().values()) {
+        for (Fish fish : registryManager.getFishRegistry().getAll().values()) {
             CollectionEntry entry = data.getEntry(fish.getId());
             while (entry != null
                     && entry.getStatus() == Status.ACTIVE
@@ -458,8 +458,9 @@ public class CollectionManager {
         return defaultMaxSlots;
     }
 
+    /** 항상 최신 Registry를 돌려준다 — 호출자가 결과를 필드에 보관하지 않도록 주의. */
     public FishRegistry getFishRegistry() {
-        return fishRegistry;
+        return registryManager.getFishRegistry();
     }
 
     public int getCachedPlayerCount() {
@@ -486,6 +487,22 @@ public class CollectionManager {
         this.registerSound = collectionsConfig.getString("settings.register-sound", "");
         loadUnlockConfig();
         this.collectionRewardService.reload();
+    }
+
+    /**
+     * 접속 중인 전 플레이어의 도감을 현재 Registry와 다시 맞춘다.
+     *
+     * <p>이게 없으면 /fishing reload로 items/*.yml에 물고기를 추가해도 접속 중인 플레이어에게는
+     * 엔트리가 생기지 않아 등록이 불가능하고(registerFish가 entry == null로 반환), 삭제한 물고기도
+     * 재접속 전까지 ACTIVE로 남는다.</p>
+     *
+     * <p>엔트리를 생성·수정하므로 메인 스레드에서 호출해야 한다.</p>
+     */
+    public void resyncAllCached() {
+        if (!enabled) return;
+        for (CollectionData data : cache.values()) {
+            syncWithRegistry(data);
+        }
     }
 
     public void setRankingManager(RankingManager rankingManager) {
