@@ -93,11 +93,13 @@ public class FishingCommand implements CommandExecutor, TabCompleter {
     // Registry는 /fishing reload 때 새 객체로 통째 교체되므로 인스턴스를 필드에 담지 않는다.
     // 필드로 들고 있던 시절에는 리로드해도 명령어가 계속 옛 목록을 보여줬다.
     /**
-     * 인벤토리가 가득 차 아이템 일부를 바닥에 떨어뜨렸을 때 지급 메시지에 덧붙이는 안내.
+     * 인벤토리에 다 들어가지 않은 아이템을 바닥에 떨어뜨렸을 때 지급 메시지에 덧붙이는 안내.
      * 예전에는 addItem()의 잔여분을 버려서 아이템이 조용히 사라졌다.
+     *
+     * <p>"일부"라고 단정하지 않는다 — 인벤토리가 완전히 찬 경우 전량이 바닥에 떨어진다.</p>
      */
     private String dropNotice(int dropped) {
-        return dropped > 0 ? " §7(인벤토리가 가득 차 일부는 발밑에 떨어뜨렸습니다)" : "";
+        return dropped > 0 ? " §7(인벤토리에 자리가 부족해 발밑에 떨어뜨린 아이템이 있습니다)" : "";
     }
 
     private GradeRegistry gradeRegistry() { return plugin.getRegistryManager().getGradeRegistry(); }
@@ -1392,10 +1394,18 @@ public class FishingCommand implements CommandExecutor, TabCompleter {
         return String.format("%.1f", v);
     }
 
+    /** 인벤토리 전체 용량(36칸 × 64개). 이보다 많이 지급해 봐야 전부 바닥에 떨어진다. */
+    private static final int MAX_GIVE_AMOUNT = 36 * 64;
+
     private int parseAmount(CommandSender sender, String[] args, int index, int defaultValue) {
         if (args.length <= index) return defaultValue;
         try {
             int amount = Integer.parseInt(args[index]);
+            if (amount > MAX_GIVE_AMOUNT) {
+                // 상한이 없으면 giveBait가 new ItemStack[amount]로 즉시 OutOfMemoryError를 낸다.
+                sender.sendMessage("§c개수는 최대 " + MAX_GIVE_AMOUNT + "까지 지정할 수 있습니다.");
+                return -1;
+            }
             return Math.max(1, amount);
         } catch (NumberFormatException e) {
             sender.sendMessage("§c개수는 숫자여야 합니다.");

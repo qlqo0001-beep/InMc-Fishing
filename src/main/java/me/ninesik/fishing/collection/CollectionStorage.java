@@ -92,9 +92,11 @@ public class CollectionStorage {
         }
 
         // collection_sizes — idx 순서가 곧 등록 순서(해제는 LIFO)라 정렬을 유지한다.
+        // 그룹핑 키가 소문자이므로 정렬도 LOWER(fish_id)로 맞춘다. 원본 대소문자로 정렬하면
+        // 대소문자가 섞인 레거시 행이 별개 그룹으로 정렬된 뒤 한 리스트로 이어붙어 순서가 깨진다.
         Map<String, List<Double>> sizesByFish = new HashMap<>();
         try (PreparedStatement ps = c.prepareStatement(
-                "SELECT fish_id, size FROM collection_sizes WHERE uuid = ? ORDER BY fish_id, idx")) {
+                "SELECT fish_id, size FROM collection_sizes WHERE uuid = ? ORDER BY LOWER(fish_id), idx")) {
             ps.setString(1, uuidStr);
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {

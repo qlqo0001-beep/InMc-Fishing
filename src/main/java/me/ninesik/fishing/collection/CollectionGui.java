@@ -330,7 +330,7 @@ public class CollectionGui extends AbstractGui {
                         new me.ninesik.fishing.ranking.RankingGui(
                                 player,
                                 collectionManager.getRankingManager(),
-                                me.ninesik.fishing.InMcFishing.getInstance().getRegistryManager()
+                                collectionManager.getRegistryManager()
                         ).open();
                     } else {
                         player.sendMessage(ChatColor.RED + "랭킹 시스템이 비활성화되어 있습니다.");

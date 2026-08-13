@@ -1,6 +1,7 @@
 package me.ninesik.fishing.fight;
 
 import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -32,7 +33,35 @@ public final class BalanceDump {
     /** 모든 난수 사용처에 쓰는 고정 시드. */
     private static final long SEED = 20260813L;
 
+    // 리플렉션 핸들은 한 번만 조회한다. 전이 표본이 수억 건이라, 루프 안에서
+    // getDeclaredField/getDeclaredMethod를 부르면 조회 비용이 전체를 지배한다.
+    private static final Field F_CURRENT_STATE = field("currentState");
+    private static final Field F_ACTION_POWER = field("actionPower");
+    private static final Field F_STATE_DURATION = field("stateDurationTicks");
+    private static final Field F_ELAPSED_TICKS = field("elapsedTicks");
+    private static final Method M_RANDOM_DURATION = randomStateDurationMethod();
+
     private BalanceDump() {
+    }
+
+    private static Field field(String name) {
+        try {
+            Field f = FishAI.class.getDeclaredField(name);
+            f.setAccessible(true);
+            return f;
+        } catch (NoSuchFieldException e) {
+            throw new IllegalStateException("FishAI." + name + " 필드를 찾을 수 없다", e);
+        }
+    }
+
+    private static Method randomStateDurationMethod() {
+        try {
+            Method m = FishAI.class.getDeclaredMethod("randomStateDuration", FishState.class);
+            m.setAccessible(true);
+            return m;
+        } catch (NoSuchMethodException e) {
+            throw new IllegalStateException("FishAI.randomStateDuration을 찾을 수 없다", e);
+        }
     }
 
     /**
@@ -79,7 +108,7 @@ public final class BalanceDump {
         out.add("state | power | resistance");
         FishAI ai = newAi();
         for (FishState s : FishState.values()) {
-            setField(ai, "currentState", s);
+            set(ai, F_CURRENT_STATE, s);
             out.add(String.format(Locale.ROOT, "%-15s | %s | %s",
                     s.name(), num(ai.getCurrentPower()), num(ai.getCurrentResistance())));
         }
@@ -118,9 +147,7 @@ public final class BalanceDump {
      */
     private static int drawDuration(FishAI ai, FishState state) {
         try {
-            var m = FishAI.class.getDeclaredMethod("randomStateDuration", FishState.class);
-            m.setAccessible(true);
-            return (int) m.invoke(ai, state);
+            return (int) M_RANDOM_DURATION.invoke(ai, state);
         } catch (ReflectiveOperationException e) {
             throw new IllegalStateException("randomStateDuration 호출 실패", e);
         }
@@ -161,10 +188,10 @@ public final class BalanceDump {
 
         for (int i = 0; i < TRANSITION_SAMPLES; i++) {
             // 매 표본마다 진입 조건을 동일하게 되돌린다 (행동력 소모/상태 누적이 다음 표본에 새지 않도록).
-            setField(ai, "currentState", from);
-            setField(ai, "actionPower", ap);
-            setField(ai, "stateDurationTicks", 1);
-            setField(ai, "elapsedTicks", 0);
+            set(ai, F_CURRENT_STATE, from);
+            set(ai, F_ACTION_POWER, ap);
+            set(ai, F_STATE_DURATION, 1);
+            set(ai, F_ELAPSED_TICKS, 0);
 
             ai.tick(stamina, reeling);
             hist.merge(ai.getCurrentState(), 1, Integer::sum);
@@ -293,13 +320,11 @@ public final class BalanceDump {
         return String.format(Locale.ROOT, "%.8f", v);
     }
 
-    private static void setField(FishAI ai, String name, Object value) {
+    private static void set(FishAI ai, Field field, Object value) {
         try {
-            Field f = FishAI.class.getDeclaredField(name);
-            f.setAccessible(true);
-            f.set(ai, value);
-        } catch (ReflectiveOperationException e) {
-            throw new IllegalStateException("FishAI." + name + " 세팅 실패", e);
+            field.set(ai, value);
+        } catch (IllegalAccessException e) {
+            throw new IllegalStateException("FishAI." + field.getName() + " 세팅 실패", e);
         }
     }
 }

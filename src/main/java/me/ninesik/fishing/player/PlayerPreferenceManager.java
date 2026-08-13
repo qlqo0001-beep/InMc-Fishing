@@ -62,8 +62,11 @@ public class PlayerPreferenceManager {
         // 결과를 버린다 (안 그러면 오프라인 엔트리가 캐시에 영구 잔류한다).
         Bukkit.getScheduler().runTask(plugin, () -> {
             if (!loading.remove(uuid)) return;
-            minigameEnabledCache.put(uuid, loaded[0]);
-            trophyPracticeModeCache.put(uuid, loaded[1]);
+            // putIfAbsent — 로드가 도는 사이에 플레이어가 /fishing minigame 등으로 설정을 바꿨다면
+            // 그 값이 이긴다. put으로 덮어쓰면 방금 바꾼 설정이 오래된 DB 값으로 되돌아가고,
+            // 퇴장 시 그 값이 다시 DB에 저장돼 변경이 조용히 사라진다.
+            minigameEnabledCache.putIfAbsent(uuid, loaded[0]);
+            trophyPracticeModeCache.putIfAbsent(uuid, loaded[1]);
         });
     }
 

@@ -485,6 +485,11 @@ public class CollectionManager {
         return registryManager.getFishRegistry();
     }
 
+    /** GUI 등이 정적 싱글턴을 거치지 않고 Registry에 접근할 수 있도록 노출한다. */
+    public RegistryManager getRegistryManager() {
+        return registryManager;
+    }
+
     public int getCachedPlayerCount() {
         return cache.size();
     }

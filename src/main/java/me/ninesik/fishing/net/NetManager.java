@@ -60,10 +60,11 @@ public class NetManager {
     /**
      * 플레이어의 어망 데이터를 로드한다. (접속 시 비동기 호출)
      *
-     * <p>로드에 실패하면 캐시에 넣지 않고 null을 반환한다. 빈 어망을 캐시에 올리면
-     * 퇴장 시 저장이 DB의 실제 보관 물고기를 지워버리기 때문이다.</p>
+     * <p>로드에 실패하면 캐시에 넣지 않는다. 빈 어망을 캐시에 올리면 퇴장 시 저장이
+     * DB의 실제 보관 물고기를 지워버리기 때문이다. 캐시에 없으면 저장도 일어나지 않는다.</p>
      *
-     * @return 로드된 데이터, 실패 시 null
+     * <p>DB 조회만 호출 스레드에서 하고, 캐시 반영은 메인 스레드로 넘긴다.
+     * 완료 여부는 {@link #getNetData(Player)}가 null인지로 판단한다.</p>
      */
     public void loadPlayer(Player player) {
         UUID uuid = player.getUniqueId();

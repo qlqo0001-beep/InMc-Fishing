@@ -141,8 +141,12 @@ public class PlayerFatigueManager {
         Bukkit.getScheduler().runTask(plugin, () -> {
             if (!loading.remove(uuid)) return;
 
-            fatigueCache.put(uuid, value);
-            boolean isLocked = value <= configManager.getFatigueLockThreshold();
+            // putIfAbsent — 로드가 도는 사이에 피로도가 소모됐다면 그 값이 이긴다.
+            // put으로 덮어쓰면 방금 소모한 분량이 되살아난다.
+            Integer existing = fatigueCache.putIfAbsent(uuid, value);
+            int effective = existing != null ? existing : value;
+
+            boolean isLocked = effective <= configManager.getFatigueLockThreshold();
             locked.put(uuid, isLocked);
             if (isLocked && player.isOnline()) {
                 // 접속 시점에도 잠금 상태면 미니게임을 강제 ON 상태로 맞춰준다 (일관성 보장)
