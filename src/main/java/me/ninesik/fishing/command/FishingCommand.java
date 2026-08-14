@@ -136,7 +136,7 @@ public class FishingCommand implements CommandExecutor, TabCompleter {
             case "menu", "gui", "메인" -> handleMenu(sender);
             case "fillet", "필렛", "가공" -> handleFillet(sender, args);
             default -> {
-                sender.sendMessage("§e[InMc-Fishing] §7알 수 없는 명령어: " + args[0]);
+                send(sender, "unknown-command", Map.of("input", String.valueOf(args[0])));
                 handleHelp(sender);
             }
         }
@@ -148,32 +148,57 @@ public class FishingCommand implements CommandExecutor, TabCompleter {
      * 관리자 전용 명령어는 infishing.admin 권한이 있을 때만 함께 표시한다.
      */
     private void handleHelp(CommandSender sender) {
-        boolean isAdmin = sender.hasPermission("infishing.admin");
-
-        sender.sendMessage("§b§m                                                §r");
-        sender.sendMessage("§b[InMc-Fishing] §f사용 가능한 명령어");
-        sender.sendMessage("§e/fishing collection §7(§e/fishing 도감§7) §f- 도감 GUI를 엽니다. 낚은 물고기를 등록하고 보상을 받을 수 있습니다.");
-        sender.sendMessage("§e/fishing rank §7(§e/fishing 랭킹§7) §f- 랭킹 GUI를 엽니다.");
-        sender.sendMessage("§e/fishing net §7(§e/fishing 어망§7) §f- 어망 GUI를 엽니다. 낚은 물고기를 보관/정렬/꺼낼 수 있습니다.");
-        sender.sendMessage("§e/fishing tournament §7- 대회 목록 확인, 참가/퇴장, 순위 확인 등을 합니다. (하위 명령어: list, join, leave, gui, wins)");
-        sender.sendMessage("§e/fishing list [등급] §7- 등급별 물고기 목록을 확인합니다.");
-        sender.sendMessage("§e/fishing info §7- 플러그인 정보(등급/물고기/낚싯대 개수 등)를 확인합니다.");
-        sender.sendMessage("§e/fishing minigame <on|off> §7- 개인 L/R 클릭 미니게임을 켜거나 끕니다.");
-        sender.sendMessage("§e/fishing fatigue §7- 내 자동 낚시 피로도를 확인합니다.");
-        sender.sendMessage("§e/fishing show §7- 손에 든 물고기를 서버 전체에 자랑합니다.");
-        sender.sendMessage("§e/fishing fillet §7(§e/fishing 필렛§7) §f- 생선 살 가공 GUI를 엽니다.");
-
-        if (isAdmin) {
-            sender.sendMessage("§c§l[관리자 전용]");
-            sender.sendMessage("§e/fishing reload §7- config/도감/대회 등 설정 파일을 다시 불러옵니다. (등급·물고기·낚싯대 Registry는 미포함)");
-            sender.sendMessage("§e/fishing debug §7- 등급/물고기/낚싯대 로드 현황을 확인합니다.");
-            sender.sendMessage("§e/fishing simulate <횟수> [등급] §7- 등급/보상 확률을 대량 시뮬레이션하여 검증합니다.");
-            sender.sendMessage("§e/fishing give <플레이어> <net|fish|trophy|potion|rod|bait|fillet> ... §7- 플레이어에게 물고기/트로피/피로회복 물약/낚싯대/미끼/생선살을 지급합니다.");
-            sender.sendMessage("§e/fishing fatigue <add|set> <플레이어> <수치> §7- 플레이어의 피로도를 증감/설정합니다.");
-            sender.sendMessage("§e/fishing testfightmode <on|off|toggle|status> §7- 기본 L/R 미니게임을 끄고, 잡는 물고기를 트로피 파이트로 바로 진입시킵니다. (테스트용)");
-            sender.sendMessage("§e/fishing fillet setSlots <플레이어> <set|add> <30> §7- 플레이어의 생선 살 가공 슬롯 수를 설정/증가합니다.");
+        // 도움말 전문은 messages.yml의 command.help 로 옮겼다. 줄 수 자체를
+        // 어드민이 정할 수 있어야 해서, 줄마다 키를 두지 않고 리스트로 받는다.
+        sendLines(sender, "command.help.header");
+        sendLines(sender, "command.help.lines");
+        if (sender.hasPermission("infishing.admin")) {
+            sendLines(sender, "command.help.admin-lines");
         }
-        sender.sendMessage("§b§m                                                §r");
+        sendLines(sender, "command.help.footer");
+    }
+
+    /**
+     * messages.yml의 command.<key> 를 읽어 보낸다. 값이 비어 있으면 보내지 않는다
+     * — 어드민이 특정 안내를 끄고 싶을 때 키를 빈 문자열로 두면 된다.
+     */
+    private void send(CommandSender sender, String key) {
+        send(sender, key, Map.of());
+    }
+
+    /** placeholder를 치환해서 보낸다. {prefix}는 formatMessage가 자동으로 채운다. */
+    private void send(CommandSender sender, String key, Map<String, String> placeholders) {
+        String message = configManager.formatMessage("command." + key, placeholders);
+        if (!message.isEmpty()) {
+            sender.sendMessage(message);
+        }
+    }
+
+    /** 활성화/비활성화 라벨. 문구 자체도 어드민이 바꿀 수 있어야 해서 messages.yml에서 읽는다. */
+    private String enabledLabel(boolean enabled) {
+        return configManager.getMessage(enabled ? "command.debug.enabled" : "command.debug.disabled");
+    }
+
+    /** 시뮬레이션 비율 줄({count}/{percent})용 placeholder. */
+    private static Map<String, String> ratio(long count, long total) {
+        return Map.of(
+                "count", String.valueOf(count),
+                "percent", String.format("%.2f", count * 100.0 / Math.max(total, 1)));
+    }
+
+    /** 이름이 붙은 비율 줄({name}/{count}/{percent})용 placeholder. */
+    private static Map<String, String> named(String name, long count, long total) {
+        return Map.of(
+                "name", name,
+                "count", String.valueOf(count),
+                "percent", String.format("%.2f", count * 100.0 / Math.max(total, 1)));
+    }
+
+    /** messages.yml의 문자열 리스트를 한 줄씩 보낸다. 키가 없으면 아무것도 보내지 않는다. */
+    private void sendLines(CommandSender sender, String key) {
+        for (String line : configManager.getMessageList(key)) {
+            sender.sendMessage(line);
+        }
     }
 
     @Override
@@ -278,44 +303,46 @@ public class FishingCommand implements CommandExecutor, TabCompleter {
 
     private void handleReload(CommandSender sender) {
         if (!sender.hasPermission("infishing.admin")) {
-            sender.sendMessage("§c권한이 없습니다.");
+            send(sender, "no-permission");
             return;
         }
 
         try {
             // config.yml / modifiers.yml 재로드 (Registry 재로드는 아직 미구현)
             fishingService.reload();
-            sender.sendMessage("§a[InMc-Fishing] 설정이 리로드되었습니다.");
+            send(sender, "reload.success");
             logger.info("Configuration reloaded by " + sender.getName());
         } catch (Exception e) {
-            sender.sendMessage("§c[InMc-Fishing] 리로드 중 오류 발생: " + e.getMessage());
+            send(sender, "reload.failed", Map.of("error", String.valueOf(e.getMessage())));
             logger.warning("Reload failed for " + sender.getName() + ": " + e.getMessage());
         }
     }
 
     private void handleDebug(CommandSender sender) {
         if (!sender.hasPermission("infishing.admin")) {
-            sender.sendMessage("§c권한이 없습니다.");
+            send(sender, "no-permission");
             return;
         }
 
-        sender.sendMessage("§6===== InMc-Fishing Debug =====");
-        sender.sendMessage("§e등급: §f" + gradeRegistry().getAll().size() + "개");
-        sender.sendMessage("§e물고기: §f" + fishRegistry().getAll().size() + "개");
-        sender.sendMessage("§e낚싯대: §f" + rodRegistry().getAll().size() + "개");
-        sender.sendMessage("§e활성 세션: §f" + sessionManager.getActiveSessionCount());
-        sender.sendMessage("§e설정 리로드 가능: §f" + configManager.isEnabled());
-        sender.sendMessage("§e허용 월드: §f" + configManager.getAllowedWorlds());
-        sender.sendMessage("§eVault: §f" + plugin.getDependencyManager().getVault().isAvailable());
-        sender.sendMessage("§eMMOItems: §f" + plugin.getDependencyManager().getMMOItems().isAvailable());
-        sender.sendMessage("§ePlaceholderAPI: §f" + plugin.getDependencyManager().getPlaceholderAPI().isAvailable());
-        sender.sendMessage("§eWorldGuard: §f" + plugin.getDependencyManager().getWorldGuard().isAvailable());
-        sender.sendMessage("§e도감: §f" + (collectionManager.isEnabled() ? "활성화" : "비활성화")
-                + " (캐시 " + (collectionManager != null ? collectionManager.getCachedPlayerCount() : 0) + "명)");
-        sender.sendMessage("§e랭킹: §f" + (rankingManager.isEnabled() ? "활성화" : "비활성화"));
-        sender.sendMessage("§e대회: §f" + tournamentManager.getTournaments().size()
-                + "개 등록, " + tournamentManager.getRunningTournaments().size() + "개 진행 중");
-        sender.sendMessage("§6==============================");
+        send(sender, "debug.header");
+        send(sender, "debug.grades", Map.of("count", String.valueOf(gradeRegistry().getAll().size())));
+        send(sender, "debug.fish", Map.of("count", String.valueOf(fishRegistry().getAll().size())));
+        send(sender, "debug.rods", Map.of("count", String.valueOf(rodRegistry().getAll().size())));
+        send(sender, "debug.sessions", Map.of("count", String.valueOf(sessionManager.getActiveSessionCount())));
+        send(sender, "debug.config-enabled", Map.of("value", String.valueOf(configManager.isEnabled())));
+        send(sender, "debug.allowed-worlds", Map.of("value", String.valueOf(configManager.getAllowedWorlds())));
+        send(sender, "debug.hook", Map.of("name", "Vault", "value", String.valueOf(plugin.getDependencyManager().getVault().isAvailable())));
+        send(sender, "debug.hook", Map.of("name", "MMOItems", "value", String.valueOf(plugin.getDependencyManager().getMMOItems().isAvailable())));
+        send(sender, "debug.hook", Map.of("name", "PlaceholderAPI", "value", String.valueOf(plugin.getDependencyManager().getPlaceholderAPI().isAvailable())));
+        send(sender, "debug.hook", Map.of("name", "WorldGuard", "value", String.valueOf(plugin.getDependencyManager().getWorldGuard().isAvailable())));
+        send(sender, "debug.collection", Map.of(
+                "value", enabledLabel(collectionManager.isEnabled()),
+                "cached", String.valueOf(collectionManager != null ? collectionManager.getCachedPlayerCount() : 0)));
+        send(sender, "debug.ranking", Map.of("value", enabledLabel(rankingManager.isEnabled())));
+        send(sender, "debug.tournament", Map.of(
+                "registered", String.valueOf(tournamentManager.getTournaments().size()),
+                "running", String.valueOf(tournamentManager.getRunningTournaments().size())));
+        send(sender, "debug.footer");
     }
 
     /**
@@ -324,12 +351,12 @@ public class FishingCommand implements CommandExecutor, TabCompleter {
      */
     private void handleSimulate(CommandSender sender, String[] args) {
         if (!sender.hasPermission("infishing.admin")) {
-            sender.sendMessage("§c권한이 없습니다.");
+            send(sender, "no-permission");
             return;
         }
 
         if (args.length < 2) {
-            sender.sendMessage("§c사용법: /fishing simulate <횟수>");
+            send(sender, "usage.simulate");
             return;
         }
 
@@ -337,16 +364,16 @@ public class FishingCommand implements CommandExecutor, TabCompleter {
         try {
             count = Integer.parseInt(args[1]);
         } catch (NumberFormatException e) {
-            sender.sendMessage("§c횟수는 숫자여야 합니다: " + args[1]);
+            send(sender, "simulate.count-not-number", Map.of("input", String.valueOf(args[1])));
             return;
         }
 
         if (count <= 0 || count > 10_000_000) {
-            sender.sendMessage("§c횟수는 1~10,000,000 사이여야 합니다.");
+            send(sender, "simulate.count-range");
             return;
         }
 
-        sender.sendMessage("§e[InMc-Fishing] §7" + count + "회 시뮬레이션 중...");
+        send(sender, "simulate.running", Map.of("count", String.valueOf(count)));
 
         // 최대 1천만 회를 메인 스레드에서 돌리면 서버가 수 초~수십 초 멈추고 워치독에 걸린다.
         // simulate()는 불변 Registry와 RandomService만 사용하므로 비동기로 계산하고,
@@ -366,11 +393,11 @@ public class FishingCommand implements CommandExecutor, TabCompleter {
      */
     private void handleDumpBalance(CommandSender sender) {
         if (!sender.hasPermission("infishing.admin")) {
-            sender.sendMessage("§c권한이 없습니다.");
+            send(sender, "no-permission");
             return;
         }
 
-        sender.sendMessage("§e[InMc-Fishing] §7밸런스 덤프 생성 중...");
+        send(sender, "dumpbalance.running");
 
         // 전이 히스토그램만 수십만 회 표본을 돌린다. 메인 스레드에서 하면 서버가 멈추므로
         // 계산은 비동기, 결과 안내만 메인 스레드로 되돌린다 (.clinerules 비동기 경계).
@@ -388,9 +415,9 @@ public class FishingCommand implements CommandExecutor, TabCompleter {
             final String failure = error;
             Bukkit.getScheduler().runTask(plugin, () -> {
                 if (failure != null) {
-                    sender.sendMessage("§c밸런스 덤프 생성에 실패했습니다: " + failure);
+                    send(sender, "dumpbalance.failed", Map.of("error", String.valueOf(failure)));
                 } else {
-                    sender.sendMessage("§a밸런스 덤프 완료: §f" + target);
+                    send(sender, "dumpbalance.success", Map.of("path", String.valueOf(target)));
                 }
             });
         });
@@ -402,56 +429,56 @@ public class FishingCommand implements CommandExecutor, TabCompleter {
         long bigFish = result.getOrDefault("big_fish", 0L);
         long doubleCount = result.getOrDefault("double", 0L);
 
-        sender.sendMessage("§6===== 시뮬레이션 결과 (" + count + "회) =====");
-        sender.sendMessage("§e총 성공: §f" + total);
-        sender.sendMessage("§e대어: §f" + bigFish + " (" + String.format("%.2f", (bigFish * 100.0 / Math.max(total, 1))) + "%)");
-        sender.sendMessage("§e더블: §f" + doubleCount + " (" + String.format("%.2f", (doubleCount * 100.0 / Math.max(total, 1))) + "%)");
+        send(sender, "simulate.header", Map.of("count", String.valueOf(count)));
+        send(sender, "simulate.total", Map.of("count", String.valueOf(total)));
+        send(sender, "simulate.big-fish", ratio(bigFish, total));
+        send(sender, "simulate.double", ratio(doubleCount, total));
 
-        sender.sendMessage("§6--- 등급별 확률 ---");
+        send(sender, "simulate.grade-header");
         for (String key : result.keySet()) {
             if (key.startsWith("grade:")) {
                 String gradeId = key.substring(6);
                 long cnt = result.get(key);
-                sender.sendMessage("§e" + gradeId + ": §f" + cnt + " (" + String.format("%.2f", (cnt * 100.0 / Math.max(total, 1))) + "%)");
+                send(sender, "simulate.grade-line", named(gradeId, cnt, total));
             }
         }
 
-        sender.sendMessage("§6--- 아이템별 비율 ---");
+        send(sender, "simulate.item-header");
         for (String key : result.keySet()) {
             if (key.startsWith("item:")) {
                 String itemId = key.substring(6);
                 long cnt = result.get(key);
-                sender.sendMessage("§7" + itemId + ": §f" + cnt + " (" + String.format("%.2f", (cnt * 100.0 / Math.max(total, 1))) + "%)");
+                send(sender, "simulate.item-line", named(itemId, cnt, total));
             }
         }
-        sender.sendMessage("§6==============================");
+        send(sender, "debug.footer");
     }
 
     private void handleInfo(CommandSender sender) {
         // 다른 유저 명령어와 동일하게 권한을 확인한다 (이 명령만 누락돼 있었다)
         if (!sender.hasPermission("infishing.user")) {
-            sender.sendMessage("§c권한이 없습니다.");
+            send(sender, "no-permission");
             return;
         }
-        sender.sendMessage("§6===== InMc-Fishing =====");
-        sender.sendMessage("§e버전: §f" + plugin.getDescription().getVersion());
-        sender.sendMessage("§eAPI: §f" + plugin.getDescription().getAPIVersion());
-        sender.sendMessage("§e등급: §f" + gradeRegistry().getAll().size() + "개");
-        sender.sendMessage("§e물고기: §f" + fishRegistry().getAll().size() + "개");
-        sender.sendMessage("§e낚싯대: §f" + rodRegistry().getAll().size() + "개");
+        send(sender, "info.header");
+        send(sender, "info.version", Map.of("value", plugin.getDescription().getVersion()));
+        send(sender, "info.api", Map.of("value", String.valueOf(plugin.getDescription().getAPIVersion())));
+        send(sender, "debug.grades", Map.of("count", String.valueOf(gradeRegistry().getAll().size())));
+        send(sender, "debug.fish", Map.of("count", String.valueOf(fishRegistry().getAll().size())));
+        send(sender, "debug.rods", Map.of("count", String.valueOf(rodRegistry().getAll().size())));
         if (sender instanceof Player player) {
-            sender.sendMessage("§e미니게임 중: §f" + fishingMiniGame.isActive(player));
+            send(sender, "info.minigame-active", Map.of("value", String.valueOf(fishingMiniGame.isActive(player))));
         }
-        sender.sendMessage("§6==========================");
+        send(sender, "info.footer");
     }
 
     private void handleMinigame(CommandSender sender, String[] args) {
         if (!sender.hasPermission("infishing.user")) {
-            sender.sendMessage("§c권한이 없습니다.");
+            send(sender, "no-permission");
             return;
         }
         if (!(sender instanceof Player player)) {
-            sender.sendMessage("§c플레이어만 사용할 수 있습니다.");
+            send(sender, "player-only");
             return;
         }
         if (!configManager.isMinigameOffToggleAllowed()) {
@@ -489,11 +516,11 @@ public class FishingCommand implements CommandExecutor, TabCompleter {
             }
             case "status" -> enabled = playerPreferenceManager.isMinigameEnabled(player);
             default -> {
-                player.sendMessage("§e사용법: /fishing minigame <on|off|toggle|status>");
+                send(player, "usage.minigame");
                 return;
             }
         }
-        player.sendMessage("§e미니게임: " + (enabled ? "§aON" : "§eOFF"));
+        send(player, "minigame.status", Map.of("state", configManager.getMessage(enabled ? "command.minigame.on" : "command.minigame.off")));
     }
 
     /**
@@ -503,21 +530,21 @@ public class FishingCommand implements CommandExecutor, TabCompleter {
      */
     private void handleTestFight(CommandSender sender, String[] args) {
         if (!sender.hasPermission("infishing.admin")) {
-            sender.sendMessage("§c권한이 없습니다.");
+            send(sender, "no-permission");
             return;
         }
         if (!(sender instanceof Player player)) {
-            sender.sendMessage("§c플레이어만 사용할 수 있습니다.");
+            send(sender, "player-only");
             return;
         }
         if (args.length < 3) {
-            sender.sendMessage("§c사용법: /fishing testfight <grade> <trophy|rare>");
+            send(sender, "usage.testfight");
             return;
         }
 
         Grade grade = gradeRegistry().getById(args[1].toLowerCase());
         if (grade == null) {
-            sender.sendMessage("§c존재하지 않는 등급입니다: " + args[1]);
+            send(sender, "unknown-grade", Map.of("grade", String.valueOf(args[1])));
             return;
         }
 
@@ -531,7 +558,7 @@ public class FishingCommand implements CommandExecutor, TabCompleter {
             isTrophy = true;
             isRareTrophy = true;
         } else {
-            sender.sendMessage("§ctrophyType은 trophy 또는 rare이어야 합니다: " + args[2]);
+            send(sender, "testfight.bad-trophy-type", Map.of("input", String.valueOf(args[2])));
             return;
         }
 
@@ -544,7 +571,7 @@ public class FishingCommand implements CommandExecutor, TabCompleter {
             }
         }
         if (testFish == null) {
-            sender.sendMessage("§c등급 " + grade.getId().toUpperCase() + "의 물고기를 찾을 수 없습니다.");
+            send(sender, "testfight.no-fish-in-grade", Map.of("grade", grade.getId().toUpperCase()));
             return;
         }
 
@@ -561,12 +588,12 @@ public class FishingCommand implements CommandExecutor, TabCompleter {
 
         TrophyFightManager fightManager = plugin.getTrophyFightManager();
         if (fightManager == null) {
-            sender.sendMessage("§cTrophy Fight 시스템이 초기화되지 않았습니다.");
+            send(sender, "fight-unavailable");
             return;
         }
 
         if (!fightManager.isFightEnabled()) {
-            sender.sendMessage("§cfight.yml의 trophy-fight.enabled가 false라 파이트를 시작할 수 없습니다.");
+            send(sender, "fight-disabled");
             return;
         }
 
@@ -578,15 +605,16 @@ public class FishingCommand implements CommandExecutor, TabCompleter {
             // "현재 손에 든 낚싯대"를 인식한다. 인식되지 않는 낚싯대(미등록/맨손)면
             // rodLookup이 null을 반환하고, TrophyFightManager가 기본 스탯으로 처리한다.
             FightSession session = fightManager.startFight(player, reward);
-            sender.sendMessage("§aTrophy Fight을 시작했습니다! (등급: " + grade.getId().toUpperCase()
-                    + ", " + (isRareTrophy ? "Rare " : "") + "Trophy)");
-            sender.sendMessage("§7L: 릴 감기(제압, 상태별 효과)  R: 릴 풀기(회복, 상태별 거리 증가)");
+            send(sender, "testfight.started", Map.of(
+                    "grade", grade.getId().toUpperCase(),
+                    "type", configManager.getMessage(isRareTrophy ? "command.testfight.type-rare" : "command.testfight.type-normal")));
+            send(sender, "testfight.controls");
             sender.sendMessage(String.format(
                     "§7인식된 낚싯대 스탯 → Reel Power: %.1f, Line Strength: %.1f, Reel Durability: %.1f, Max Distance: %.1f",
                     session.getReelPower(), session.getLineStrength(), session.getReelDurability(),
                     session.getMaxDistance()));
         } catch (IllegalStateException e) {
-            sender.sendMessage("§c이미 Fight 중입니다: " + e.getMessage());
+            send(sender, "testfight.already-fighting", Map.of("error", String.valueOf(e.getMessage())));
         }
     }
 
@@ -597,11 +625,11 @@ public class FishingCommand implements CommandExecutor, TabCompleter {
      */
     private void handleTestFightMode(CommandSender sender, String[] args) {
         if (!sender.hasPermission("infishing.admin")) {
-            sender.sendMessage("§c권한이 없습니다.");
+            send(sender, "no-permission");
             return;
         }
         if (!(sender instanceof Player player)) {
-            sender.sendMessage("§c플레이어만 사용할 수 있습니다.");
+            send(sender, "player-only");
             return;
         }
 
@@ -614,13 +642,13 @@ public class FishingCommand implements CommandExecutor, TabCompleter {
                     enabled = fishingMiniGame.setTestFightMode(player, !fishingMiniGame.isTestFightMode(player));
             case "status" -> enabled = fishingMiniGame.isTestFightMode(player);
             default -> {
-                player.sendMessage("§e사용법: /fishing testfightmode <on|off|toggle|status>");
+                send(player, "usage.testfightmode");
                 return;
             }
         }
 
-        player.sendMessage("§e트로피 파이트 테스트 모드: "
-                + (enabled ? "§aON§e (잡는 물고기가 모두 트로피 파이트로 진입합니다)" : "§7OFF"));
+        send(player, "testfightmode.status", Map.of("state",
+                configManager.getMessage(enabled ? "command.testfightmode.on" : "command.testfightmode.off")));
     }
 
     /**
@@ -629,18 +657,18 @@ public class FishingCommand implements CommandExecutor, TabCompleter {
      */
     private void handleShow(CommandSender sender) {
         if (!(sender instanceof Player player)) {
-            sender.sendMessage("§c플레이어만 사용할 수 있습니다.");
+            send(sender, "player-only");
             return;
         }
         ItemStack held = player.getInventory().getItemInMainHand();
         me.ninesik.fishing.service.RewardService.FishItemData data = rewardService.readFishItemData(held);
         if (data == null) {
-            player.sendMessage("§c손에 물고기 아이템을 들고 사용해야 합니다.");
+            send(player, "show.hold-fish");
             return;
         }
         Fish fish = fishRegistry().getById(data.fishId());
         if (fish == null) {
-            player.sendMessage("§c존재하지 않는 물고기입니다.");
+            send(player, "show.unknown-fish");
             return;
         }
 
@@ -669,29 +697,29 @@ public class FishingCommand implements CommandExecutor, TabCompleter {
      */
     private void handleStats(CommandSender sender) {
         if (!sender.hasPermission("infishing.user")) {
-            sender.sendMessage("§c권한이 없습니다.");
+            send(sender, "no-permission");
             return;
         }
         if (!(sender instanceof Player player)) {
-            sender.sendMessage("§c플레이어만 사용할 수 있습니다.");
+            send(sender, "player-only");
             return;
         }
-        sender.sendMessage("§b§m                                                §r");
-        sender.sendMessage("§b[InMc-Fishing] §f내 낚시 스탯");
+        send(sender, "stats.divider");
+        send(sender, "stats.title");
         for (String line : me.ninesik.fishing.gui.MainGui.buildStatsLines(player)) {
-            sender.sendMessage("§7- " + line);
+            send(sender, "stats.line", Map.of("text", line));
         }
-        sender.sendMessage("§b§m                                                §r");
+        send(sender, "stats.divider");
     }
 
     /** /fishing menu (gui/메인) — 낚시 메인 GUI를 연다. (시프트+F와 동일) */
     private void handleMenu(CommandSender sender) {
         if (!sender.hasPermission("infishing.user")) {
-            sender.sendMessage("§c권한이 없습니다.");
+            send(sender, "no-permission");
             return;
         }
         if (!(sender instanceof Player player)) {
-            sender.sendMessage("§c플레이어만 사용할 수 있습니다.");
+            send(sender, "player-only");
             return;
         }
         me.ninesik.fishing.gui.MainGui.open(player);
@@ -700,23 +728,23 @@ public class FishingCommand implements CommandExecutor, TabCompleter {
     private void handleFillet(CommandSender sender, String[] args) {
         var fm = plugin.getFilletManager();
         if (fm == null) {
-            sender.sendMessage("§c생선 살 가공 시스템이 초기화되지 않았습니다.");
+            send(sender, "fillet-unavailable");
             return;
         }
 
         // setSlots — 어드민 전용 (set|add)
         if (args.length >= 2 && "setslots".equalsIgnoreCase(args[1])) {
             if (!sender.hasPermission("infishing.admin")) {
-                sender.sendMessage("§c권한이 없습니다.");
+                send(sender, "no-permission");
                 return;
             }
             if (args.length < 4) {
-                sender.sendMessage("§c사용법: /fishing fillet setSlots <플레이어> <set|add> <수>");
+                send(sender, "usage.fillet-setslots");
                 return;
             }
             Player target = plugin.getServer().getPlayerExact(args[2]);
             if (target == null) {
-                sender.sendMessage("§c플레이어를 찾을 수 없습니다: " + args[2]);
+                send(sender, "player-not-found", Map.of("player", String.valueOf(args[2])));
                 return;
             }
 
@@ -731,10 +759,10 @@ public class FishingCommand implements CommandExecutor, TabCompleter {
 
             int count;
             try { count = Integer.parseInt(countArg); } catch (NumberFormatException e) {
-                sender.sendMessage("§c수는 숫자여야 합니다."); return;
+                send(sender, "amount-not-number"); return;
             }
             if ("add".equals(mode) && count < 1) {
-                sender.sendMessage("§cadd 모드는 1 이상의 양수만 가능합니다."); return;
+                send(sender, "amount-must-be-positive"); return;
             }
 
             int prev = fm.getMaxSlots(target);
@@ -743,10 +771,15 @@ public class FishingCommand implements CommandExecutor, TabCompleter {
             fm.setMaxSlots(target, slots);
 
             if ("add".equals(mode)) {
-                sender.sendMessage("§a" + target.getName() + "의 가공 슬롯을 " + prev + " → " + slots + "개로 증가했습니다.");
+                send(sender, "fillet.slots-added", Map.of(
+                        "player", target.getName(),
+                        "before", String.valueOf(prev),
+                        "after", String.valueOf(slots)));
                 logger.info(sender.getName() + " added " + count + " fillet slots to " + target.getName() + " (" + prev + " → " + slots + ")");
             } else {
-                sender.sendMessage("§a" + target.getName() + "의 가공 슬롯을 " + slots + "개로 설정했습니다.");
+                send(sender, "fillet.slots-set", Map.of(
+                        "player", target.getName(),
+                        "slots", String.valueOf(slots)));
                 logger.info(sender.getName() + " set fillet slots of " + target.getName() + " to " + slots);
             }
             return;
@@ -754,11 +787,11 @@ public class FishingCommand implements CommandExecutor, TabCompleter {
 
         // 기본: GUI 열기
         if (!sender.hasPermission("infishing.user")) {
-            sender.sendMessage("§c권한이 없습니다.");
+            send(sender, "no-permission");
             return;
         }
         if (!(sender instanceof Player player)) {
-            sender.sendMessage("§c플레이어만 사용할 수 있습니다.");
+            send(sender, "player-only");
             return;
         }
         new FilletGui(player, fm).open();
@@ -770,29 +803,29 @@ public class FishingCommand implements CommandExecutor, TabCompleter {
      */
     private void handleFatigue(CommandSender sender, String[] args) {
         if (fatigueManager == null) {
-            sender.sendMessage("§c피로도 시스템이 초기화되지 않았습니다.");
+            send(sender, "fatigue-unavailable");
             return;
         }
 
         if (args.length >= 2 && (args[1].equalsIgnoreCase("add") || args[1].equalsIgnoreCase("set"))) {
             if (!sender.hasPermission("infishing.admin")) {
-                sender.sendMessage("§c권한이 없습니다.");
+                send(sender, "no-permission");
                 return;
             }
             if (args.length < 4) {
-                sender.sendMessage("§c사용법: /fishing fatigue " + args[1].toLowerCase() + " <플레이어> <수치>");
+                send(sender, "usage.fatigue-modify", Map.of("mode", args[1].toLowerCase()));
                 return;
             }
             Player target = plugin.getServer().getPlayerExact(args[2]);
             if (target == null) {
-                sender.sendMessage("§c플레이어를 찾을 수 없습니다: " + args[2]);
+                send(sender, "player-not-found", Map.of("player", String.valueOf(args[2])));
                 return;
             }
             int amount;
             try {
                 amount = Integer.parseInt(args[3]);
             } catch (NumberFormatException e) {
-                sender.sendMessage("§c수치는 정수여야 합니다: " + args[3]);
+                send(sender, "fatigue.not-integer", Map.of("input", args[3]));
                 return;
             }
             if (args[1].equalsIgnoreCase("add")) {
@@ -800,7 +833,9 @@ public class FishingCommand implements CommandExecutor, TabCompleter {
             } else {
                 fatigueManager.adminSet(target, amount);
             }
-            sender.sendMessage("§a" + target.getName() + "의 피로도를 " + fatigueManager.getFatigue(target) + "(으)로 조정했습니다.");
+            send(sender, "fatigue.adjusted", Map.of(
+                "player", target.getName(),
+                "value", String.valueOf(fatigueManager.getFatigue(target))));
             logger.info(sender.getName() + " set fatigue of " + target.getName() + " to " + fatigueManager.getFatigue(target));
             return;
         }
@@ -809,38 +844,41 @@ public class FishingCommand implements CommandExecutor, TabCompleter {
         Player target;
         if (args.length >= 2) {
             if (!sender.hasPermission("infishing.admin")) {
-                sender.sendMessage("§c권한이 없습니다.");
+                send(sender, "no-permission");
                 return;
             }
             target = plugin.getServer().getPlayerExact(args[1]);
             if (target == null) {
-                sender.sendMessage("§c플레이어를 찾을 수 없습니다: " + args[1]);
+                send(sender, "player-not-found", Map.of("player", String.valueOf(args[1])));
                 return;
             }
         } else if (sender instanceof Player player) {
             target = player;
         } else {
-            sender.sendMessage("§c플레이어만 사용할 수 있습니다. (콘솔에서는 /fishing fatigue <add|set> <플레이어> <수치>)");
+            send(sender, "fatigue.player-only-console-hint");
             return;
         }
 
-        sender.sendMessage("§e" + target.getName() + "의 피로도: §f" + fatigueManager.getFatigue(target)
-                + " §7/ §f" + fatigueManager.getEffectiveMax(target)
-                + (fatigueManager.isLocked(target) ? " §c(자동 낚시 잠김)" : ""));
+        send(sender, "fatigue.status", Map.of(
+                "player", target.getName(),
+                "value", String.valueOf(fatigueManager.getFatigue(target)),
+                "max", String.valueOf(fatigueManager.getEffectiveMax(target)),
+                "locked", fatigueManager.isLocked(target)
+                        ? configManager.getMessage("command.fatigue.locked-suffix") : ""));
     }
 
     private void handleNet(CommandSender sender) {
         if (!sender.hasPermission("infishing.user")) {
-            sender.sendMessage("§c권한이 없습니다.");
+            send(sender, "no-permission");
             return;
         }
         if (!(sender instanceof Player player)) {
-            sender.sendMessage("§c플레이어만 사용할 수 있습니다.");
+            send(sender, "player-only");
             return;
         }
         me.ninesik.fishing.net.NetManager netManager = plugin.getNetManager();
         if (netManager == null) {
-            sender.sendMessage("§c어망 시스템이 비활성화되어 있습니다.");
+            send(sender, "net-disabled");
             return;
         }
         netManager.openNetGui(player);
@@ -848,15 +886,15 @@ public class FishingCommand implements CommandExecutor, TabCompleter {
 
     private void handleCollection(CommandSender sender) {
         if (!sender.hasPermission("infishing.user")) {
-            sender.sendMessage("§c권한이 없습니다.");
+            send(sender, "no-permission");
             return;
         }
         if (!(sender instanceof Player player)) {
-            sender.sendMessage("§c플레이어만 사용할 수 있습니다.");
+            send(sender, "player-only");
             return;
         }
         if (collectionManager == null || !collectionManager.isEnabled()) {
-            sender.sendMessage("§c도감 시스템이 비활성화되어 있습니다.");
+            send(sender, "collection-disabled");
             return;
         }
         collectionManager.openCollectionGui(player);
@@ -864,15 +902,15 @@ public class FishingCommand implements CommandExecutor, TabCompleter {
 
     private void handleRank(CommandSender sender) {
         if (!sender.hasPermission("infishing.user")) {
-            sender.sendMessage("§c권한이 없습니다.");
+            send(sender, "no-permission");
             return;
         }
         if (!(sender instanceof Player player)) {
-            sender.sendMessage("§c플레이어만 사용할 수 있습니다.");
+            send(sender, "player-only");
             return;
         }
         if (rankingManager == null || !rankingManager.isEnabled()) {
-            sender.sendMessage("§c랭킹 시스템이 비활성화되어 있습니다.");
+            send(sender, "ranking-disabled");
             return;
         }
         new me.ninesik.fishing.ranking.RankingGui(player, rankingManager, plugin.getRegistryManager()).open();
@@ -880,15 +918,15 @@ public class FishingCommand implements CommandExecutor, TabCompleter {
 
     private void handleTournament(CommandSender sender, String[] args) {
         if (!sender.hasPermission("infishing.user")) {
-            sender.sendMessage("§c권한이 없습니다.");
+            send(sender, "no-permission");
             return;
         }
         if (!(sender instanceof Player player)) {
-            sender.sendMessage("§c플레이어만 사용할 수 있습니다.");
+            send(sender, "player-only");
             return;
         }
         if (args.length < 2) {
-            sender.sendMessage("§e[InMc-Fishing] §7사용법: /fishing tournament <list|join|leave|gui|start|stop> [id]");
+            send(sender, "usage.tournament");
             return;
         }
 
@@ -896,14 +934,14 @@ public class FishingCommand implements CommandExecutor, TabCompleter {
             case "list" -> handleTournamentList(sender);
             case "join" -> {
                 if (args.length < 3) {
-                    sender.sendMessage("§c사용법: /fishing tournament join <대회ID>");
+                    send(sender, "usage.tournament-join");
                     return;
                 }
                 tournamentManager.join(player, args[2]);
             }
             case "leave" -> {
                 if (args.length < 3) {
-                    sender.sendMessage("§c사용법: /fishing tournament leave <대회ID>");
+                    send(sender, "usage.tournament-leave");
                     return;
                 }
                 tournamentManager.leave(player, args[2]);
@@ -911,55 +949,59 @@ public class FishingCommand implements CommandExecutor, TabCompleter {
             case "gui" -> new me.ninesik.fishing.tournament.TournamentGui(player, tournamentManager).open();
             case "start" -> {
                 if (!sender.hasPermission("infishing.admin")) {
-                    sender.sendMessage("§c권한이 없습니다.");
+                    send(sender, "no-permission");
                     return;
                 }
                 if (args.length < 3) {
-                    sender.sendMessage("§c사용법: /fishing tournament start <대회ID>");
+                    send(sender, "usage.tournament-start");
                     return;
                 }
                 if (tournamentManager.start(args[2], player)) {
-                    sender.sendMessage("§a대회를 시작했습니다.");
+                    send(sender, "tournament.started");
                 } else {
-                    sender.sendMessage("§c대회 시작에 실패했습니다. (이미 진행 중이거나 존재하지 않음)");
+                    send(sender, "tournament.start-failed");
                 }
             }
             case "stop" -> {
                 if (!sender.hasPermission("infishing.admin")) {
-                    sender.sendMessage("§c권한이 없습니다.");
+                    send(sender, "no-permission");
                     return;
                 }
                 if (args.length < 3) {
-                    sender.sendMessage("§c사용법: /fishing tournament stop <대회ID>");
+                    send(sender, "usage.tournament-stop");
                     return;
                 }
                 if (tournamentManager.stop(args[2], player)) {
-                    sender.sendMessage("§a대회를 종료했습니다.");
+                    send(sender, "tournament.stopped");
                 } else {
-                    sender.sendMessage("§c대회 종료에 실패했습니다. (진행 중이 아니거나 존재하지 않음)");
+                    send(sender, "tournament.stop-failed");
                 }
             }
             case "wins" -> handleTournamentWins(sender);
-            default -> sender.sendMessage("§e[InMc-Fishing] §7알 수 없는 명령어: " + args[1]);
+            default -> send(sender, "unknown-command", Map.of("input", String.valueOf(args[1])));
         }
     }
 
     private void handleTournamentList(CommandSender sender) {
         if (!sender.hasPermission("infishing.user")) {
-            sender.sendMessage("§c권한이 없습니다.");
+            send(sender, "no-permission");
             return;
         }
-        sender.sendMessage("§6===== 낚시 대회 목록 =====");
+        send(sender, "tournament.list-header");
         for (Tournament tournament : tournamentManager.getTournaments()) {
-            String status = tournament.isRunning() ? "§a진행 중" : "§7대기 중";
-            sender.sendMessage("§e" + tournament.getId() + " §7(" + status + "§7) — " + tournament.getType());
+            String status = configManager.getMessage(tournament.isRunning()
+                    ? "command.tournament.status-running" : "command.tournament.status-waiting");
+            send(sender, "tournament.list-line", Map.of(
+                    "id", tournament.getId(),
+                    "status", status,
+                    "type", String.valueOf(tournament.getType())));
         }
-        sender.sendMessage("§6==========================");
+        send(sender, "info.footer");
     }
 
     private void handleTournamentWins(CommandSender sender) {
         if (!sender.hasPermission("infishing.user")) {
-            sender.sendMessage("§c권한이 없습니다.");
+            send(sender, "no-permission");
             return;
         }
         Map<UUID, Integer> wins = tournamentManager.getWinCounts();
@@ -968,26 +1010,29 @@ public class FishingCommand implements CommandExecutor, TabCompleter {
                 .limit(10)
                 .toList();
 
-        sender.sendMessage("§6===== 대회 우승 랭킹 =====");
+        send(sender, "tournament.wins-header");
         int rank = 1;
         for (Map.Entry<UUID, Integer> entry : ranked) {
             String name = me.ninesik.fishing.util.PlayerNameResolver.resolve(plugin, entry.getKey());
-            sender.sendMessage("§e#" + rank + " §f" + name + " §7— 우승 " + entry.getValue() + "회");
+            send(sender, "tournament.wins-line", Map.of(
+                    "rank", String.valueOf(rank),
+                    "player", name,
+                    "wins", String.valueOf(entry.getValue())));
             rank++;
         }
         if (ranked.isEmpty()) {
-            sender.sendMessage("§7아직 우승 기록이 없습니다.");
+            send(sender, "tournament.no-wins");
         }
-        sender.sendMessage("§6==========================");
+        send(sender, "info.footer");
     }
 
     private void handleGive(CommandSender sender, String[] args) {
         if (!sender.hasPermission("infishing.admin")) {
-            sender.sendMessage("§c권한이 없습니다.");
+            send(sender, "no-permission");
             return;
         }
         if (args.length < 2) {
-            sender.sendMessage("§c사용법: /fishing give <net|fish|trophy|potion|rod|bait|fillet> <플레이어> ...");
+            send(sender, "usage.give");
             return;
         }
 
@@ -1007,23 +1052,23 @@ public class FishingCommand implements CommandExecutor, TabCompleter {
         } else if ("fillet".equals(type)) {
             giveFillet(sender, args);
         } else {
-            sender.sendMessage("§c지원하지 않는 종류입니다: net, fish, trophy, potion, rod, bait, fillet");
+            send(sender, "give.unknown-type");
         }
     }
 
     private void givePotion(CommandSender sender, String[] args) {
         if (args.length < 4) {
-            sender.sendMessage("§c사용법: /fishing give potion <플레이어> <등급> [개수]");
+            send(sender, "usage.give-potion");
             return;
         }
         Player target = plugin.getServer().getPlayerExact(args[2]);
         if (target == null) {
-            sender.sendMessage("§c플레이어를 찾을 수 없습니다: " + args[2]);
+            send(sender, "player-not-found", Map.of("player", String.valueOf(args[2])));
             return;
         }
         String gradeId = args[3].toLowerCase();
         if (gradeRegistry().getById(gradeId) == null) {
-            sender.sendMessage("§c존재하지 않는 등급입니다: " + args[3]);
+            send(sender, "unknown-grade", Map.of("grade", String.valueOf(args[3])));
             return;
         }
         int amount = parseAmount(sender, args, 4, 1);
@@ -1031,23 +1076,25 @@ public class FishingCommand implements CommandExecutor, TabCompleter {
 
         ItemStack item = FatiguePotionItem.create(plugin, configManager, gradeId, amount);
         int dropped = InventoryUtil.giveOrDrop(target, item);
-        sender.sendMessage("§a" + target.getName() + "에게 " + gradeId.toUpperCase() + "등급 피로회복 물약 " + amount + "개를 지급했습니다." + dropNotice(dropped));
+        send(sender, "give.potion-success", Map.of(
+                "player", target.getName(), "grade", gradeId.toUpperCase(),
+                "amount", String.valueOf(amount), "drop", dropNotice(dropped)));
         logger.info(sender.getName() + " gave " + amount + " " + gradeId + " fatigue potion to " + target.getName());
     }
 
     private void giveNet(CommandSender sender, String[] args) {
         if (args.length < 5) {
-            sender.sendMessage("§c사용법: /fishing give net <플레이어> <물고기ID> [개수]");
+            send(sender, "usage.give-net");
             return;
         }
         Player target = plugin.getServer().getPlayerExact(args[2]);
         if (target == null) {
-            sender.sendMessage("§c플레이어를 찾을 수 없습니다: " + args[2]);
+            send(sender, "player-not-found", Map.of("player", String.valueOf(args[2])));
             return;
         }
         Fish fish = fishRegistry().getById(args[3]);
         if (fish == null) {
-            sender.sendMessage("§c존재하지 않는 물고기 ID입니다: " + args[3]);
+            send(sender, "unknown-fish-id", Map.of("id", String.valueOf(args[3])));
             return;
         }
         int amount = parseAmount(sender, args, 4, 1);
@@ -1055,7 +1102,7 @@ public class FishingCommand implements CommandExecutor, TabCompleter {
 
         me.ninesik.fishing.net.NetManager netManager = plugin.getNetManager();
         if (netManager == null) {
-            sender.sendMessage("§c어망 시스템이 비활성화되어 있습니다.");
+            send(sender, "net-disabled");
             return;
         }
         me.ninesik.fishing.model.RewardEntry reward = me.ninesik.fishing.model.RewardEntry.builder()
@@ -1074,26 +1121,27 @@ public class FishingCommand implements CommandExecutor, TabCompleter {
             }
         }
         if (success) {
-            sender.sendMessage("§a" + target.getName() + "의 어망에 " + fish.getId() + " " + amount + "마리를 추가했습니다.");
+            send(sender, "give.net-success", Map.of(
+                "player", target.getName(), "id", fish.getId(), "amount", String.valueOf(amount)));
             logger.info(sender.getName() + " added " + amount + " " + fish.getId() + " to " + target.getName() + "'s net");
         } else {
-            sender.sendMessage("§c어망이 꽉 차서 일부만 추가되었습니다.");
+            send(sender, "give.net-partial");
         }
     }
 
     private void giveFish(CommandSender sender, String[] args) {
         if (args.length < 5) {
-            sender.sendMessage("§c사용법: /fishing give fish <플레이어> <물고기ID> [개수]");
+            send(sender, "usage.give-fish");
             return;
         }
         Player target = plugin.getServer().getPlayerExact(args[2]);
         if (target == null) {
-            sender.sendMessage("§c플레이어를 찾을 수 없습니다: " + args[2]);
+            send(sender, "player-not-found", Map.of("player", String.valueOf(args[2])));
             return;
         }
         Fish fish = fishRegistry().getById(args[3]);
         if (fish == null) {
-            sender.sendMessage("§c존재하지 않는 물고기 ID입니다: " + args[3]);
+            send(sender, "unknown-fish-id", Map.of("id", String.valueOf(args[3])));
             return;
         }
         int amount = parseAmount(sender, args, 4, 1);
@@ -1101,23 +1149,25 @@ public class FishingCommand implements CommandExecutor, TabCompleter {
 
         ItemStack item = rewardService.createItemStack(fish, amount);
         int dropped = InventoryUtil.giveOrDrop(target, item);
-        sender.sendMessage("§a" + target.getName() + "에게 " + fish.getId() + " " + amount + "개를 지급했습니다." + dropNotice(dropped));
+        send(sender, "give.fish-success", Map.of(
+                "player", target.getName(), "id", fish.getId(),
+                "amount", String.valueOf(amount), "drop", dropNotice(dropped)));
         logger.info(sender.getName() + " gave " + amount + " " + fish.getId() + " to " + target.getName());
     }
 
     private void giveTrophy(CommandSender sender, String[] args) {
         if (args.length < 5) {
-            sender.sendMessage("§c사용법: /fishing give trophy <플레이어> <물고기ID> [개수]");
+            send(sender, "usage.give-trophy");
             return;
         }
         Player target = plugin.getServer().getPlayerExact(args[2]);
         if (target == null) {
-            sender.sendMessage("§c플레이어를 찾을 수 없습니다: " + args[2]);
+            send(sender, "player-not-found", Map.of("player", String.valueOf(args[2])));
             return;
         }
         Fish fish = fishRegistry().getById(args[3]);
         if (fish == null || !fish.hasSize()) {
-            sender.sendMessage("§c존재하지 않거나 사이즈 정보가 없는 물고기 ID입니다: " + args[3]);
+            send(sender, "unknown-trophy-fish-id", Map.of("id", String.valueOf(args[3])));
             return;
         }
         int amount = parseAmount(sender, args, 4, 1);
@@ -1126,7 +1176,9 @@ public class FishingCommand implements CommandExecutor, TabCompleter {
         // 트로피용 물고기: max-size 기준으로 생성
         ItemStack item = rewardService.createItemStack(fish, amount, fish.getMaxSize());
         int dropped = InventoryUtil.giveOrDrop(target, item);
-        sender.sendMessage("§a" + target.getName() + "에게 " + fish.getId() + " 트로피 " + amount + "개를 지급했습니다." + dropNotice(dropped));
+        send(sender, "give.trophy-success", Map.of(
+                "player", target.getName(), "id", fish.getId(),
+                "amount", String.valueOf(amount), "drop", dropNotice(dropped)));
         logger.info(sender.getName() + " gave " + amount + " trophy " + fish.getId() + " to " + target.getName());
     }
 
@@ -1135,17 +1187,17 @@ public class FishingCommand implements CommandExecutor, TabCompleter {
      */
     private void giveRod(CommandSender sender, String[] args) {
         if (args.length < 4) {
-            sender.sendMessage("§c사용법: /fishing give rod <플레이어> <낚싯대ID> [개수]");
+            send(sender, "usage.give-rod");
             return;
         }
         Player target = plugin.getServer().getPlayerExact(args[2]);
         if (target == null) {
-            sender.sendMessage("§c플레이어를 찾을 수 없습니다: " + args[2]);
+            send(sender, "player-not-found", Map.of("player", String.valueOf(args[2])));
             return;
         }
         Rod rod = rodRegistry().getById(args[3]);
         if (rod == null) {
-            sender.sendMessage("§c존재하지 않는 낚싯대 ID입니다: " + args[3]);
+            send(sender, "unknown-rod-id", Map.of("id", String.valueOf(args[3])));
             return;
         }
         int amount = parseAmount(sender, args, 4, 1);
@@ -1153,12 +1205,14 @@ public class FishingCommand implements CommandExecutor, TabCompleter {
 
         ItemStack item = createRodItem(rod);
         if (item == null) {
-            sender.sendMessage("§c낚싯대 아이템을 생성할 수 없습니다. (MMOItems 미설치 등)");
+            send(sender, "give.rod-create-failed");
             return;
         }
         item.setAmount(amount);
         int dropped = InventoryUtil.giveOrDrop(target, item);
-        sender.sendMessage("§a" + target.getName() + "에게 낚싯대 " + rod.getId() + " " + amount + "개를 지급했습니다." + dropNotice(dropped));
+        send(sender, "give.rod-success", Map.of(
+                "player", target.getName(), "id", rod.getId(),
+                "amount", String.valueOf(amount), "drop", dropNotice(dropped)));
         logger.info(sender.getName() + " gave " + amount + " rod " + rod.getId() + " to " + target.getName());
     }
 
@@ -1205,18 +1259,18 @@ public class FishingCommand implements CommandExecutor, TabCompleter {
     /** /fishing give bait <플레이어> <baitId> [개수] */
     private void giveBait(CommandSender sender, String[] args) {
         if (args.length < 4) {
-            sender.sendMessage("§c사용법: /fishing give bait <플레이어> <baitId> [개수]");
+            send(sender, "usage.give-bait");
             return;
         }
         Player target = plugin.getServer().getPlayerExact(args[2]);
         if (target == null) {
-            sender.sendMessage("§c플레이어를 찾을 수 없습니다: " + args[2]);
+            send(sender, "player-not-found", Map.of("player", String.valueOf(args[2])));
             return;
         }
         var baitReg = plugin.getRegistryManager().getBaitRegistry();
         Bait bait = baitReg != null ? baitReg.getById(args[3]) : null;
         if (bait == null) {
-            sender.sendMessage("§c존재하지 않는 미끼 ID입니다: " + args[3]);
+            send(sender, "unknown-bait-id", Map.of("id", String.valueOf(args[3])));
             return;
         }
         int amount = parseAmount(sender, args, 4, 1);
@@ -1226,29 +1280,31 @@ public class FishingCommand implements CommandExecutor, TabCompleter {
         ItemStack[] baits = new ItemStack[amount];
         for (int i = 0; i < amount; i++) baits[i] = item.clone();
         int dropped = InventoryUtil.giveOrDrop(target, baits);
-        sender.sendMessage("§a" + target.getName() + "에게 " + bait.getId() + " 미끼 " + amount + "개를 지급했습니다." + dropNotice(dropped));
+        send(sender, "give.bait-success", Map.of(
+                "player", target.getName(), "id", bait.getId(),
+                "amount", String.valueOf(amount), "drop", dropNotice(dropped)));
         logger.info(sender.getName() + " gave " + amount + " bait " + bait.getId() + " to " + target.getName());
     }
 
     /** /fishing give fillet <플레이어> <등급> <normal|trophy|rare> [개수] */
     private void giveFillet(CommandSender sender, String[] args) {
         if (args.length < 5) {
-            sender.sendMessage("§c사용법: /fishing give fillet <플레이어> <등급(f~s)> <normal|trophy|rare> [개수]");
+            send(sender, "usage.give-fillet");
             return;
         }
         Player target = plugin.getServer().getPlayerExact(args[2]);
         if (target == null) {
-            sender.sendMessage("§c플레이어를 찾을 수 없습니다: " + args[2]);
+            send(sender, "player-not-found", Map.of("player", String.valueOf(args[2])));
             return;
         }
         String gradeId = args[3].toLowerCase();
         if (gradeRegistry().getById(gradeId) == null) {
-            sender.sendMessage("§c존재하지 않는 등급입니다: " + args[3] + " (f~s)");
+            send(sender, "unknown-grade", Map.of("grade", String.valueOf(args[3] + " (f~s)")));
             return;
         }
         String trophyType = args[4].toLowerCase();
         if (!"normal".equals(trophyType) && !"trophy".equals(trophyType) && !"rare".equals(trophyType)) {
-            sender.sendMessage("§c올바른 타입이 아닙니다: normal, trophy, rare 중 하나");
+            send(sender, "give.fillet-bad-type");
             return;
         }
         int amount = parseAmount(sender, args, 5, 1);
@@ -1256,17 +1312,18 @@ public class FishingCommand implements CommandExecutor, TabCompleter {
 
         var fm = plugin.getFilletManager();
         if (fm == null) {
-            sender.sendMessage("§c생선 살 가공 시스템이 초기화되지 않았습니다.");
+            send(sender, "fillet-unavailable");
             return;
         }
         ItemStack item = fm.createFilletItem(gradeId, trophyType, amount);
         if (item != null) {
             int dropped = InventoryUtil.giveOrDrop(target, item);
-            sender.sendMessage("§a" + target.getName() + "에게 " + gradeId.toUpperCase() + "급 "
-                    + trophyType + " 생선살 " + amount + "개를 지급했습니다." + dropNotice(dropped));
+            send(sender, "give.fillet-success", Map.of(
+                    "player", target.getName(), "grade", gradeId.toUpperCase(), "type", trophyType,
+                    "amount", String.valueOf(amount), "drop", dropNotice(dropped)));
             logger.info(sender.getName() + " gave " + amount + " fillet " + gradeId + "/" + trophyType + " to " + target.getName());
         } else {
-            sender.sendMessage("§c생선 살 아이템 생성에 실패했습니다.");
+            send(sender, "give.fillet-create-failed");
         }
     }
 
@@ -1407,31 +1464,32 @@ public class FishingCommand implements CommandExecutor, TabCompleter {
             int amount = Integer.parseInt(args[index]);
             if (amount > MAX_GIVE_AMOUNT) {
                 // 상한이 없으면 giveBait가 new ItemStack[amount]로 즉시 OutOfMemoryError를 낸다.
-                sender.sendMessage("§c개수는 최대 " + MAX_GIVE_AMOUNT + "까지 지정할 수 있습니다.");
+                send(sender, "amount-too-large", Map.of("max", String.valueOf(MAX_GIVE_AMOUNT)));
                 return -1;
             }
             return Math.max(1, amount);
         } catch (NumberFormatException e) {
-            sender.sendMessage("§c개수는 숫자여야 합니다.");
+            send(sender, "amount-not-number");
             return -1;
         }
     }
 
     private void handleList(CommandSender sender, String[] args) {
         if (!sender.hasPermission("infishing.user")) {
-            sender.sendMessage("§c권한이 없습니다.");
+            send(sender, "no-permission");
             return;
         }
         String gradeFilter = args.length >= 2 ? args[1].toLowerCase() : null;
-        sender.sendMessage("§6===== 물고기 목록 =====");
+        send(sender, "list.header");
         for (Fish fish : fishRegistry().getAll().values()) {
             if (gradeFilter != null && !fish.getGrade().getId().equalsIgnoreCase(gradeFilter)) continue;
             String gradeColor = fish.getGrade().getColor();
-            sender.sendMessage("§7[" + ChatColor.translateAlternateColorCodes('&', gradeColor)
-                    + fish.getGrade().getId().toUpperCase() + "§7] " + ChatColor.WHITE
-                    + (fish.getVanillaName() != null ? fish.getVanillaName() : fish.getId()));
+            send(sender, "list.line", Map.of(
+                    "grade_color", ChatColor.translateAlternateColorCodes('&', gradeColor),
+                    "grade", fish.getGrade().getId().toUpperCase(),
+                    "name", fish.getVanillaName() != null ? fish.getVanillaName() : fish.getId()));
         }
-        sender.sendMessage("§6=======================");
+        send(sender, "list.footer");
     }
 
     private List<String> completeTournament(String[] args) {

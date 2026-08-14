@@ -146,3 +146,211 @@ tournament:
   start: "&e[ 낚시 대회 ] &f{name}&f이(가) 시작되었습니다! &7사전 신청자는 자동 참여되었습니다."
   # 대회 시작 공지 (참가비 있음)
   start-fee: "&e[ 낚시 대회 ] &f{name}&f이(가) 시작되었습니다! &6(참가비: {fee}) &7사전 신청자는 자동 참여되었습니다."
+
+# ============================================================
+#  [command] /fishing 명령어 출력
+#  줄 단위로 어드민이 자유롭게 추가·삭제할 수 있도록 리스트로 둡니다.
+#  리스트를 통째로 비우면 해당 부분이 출력되지 않습니다.
+# ============================================================
+command:
+  help:
+    header:
+      - "&b&m                                                &r"
+      - "&b[InMc-Fishing] &f사용 가능한 명령어"
+    lines:
+      - "&e/fishing collection &7(&e/fishing 도감&7) &f- 도감 GUI를 엽니다. 낚은 물고기를 등록하고 보상을 받을 수 있습니다."
+      - "&e/fishing rank &7(&e/fishing 랭킹&7) &f- 랭킹 GUI를 엽니다."
+      - "&e/fishing net &7(&e/fishing 어망&7) &f- 어망 GUI를 엽니다. 낚은 물고기를 보관/정렬/꺼낼 수 있습니다."
+      - "&e/fishing tournament &7- 대회 목록 확인, 참가/퇴장, 순위 확인 등을 합니다. (하위 명령어: list, join, leave, gui, wins)"
+      - "&e/fishing list [등급] &7- 등급별 물고기 목록을 확인합니다."
+      - "&e/fishing info &7- 플러그인 정보(등급/물고기/낚싯대 개수 등)를 확인합니다."
+      - "&e/fishing minigame <on|off> &7- 개인 L/R 클릭 미니게임을 켜거나 끕니다."
+      - "&e/fishing fatigue &7- 내 자동 낚시 피로도를 확인합니다."
+      - "&e/fishing show &7- 손에 든 물고기를 서버 전체에 자랑합니다."
+      - "&e/fishing fillet &7(&e/fishing 필렛&7) &f- 생선 살 가공 GUI를 엽니다."
+    # infishing.admin 권한이 있을 때만 추가로 출력됩니다.
+    admin-lines:
+      - "&c&l[관리자 전용]"
+      - "&e/fishing reload &7- config/도감/대회 등 설정 파일을 다시 불러옵니다. (등급·물고기·낚싯대 Registry는 미포함)"
+      - "&e/fishing debug &7- 등급/물고기/낚싯대 로드 현황을 확인합니다."
+      - "&e/fishing simulate <횟수> [등급] &7- 등급/보상 확률을 대량 시뮬레이션하여 검증합니다."
+      - "&e/fishing give <플레이어> <net|fish|trophy|potion|rod|bait|fillet> ... &7- 플레이어에게 물고기/트로피/피로회복 물약/낚싯대/미끼/생선살을 지급합니다."
+      - "&e/fishing fatigue <add|set> <플레이어> <수치> &7- 플레이어의 피로도를 증감/설정합니다."
+      - "&e/fishing testfightmode <on|off|toggle|status> &7- 기본 L/R 미니게임을 끄고, 잡는 물고기를 트로피 파이트로 바로 진입시킵니다. (테스트용)"
+      - "&e/fishing fillet setSlots <플레이어> <set|add> <30> &7- 플레이어의 생선 살 가공 슬롯 수를 설정/증가합니다."
+    footer:
+      - "&b&m                                                &r"
+
+  # --- 공통 ---
+  no-permission: "&c권한이 없습니다."
+  player-only: "&c플레이어만 사용할 수 있습니다."
+  player-not-found: "&c플레이어를 찾을 수 없습니다: {player}"
+  unknown-command: "&e[InMc-Fishing] &7알 수 없는 명령어: {input}"
+  unknown-grade: "&c존재하지 않는 등급입니다: {grade}"
+  unknown-fish-id: "&c존재하지 않는 물고기 ID입니다: {id}"
+  unknown-trophy-fish-id: "&c존재하지 않거나 사이즈 정보가 없는 물고기 ID입니다: {id}"
+  unknown-rod-id: "&c존재하지 않는 낚싯대 ID입니다: {id}"
+  unknown-bait-id: "&c존재하지 않는 미끼 ID입니다: {id}"
+  amount-not-number: "&c개수는 숫자여야 합니다."
+  amount-too-large: "&c개수는 최대 {max}까지 지정할 수 있습니다."
+  amount-must-be-positive: "&cadd 모드는 1 이상의 양수만 가능합니다."
+  net-disabled: "&c어망 시스템이 비활성화되어 있습니다."
+  collection-disabled: "&c도감 시스템이 비활성화되어 있습니다."
+  ranking-disabled: "&c랭킹 시스템이 비활성화되어 있습니다."
+  fillet-unavailable: "&c생선 살 가공 시스템이 초기화되지 않았습니다."
+  fatigue-unavailable: "&c피로도 시스템이 초기화되지 않았습니다."
+  fight-unavailable: "&cTrophy Fight 시스템이 초기화되지 않았습니다."
+  fight-disabled: "&cfight.yml의 trophy-fight.enabled가 false라 파이트를 시작할 수 없습니다."
+
+  # --- 사용법 ---
+  usage:
+    simulate: "&c사용법: /fishing simulate <횟수>"
+    minigame: "&e사용법: /fishing minigame <on|off|toggle|status>"
+    testfight: "&c사용법: /fishing testfight <grade> <trophy|rare>"
+    testfightmode: "&e사용법: /fishing testfightmode <on|off|toggle|status>"
+    fillet-setslots: "&c사용법: /fishing fillet setSlots <플레이어> <set|add> <수>"
+    fatigue-modify: "&c사용법: /fishing fatigue {mode} <플레이어> <수치>"
+    tournament: "&e[InMc-Fishing] &7사용법: /fishing tournament <list|join|leave|gui|start|stop> [id]"
+    tournament-join: "&c사용법: /fishing tournament join <대회ID>"
+    tournament-leave: "&c사용법: /fishing tournament leave <대회ID>"
+    tournament-start: "&c사용법: /fishing tournament start <대회ID>"
+    tournament-stop: "&c사용법: /fishing tournament stop <대회ID>"
+    give: "&c사용법: /fishing give <net|fish|trophy|potion|rod|bait|fillet> <플레이어> ..."
+    give-potion: "&c사용법: /fishing give potion <플레이어> <등급> [개수]"
+    give-net: "&c사용법: /fishing give net <플레이어> <물고기ID> [개수]"
+    give-fish: "&c사용법: /fishing give fish <플레이어> <물고기ID> [개수]"
+    give-trophy: "&c사용법: /fishing give trophy <플레이어> <물고기ID> [개수]"
+    give-rod: "&c사용법: /fishing give rod <플레이어> <낚싯대ID> [개수]"
+    give-bait: "&c사용법: /fishing give bait <플레이어> <baitId> [개수]"
+    give-fillet: "&c사용법: /fishing give fillet <플레이어> <등급(f~s)> <normal|trophy|rare> [개수]"
+
+  # --- /fishing reload ---
+  reload:
+    success: "&a[InMc-Fishing] 설정이 리로드되었습니다."
+    failed: "&c[InMc-Fishing] 리로드 중 오류 발생: {error}"
+
+  # --- /fishing debug ---
+  debug:
+    header: "&6===== InMc-Fishing Debug ====="
+    grades: "&e등급: &f{count}개"
+    fish: "&e물고기: &f{count}개"
+    rods: "&e낚싯대: &f{count}개"
+    sessions: "&e활성 세션: &f{count}"
+    config-enabled: "&e설정 리로드 가능: &f{value}"
+    allowed-worlds: "&e허용 월드: &f{value}"
+    # {name} = Vault / MMOItems / PlaceholderAPI / WorldGuard
+    hook: "&e{name}: &f{value}"
+    collection: "&e도감: &f{value} (캐시 {cached}명)"
+    ranking: "&e랭킹: &f{value}"
+    tournament: "&e대회: &f{registered}개 등록, {running}개 진행 중"
+    footer: "&6=============================="
+    enabled: "활성화"
+    disabled: "비활성화"
+
+  # --- /fishing simulate ---
+  simulate:
+    count-not-number: "&c횟수는 숫자여야 합니다: {input}"
+    count-range: "&c횟수는 1~10,000,000 사이여야 합니다."
+    running: "&e[InMc-Fishing] &7{count}회 시뮬레이션 중..."
+    header: "&6===== 시뮬레이션 결과 ({count}회) ====="
+    total: "&e총 성공: &f{count}"
+    big-fish: "&e대어: &f{count} ({percent}%)"
+    double: "&e더블: &f{count} ({percent}%)"
+    grade-header: "&6--- 등급별 확률 ---"
+    grade-line: "&e{name}: &f{count} ({percent}%)"
+    item-header: "&6--- 아이템별 비율 ---"
+    item-line: "&7{name}: &f{count} ({percent}%)"
+
+  # --- /fishing dumpbalance (개발용) ---
+  dumpbalance:
+    running: "&e[InMc-Fishing] &7밸런스 덤프 생성 중..."
+    success: "&a밸런스 덤프 완료: &f{path}"
+    failed: "&c밸런스 덤프 생성에 실패했습니다: {error}"
+
+  # --- /fishing info ---
+  info:
+    header: "&6===== InMc-Fishing ====="
+    version: "&e버전: &f{value}"
+    api: "&eAPI: &f{value}"
+    minigame-active: "&e미니게임 중: &f{value}"
+    footer: "&6=========================="
+
+  # --- /fishing minigame ---
+  minigame:
+    status: "&e미니게임: {state}"
+    on: "&aON"
+    off: "&eOFF"
+
+  # --- /fishing testfight (관리자 테스트) ---
+  testfight:
+    controls: "&7L: 릴 감기(제압, 상태별 효과)  R: 릴 풀기(회복, 상태별 거리 증가)"
+    started: "&aTrophy Fight을 시작했습니다! (등급: {grade}, {type}Trophy)"
+    type-rare: "Rare "
+    type-normal: ""
+    no-fish-in-grade: "&c등급 {grade}의 물고기를 찾을 수 없습니다."
+    bad-trophy-type: "&ctrophyType은 trophy 또는 rare이어야 합니다: {input}"
+    already-fighting: "&c이미 Fight 중입니다: {error}"
+
+  testfightmode:
+    status: "&e트로피 파이트 테스트 모드: {state}"
+    on: "&aON&e (잡는 물고기가 모두 트로피 파이트로 진입합니다)"
+    off: "&7OFF"
+
+  # --- /fishing show ---
+  show:
+    hold-fish: "&c손에 물고기 아이템을 들고 사용해야 합니다."
+    unknown-fish: "&c존재하지 않는 물고기입니다."
+
+  # --- /fishing stats ---
+  stats:
+    divider: "&b&m                                                &r"
+    title: "&b[InMc-Fishing] &f내 낚시 스탯"
+    line: "&7- {text}"
+
+  # --- /fishing fatigue ---
+  fatigue:
+    player-only-console-hint: "&c플레이어만 사용할 수 있습니다. (콘솔에서는 /fishing fatigue <add|set> <플레이어> <수치>)"
+    status: "&e{player}의 피로도: &f{value} &7/ &f{max}{locked}"
+    locked-suffix: " &c(자동 낚시 잠김)"
+    adjusted: "&a{player}의 피로도를 {value}(으)로 조정했습니다."
+    not-integer: "&c수치는 정수여야 합니다: {input}"
+
+  # --- /fishing fillet setSlots ---
+  fillet:
+    slots-added: "&a{player}의 가공 슬롯을 {before} → {after}개로 증가했습니다."
+    slots-set: "&a{player}의 가공 슬롯을 {slots}개로 설정했습니다."
+
+  # --- /fishing list ---
+  list:
+    header: "&6===== 물고기 목록 ====="
+    line: "&7[{grade_color}{grade}&7] &f{name}"
+    footer: "&6======================="
+
+  # --- /fishing tournament ---
+  tournament:
+    list-header: "&6===== 낚시 대회 목록 ====="
+    list-line: "&e{id} &7({status}&7) — {type}"
+    status-running: "&a진행 중"
+    status-waiting: "&7대기 중"
+    wins-header: "&6===== 대회 우승 랭킹 ====="
+    wins-line: "&e#{rank} &f{player} &7— 우승 {wins}회"
+    no-wins: "&7아직 우승 기록이 없습니다."
+    started: "&a대회를 시작했습니다."
+    start-failed: "&c대회 시작에 실패했습니다. (이미 진행 중이거나 존재하지 않음)"
+    stopped: "&a대회를 종료했습니다."
+    stop-failed: "&c대회 종료에 실패했습니다. (진행 중이 아니거나 존재하지 않음)"
+
+  # --- /fishing give ---
+  give:
+    unknown-type: "&c지원하지 않는 종류입니다: net, fish, trophy, potion, rod, bait, fillet"
+    potion-success: "&a{player}에게 {grade}등급 피로회복 물약 {amount}개를 지급했습니다.{drop}"
+    net-success: "&a{player}의 어망에 {id} {amount}마리를 추가했습니다."
+    net-partial: "&c어망이 꽉 차서 일부만 추가되었습니다."
+    fish-success: "&a{player}에게 {id} {amount}개를 지급했습니다.{drop}"
+    trophy-success: "&a{player}에게 {id} 트로피 {amount}개를 지급했습니다.{drop}"
+    rod-success: "&a{player}에게 낚싯대 {id} {amount}개를 지급했습니다.{drop}"
+    rod-create-failed: "&c낚싯대 아이템을 생성할 수 없습니다. (MMOItems 미설치 등)"
+    bait-success: "&a{player}에게 {id} 미끼 {amount}개를 지급했습니다.{drop}"
+    fillet-success: "&a{player}에게 {grade}급 {type} 생선살 {amount}개를 지급했습니다.{drop}"
+    fillet-create-failed: "&c생선 살 아이템 생성에 실패했습니다."
+    fillet-bad-type: "&c올바른 타입이 아닙니다: normal, trophy, rare 중 하나"

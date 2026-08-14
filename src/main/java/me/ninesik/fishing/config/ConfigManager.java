@@ -154,6 +154,25 @@ public class ConfigManager {
         return Texts.colorize(raw);
     }
 
+    /**
+     * messages.yml 에서 문자열 리스트를 읽어 색상 변환해 반환한다.
+     * 키가 없거나 리스트가 아니면 빈 리스트 — 호출측이 그냥 아무것도 출력하지 않게 된다.
+     *
+     * <p>도움말처럼 "줄 수 자체를 어드민이 정하는" 텍스트에 쓴다. 줄마다 키를 따로
+     * 두면 어드민이 줄을 추가·삭제할 수 없어서 리스트로 받는다.</p>
+     */
+    public List<String> getMessageList(String key) {
+        List<String> raw = messages.getStringList(key);
+        if (raw.isEmpty()) {
+            return Collections.emptyList();
+        }
+        List<String> colorized = new java.util.ArrayList<>(raw.size());
+        for (String line : raw) {
+            colorized.add(Texts.colorize(line));
+        }
+        return colorized;
+    }
+
     /** messages.yml 의 raw 문자열을 그대로 반환한다 (색상 변환 안 함). 없으면 def 반환. */
     public String getMessageRaw(String key, String def) {
         if (messages.isConfigurationSection(key)) return def;
