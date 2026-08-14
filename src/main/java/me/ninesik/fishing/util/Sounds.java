@@ -1,9 +1,12 @@
 package me.ninesik.fishing.util;
 
 import org.bukkit.Location;
+import org.bukkit.NamespacedKey;
+import org.bukkit.Registry;
 import org.bukkit.Sound;
 import org.bukkit.entity.Player;
 
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
@@ -47,12 +50,32 @@ public final class Sounds {
         }
     }
 
-    /** "entity.player.levelup" → ENTITY_PLAYER_LEVELUP. 키당 딱 한 번만 실행된다. */
+    /**
+     * 설정 키를 사운드 레지스트리에서 찾는다. 키당 딱 한 번만 실행된다.
+     *
+     * <p>예전에는 {@code Sound.valueOf(key.replace('.','_').toUpperCase())}로 enum 상수를
+     * 찾았다. Paper가 Sound를 enum에서 레지스트리 기반 인터페이스로 바꾸면서
+     * {@code valueOf}가 제거 예정이 됐고, 애초에 enum에 있는 바닐라 사운드만 찾을 수 있었다.
+     * 이제 네임스페이스 키로 직접 조회하므로 데이터팩이 추가한 사운드도 잡힌다.</p>
+     *
+     * <p>어드민이 예전처럼 {@code ENTITY_PLAYER_LEVELUP} 형태로 적어둔 서버가 있을 수 있어
+     * 그 표기도 계속 받아준다.</p>
+     */
     private static Optional<Sound> resolve(String soundKey) {
-        try {
-            return Optional.of(Sound.valueOf(soundKey.replace('.', '_').toUpperCase()));
-        } catch (IllegalArgumentException e) {
-            return Optional.empty();
+        Sound sound = lookup(soundKey);
+        if (sound == null && soundKey.indexOf('_') >= 0) {
+            // enum 표기(ENTITY_PLAYER_LEVELUP) → 레지스트리 표기(entity.player.levelup)
+            sound = lookup(soundKey.replace('_', '.'));
         }
+        return Optional.ofNullable(sound);
+    }
+
+    /**
+     * 네임스페이스가 없으면 minecraft로 간주한다.
+     * Locale.ROOT 고정 — 터키어 로캘에서 'I'가 'ı'로 내려가 키가 어긋나는 것을 막는다.
+     */
+    private static Sound lookup(String soundKey) {
+        NamespacedKey key = NamespacedKey.fromString(soundKey.toLowerCase(Locale.ROOT));
+        return key == null ? null : Registry.SOUND_EVENT.get(key);
     }
 }

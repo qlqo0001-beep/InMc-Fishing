@@ -67,7 +67,23 @@ public class WeightCalculator {
         if (player == null || player.getLocation() == null || player.getLocation().getBlock() == null || grade == null) {
             return 1.0;
         }
-        return configManager.getBiomeModifier(player.getLocation().getBlock().getBiome().name(), grade.getId());
+        return configManager.getBiomeModifier(
+                biomeConfigName(player.getLocation().getBlock().getBiome()), grade.getId());
+    }
+
+    /**
+     * modifiers.yml의 biome 키 형식(대문자, 예: OCEAN / DEEP_OCEAN)으로 바꾼다.
+     *
+     * <p>예전에는 Biome.name()을 썼는데, Paper가 Biome을 enum에서 레지스트리 기반
+     * 인터페이스로 바꾸면서 name()이 제거 예정이 됐다. 키 값을 대문자로 올리면
+     * 바닐라 바이옴에 대해 name()과 같은 문자열이 나오므로 기존 modifiers.yml이
+     * 그대로 동작한다. 데이터팩이 추가한 바이옴은 name()으로는 아예 조회가 안 됐지만
+     * 이제 자기 키 이름으로 설정할 수 있다.</p>
+     *
+     * <p>Locale.ROOT 고정 — 터키어 로캘에서 i가 İ로 올라가 키가 어긋나는 것을 막는다.</p>
+     */
+    private static String biomeConfigName(org.bukkit.block.Biome biome) {
+        return biome.getKey().getKey().toUpperCase(java.util.Locale.ROOT);
     }
 
     private double getWeatherModifier(Player player, Grade grade) {
