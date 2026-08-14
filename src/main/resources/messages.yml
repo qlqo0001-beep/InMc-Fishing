@@ -354,3 +354,115 @@ command:
     fillet-success: "&a{player}에게 {grade}급 {type} 생선살 {amount}개를 지급했습니다.{drop}"
     fillet-create-failed: "&c생선 살 아이템 생성에 실패했습니다."
     fillet-bad-type: "&c올바른 타입이 아닙니다: normal, trophy, rare 중 하나"
+
+# ============================================================
+#  [gui] GUI 아이콘 이름/설명
+#  name을 비우면 바닐라 아이템 이름이 나오고, lore를 비우면 설명이 사라집니다.
+#  lore는 줄 수를 자유롭게 늘리거나 줄일 수 있습니다.
+# ============================================================
+gui:
+  # 모든 GUI가 공유하는 하단 바 버튼
+  common:
+    prev-page:
+      name: "&e이전 페이지"
+      lore: []
+    next-page:
+      name: "&e다음 페이지"
+      lore: []
+    close:
+      name: "&c닫기"
+      lore: []
+    back-main:
+      name: "&6메인 GUI로"
+      lore:
+        - "&7클릭하여 메인 메뉴로 돌아갑니다."
+
+  # /fishing 메인메뉴 → 트로피 파이트 설명
+  trophy-help:
+    title: "&6트로피 파이트 설명"
+    goal:
+      name: "&6[ 목표 ]"
+      lore:
+        - "&f1. 물고기 스테미너를 0으로"
+        - "&f2. 이후 거리(Distance)를 0으로"
+        - "&7둘 다 0이 되면 승리!"
+    control:
+      name: "&6[ 조작법 ]"
+      lore:
+        - "&e좌클릭: 릴 감기 (제압)"
+        - "&7→ 거리 회수, 장력 상승, 물고기 스테미너 소모"
+        - "&e우클릭: 릴 풀기 (회복)"
+        - "&7→ 장력 감소, 릴 상태 회복 (거리가 늘어남)"
+    state:
+      name: "&6[ 물고기 상태 ]"
+      lore:
+        - "&a휴식: 저항 낮음 — 릴을 감기 좋은 타이밍"
+        - "&e이동/방향전환: 보통 저항"
+        - "&c강한 돌진: 저항과 스테미너 소모 큼"
+        - "&4마지막 발악: 최고 저항, 이후 휴식"
+    fail:
+      name: "&c[ 실패 조건 ]"
+      lore:
+        - "&c장력 ≥ 줄 강도 (줄 끊김)"
+        - "&c거리 ≥ 상한 (도망)"
+        - "&c릴 상태 ≤ 0 (파손)"
+        - "&c제한 시간 초과"
+
+  # /fishing tournament gui — 대회 목록
+  tournament:
+    title: "&6낚시 대회"
+    not-running: "&7해당 대회는 현재 대기 중입니다."
+    entry:
+      # 아이콘 이름은 tournaments.yml의 대회 이름을 그대로 씁니다.
+      lore:
+        - "&7ID: &f{id}"
+        - "&7유형: &f{type}"
+      # 목표 등급이 지정된 대회에만 붙습니다.
+      target-grade-lore:
+        - "&7목표 등급: &f{target_grade}"
+      detail-lore:
+        - "&7진행 시간: &f{duration}분"
+        - "&7참가비: &f{entry_fee}"
+      running-lore:
+        - "&a진행 중"
+        - "&e좌클릭: 참가"
+        - "&7/fishing tournament join {id}"
+      waiting-lore:
+        - "&7대기 중"
+      # 자동 시작이 켜진 대기 중 대회에만 붙습니다.
+      auto-start-lore:
+        - "&7자동 시작: {schedule_day} {schedule_time}"
+
+  # /fishing rank — 랭킹 GUI
+  ranking:
+    title: "&6낚시 랭킹"
+    back-to-fish-list:
+      name: "&c[뒤로가기]"
+      lore:
+        - "&7물고기 목록으로 돌아가기"
+    tab:
+      active-lore:
+        - "&e현재 탭"
+      inactive-lore:
+        - "&7클릭하여 이동"
+    fish:
+      caught-lore:
+        - "&e클릭하여 이 물고기의 사이즈 랭킹 보기"
+        - "&7잡은 적이 있는 물고기만 랭킹을 볼 수 있습니다."
+      not-caught-lore:
+        - "&7아직 잡지 못한 물고기입니다."
+    entry:
+      collection-lore:
+        - "&7점수: &a{score}"
+      size-lore:
+        - "&7사이즈: &b{size}cm"
+      best-record-lore:
+        - "&7최고 기록: &b{fish} {size}cm"
+      no-record-lore:
+        - "&7기록 없음"
+      trophy-achieved-lore:
+        - "&6🏆 트로피 달성"
+      trophy-lore:
+        - "&7일반 트로피: &e{normal}"
+        - "&7레어 트로피: &6{rare}"
+        - "&7총 트로피: &a{total}"

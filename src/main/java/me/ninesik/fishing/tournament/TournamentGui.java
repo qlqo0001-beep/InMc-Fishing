@@ -3,6 +3,7 @@ package me.ninesik.fishing.tournament;
 import me.ninesik.fishing.gui.AbstractGui;
 import me.ninesik.fishing.gui.GuiItems;
 import me.ninesik.fishing.gui.GuiLayout;
+import me.ninesik.fishing.gui.GuiTexts;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
@@ -10,7 +11,9 @@ import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.inventory.ItemStack;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * 대회 GUI.
@@ -26,7 +29,7 @@ public class TournamentGui extends AbstractGui {
     private int page = 0;
 
     public TournamentGui(Player player, TournamentManager tournamentManager) {
-        super(player, ROWS, ChatColor.GOLD + "낚시 대회");
+        super(player, ROWS, GuiTexts.text("tournament.title"));
         this.tournamentManager = tournamentManager;
     }
 
@@ -65,24 +68,29 @@ public class TournamentGui extends AbstractGui {
         Material material = tournament.isRunning() ? Material.FISHING_ROD : Material.CLOCK;
         String name = ChatColor.YELLOW + ChatColor.stripColor(tournament.getName());
 
-        List<String> lore = new ArrayList<>();
-        lore.add(ChatColor.GRAY + "ID: " + ChatColor.WHITE + tournament.getId());
-        lore.add(ChatColor.GRAY + "유형: " + ChatColor.WHITE + tournament.getType());
-        if (tournament.getTargetGrade() != null) {
-            lore.add(ChatColor.GRAY + "목표 등급: " + ChatColor.WHITE + tournament.getTargetGrade().toUpperCase());
-        }
-        lore.add(ChatColor.GRAY + "진행 시간: " + ChatColor.WHITE + tournament.getDurationMinutes() + "분");
-        lore.add(ChatColor.GRAY + "참가비: " + ChatColor.WHITE + tournament.getEntryFee());
+        // 로어 구성 자체가 config다 — 어드민이 줄을 지우거나 순서를 바꿀 수 있다.
+        Map<String, String> ph = new HashMap<>();
+        ph.put("id", tournament.getId());
+        ph.put("type", String.valueOf(tournament.getType()));
+        ph.put("target_grade", tournament.getTargetGrade() == null
+                ? "" : tournament.getTargetGrade().toUpperCase());
+        ph.put("duration", String.valueOf(tournament.getDurationMinutes()));
+        ph.put("entry_fee", String.valueOf(tournament.getEntryFee()));
+        ph.put("schedule_day", String.valueOf(tournament.getScheduleDay()));
+        ph.put("schedule_time", String.valueOf(tournament.getScheduleTime()));
 
-        if (tournament.isRunning()) {
-            lore.add(ChatColor.GREEN + "진행 중");
-            lore.add(ChatColor.YELLOW + "좌클릭: 참가");
-            lore.add(ChatColor.GRAY + "/fishing tournament join " + tournament.getId());
-        } else {
-            lore.add(ChatColor.GRAY + "대기 중");
-            if (tournament.isAutoStart()) {
-                lore.add(ChatColor.GRAY + "자동 시작: " + tournament.getScheduleDay() + " " + tournament.getScheduleTime());
-            }
+        // 조건부 줄은 별도 리스트로 두고 순서대로 이어 붙인다. 한 리스트에서
+        // 빼내는 방식은 같은 문구가 다른 줄에 있으면 엉뚱한 줄이 지워진다.
+        List<String> lore = new ArrayList<>(GuiTexts.lines("tournament.entry.lore", ph));
+        if (tournament.getTargetGrade() != null) {
+            lore.addAll(GuiTexts.lines("tournament.entry.target-grade-lore", ph));
+        }
+        lore.addAll(GuiTexts.lines("tournament.entry.detail-lore", ph));
+        lore.addAll(tournament.isRunning()
+                ? GuiTexts.lines("tournament.entry.running-lore", ph)
+                : GuiTexts.lines("tournament.entry.waiting-lore", ph));
+        if (!tournament.isRunning() && tournament.isAutoStart()) {
+            lore.addAll(GuiTexts.lines("tournament.entry.auto-start-lore", ph));
         }
 
         return GuiItems.createIcon(material, name, lore);
@@ -123,7 +131,7 @@ public class TournamentGui extends AbstractGui {
                 player.closeInventory();
                 tournamentManager.join(player, tournament.getId());
             } else {
-                player.sendMessage(ChatColor.GRAY + "해당 대회는 현재 대기 중입니다.");
+                player.sendMessage(GuiTexts.text("tournament.not-running"));
             }
         }
     }

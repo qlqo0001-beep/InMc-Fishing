@@ -59,20 +59,19 @@ public final class GuiLayout {
     }
 
     public static ItemStack prevPageIcon() {
-        return GuiItems.createIcon(Material.ARROW, ChatColor.YELLOW + "이전 페이지", List.of());
+        return GuiTexts.icon(Material.ARROW, "common.prev-page");
     }
 
     public static ItemStack nextPageIcon() {
-        return GuiItems.createIcon(Material.ARROW, ChatColor.YELLOW + "다음 페이지", List.of());
+        return GuiTexts.icon(Material.ARROW, "common.next-page");
     }
 
     public static ItemStack closeIcon() {
-        return GuiItems.createIcon(Material.BARRIER, ChatColor.RED + "닫기", List.of());
+        return GuiTexts.icon(Material.BARRIER, "common.close");
     }
 
     public static ItemStack backToMainIcon() {
-        return GuiItems.createIcon(Material.OAK_DOOR, ChatColor.GOLD + "메인 GUI로",
-                List.of(ChatColor.GRAY + "클릭하여 메인 메뉴로 돌아갑니다."));
+        return GuiTexts.icon(Material.OAK_DOOR, "common.back-main");
     }
 
     /**

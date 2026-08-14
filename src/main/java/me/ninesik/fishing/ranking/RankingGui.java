@@ -2,6 +2,7 @@ package me.ninesik.fishing.ranking;
 
 import me.ninesik.fishing.gui.AbstractGui;
 import me.ninesik.fishing.gui.GuiItems;
+import me.ninesik.fishing.gui.GuiTexts;
 import me.ninesik.fishing.gui.GuiLayout;
 import me.ninesik.fishing.model.Fish;
 import me.ninesik.fishing.registry.RegistryManager;
@@ -39,7 +40,7 @@ public class RankingGui extends AbstractGui {
     private String selectedFishId = null;
 
     public RankingGui(Player player, RankingManager rankingManager, RegistryManager registryManager) {
-        super(player, ROWS, ChatColor.GOLD + "낚시 랭킹");
+        super(player, ROWS, GuiTexts.text("ranking.title"));
         this.rankingManager = rankingManager;
         this.registryManager = registryManager;
     }
@@ -58,8 +59,7 @@ public class RankingGui extends AbstractGui {
             for (int i = 0; i < 8; i++) {
                  setItem(TAB_ROW * 9 + i, GuiItems.createIcon(Material.GRAY_STAINED_GLASS_PANE, " ", List.of()));
             }
-            setItem(TAB_ROW * 9 + 8, GuiItems.createIcon(Material.BARRIER, ChatColor.RED + "[뒤로가기]",
-                    List.of(ChatColor.GRAY + "물고기 목록으로 돌아가기")));
+            setItem(TAB_ROW * 9 + 8, GuiTexts.icon(Material.BARRIER, "ranking.back-to-fish-list"));
             return;
         }
 
@@ -76,7 +76,7 @@ public class RankingGui extends AbstractGui {
                 default -> Material.PAPER;
             };
             ItemStack item = GuiItems.createIcon(material, color + "[" + tabs[i] + "]",
-                    List.of(active ? ChatColor.YELLOW + "현재 탭" : ChatColor.GRAY + "클릭하여 이동"));
+                    GuiTexts.lines(active ? "ranking.tab.active-lore" : "ranking.tab.inactive-lore"));
             setItem(TAB_ROW * 9 + i, item);
         }
     }
@@ -141,7 +141,7 @@ public class RankingGui extends AbstractGui {
             ItemMeta meta = item.getItemMeta();
             if (meta != null) {
                 meta.setDisplayName(ChatColor.GRAY + "???");
-                meta.setLore(List.of(ChatColor.GRAY + "아직 잡지 못한 물고기입니다."));
+                meta.setLore(GuiTexts.lines("ranking.fish.not-caught-lore"));
                 item.setItemMeta(meta);
             }
             return item;
@@ -156,10 +156,7 @@ public class RankingGui extends AbstractGui {
             meta.setDisplayName(ChatColor.WHITE + "[" + ChatColor.translateAlternateColorCodes('&', gradeColor)
                     + fish.getGrade().getId().toUpperCase() + ChatColor.WHITE + "] "
                     + (fish.getVanillaName() != null ? ChatColor.translateAlternateColorCodes('&', fish.getVanillaName()) : fish.getId()));
-            meta.setLore(List.of(
-                    ChatColor.YELLOW + "클릭하여 이 물고기의 사이즈 랭킹 보기",
-                    ChatColor.GRAY + "잡은 적이 있는 물고기만 랭킹을 볼 수 있습니다."
-            ));
+            meta.setLore(GuiTexts.lines("ranking.fish.caught-lore"));
             item.setItemMeta(meta);
         }
         return item;
@@ -186,14 +183,16 @@ public class RankingGui extends AbstractGui {
 
         List<String> lore = new ArrayList<>();
         switch (currentTab) {
-            case "COLLECTION" -> lore.add(ChatColor.GRAY + "점수: " + ChatColor.GREEN + entry.getScore());
+            case "COLLECTION" -> lore.addAll(GuiTexts.lines("ranking.entry.collection-lore",
+                    Map.of("score", String.valueOf(entry.getScore()))));
             case "SIZE" -> {
                 if (selectedFishId != null) {
                     double size = entry.getBestSize(selectedFishId);
-                    lore.add(ChatColor.GRAY + "사이즈: " + ChatColor.AQUA + String.format("%.1f", size) + "cm");
+                    lore.addAll(GuiTexts.lines("ranking.entry.size-lore",
+                            Map.of("size", String.format("%.1f", size))));
                     Fish fish = registryManager.getFishRegistry().getById(selectedFishId);
                     if (isTrophySize(fish, size)) {
-                        lore.add(ChatColor.GOLD + "🏆 트로피 달성");
+                        lore.addAll(GuiTexts.lines("ranking.entry.trophy-achieved-lore"));
                     }
                 } else {
                     Map.Entry<String, Double> best = findBestSize(entry);
@@ -202,20 +201,22 @@ public class RankingGui extends AbstractGui {
                         String fishName = fish != null && fish.getVanillaName() != null
                                 ? fish.getVanillaName()
                                 : best.getKey();
-                        lore.add(ChatColor.GRAY + "최고 기록: " + ChatColor.AQUA + fishName
-                                + " " + String.format("%.1f", best.getValue()) + "cm");
+                        lore.addAll(GuiTexts.lines("ranking.entry.best-record-lore", Map.of(
+                                "fish", fishName,
+                                "size", String.format("%.1f", best.getValue()))));
                         if (isTrophyFish(best.getKey(), best.getValue())) {
-                            lore.add(ChatColor.GOLD + "🏆 트로피 달성");
+                            lore.addAll(GuiTexts.lines("ranking.entry.trophy-achieved-lore"));
                         }
                     } else {
-                        lore.add(ChatColor.GRAY + "기록 없음");
+                        lore.addAll(GuiTexts.lines("ranking.entry.no-record-lore"));
                     }
                 }
             }
             case "TROPHY" -> {
-                lore.add(ChatColor.GRAY + "일반 트로피: " + ChatColor.YELLOW + entry.getTrophyCount());
-                lore.add(ChatColor.GRAY + "레어 트로피: " + ChatColor.GOLD + entry.getRareTrophyCount());
-                lore.add(ChatColor.GRAY + "총 트로피: " + ChatColor.GREEN + entry.getTotalTrophyCount());
+                lore.addAll(GuiTexts.lines("ranking.entry.trophy-lore", Map.of(
+                        "normal", String.valueOf(entry.getTrophyCount()),
+                        "rare", String.valueOf(entry.getRareTrophyCount()),
+                        "total", String.valueOf(entry.getTotalTrophyCount()))));
             }
         }
 

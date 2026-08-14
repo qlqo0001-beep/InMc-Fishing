@@ -27,7 +27,7 @@ public class TrophyHelpGui extends AbstractGui {
     private static final int SLOT_BACK = GuiLayout.backSlot(ROWS);
 
     public TrophyHelpGui(Player player) {
-        super(player, ROWS, ChatColor.GOLD + "트로피 파이트 설명");
+        super(player, ROWS, GuiTexts.text("trophy-help.title"));
     }
 
     @Override
@@ -38,32 +38,13 @@ public class TrophyHelpGui extends AbstractGui {
             inventory.setItem(i, pane.clone());
         }
 
-        setItem(SLOT_GOAL, GuiItems.createIcon(Material.TARGET, ChatColor.GOLD + "[ 목표 ]",
-                List.of(
-                        ChatColor.WHITE + "1. 물고기 스테미너를 0으로",
-                        ChatColor.WHITE + "2. 이후 거리(Distance)를 0으로",
-                        ChatColor.GRAY + "둘 다 0이 되면 승리!")));
+        setItem(SLOT_GOAL, GuiTexts.icon(Material.TARGET, "trophy-help.goal"));
 
-        setItem(SLOT_CONTROL, GuiItems.createIcon(Material.IRON_SWORD, ChatColor.GOLD + "[ 조작법 ]",
-                List.of(
-                        ChatColor.YELLOW + "좌클릭: 릴 감기 (제압)",
-                        ChatColor.GRAY + "→ 거리 회수, 장력 상승, 물고기 스테미너 소모",
-                        ChatColor.YELLOW + "우클릭: 릴 풀기 (회복)",
-                        ChatColor.GRAY + "→ 장력 감소, 릴 상태 회복 (거리가 늘어남)")));
+        setItem(SLOT_CONTROL, GuiTexts.icon(Material.IRON_SWORD, "trophy-help.control"));
 
-        setItem(SLOT_STATE, GuiItems.createIcon(Material.SPIDER_EYE, ChatColor.GOLD + "[ 물고기 상태 ]",
-                List.of(
-                        ChatColor.GREEN + "휴식: 저항 낮음 — 릴을 감기 좋은 타이밍",
-                        ChatColor.YELLOW + "이동/방향전환: 보통 저항",
-                        ChatColor.RED + "강한 돌진: 저항과 스테미너 소모 큼",
-                        ChatColor.DARK_RED + "마지막 발악: 최고 저항, 이후 휴식")));
+        setItem(SLOT_STATE, GuiTexts.icon(Material.SPIDER_EYE, "trophy-help.state"));
 
-        setItem(SLOT_FAIL, GuiItems.createIcon(Material.BARRIER, ChatColor.RED + "[ 실패 조건 ]",
-                List.of(
-                        ChatColor.RED + "장력 ≥ 줄 강도 (줄 끊김)",
-                        ChatColor.RED + "거리 ≥ 상한 (도망)",
-                        ChatColor.RED + "릴 상태 ≤ 0 (파손)",
-                        ChatColor.RED + "제한 시간 초과")));
+        setItem(SLOT_FAIL, GuiTexts.icon(Material.BARRIER, "trophy-help.fail"));
 
         setItem(SLOT_CLOSE, GuiLayout.closeIcon());
         setItem(SLOT_BACK, GuiLayout.backToMainIcon());
