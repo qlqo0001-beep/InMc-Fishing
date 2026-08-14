@@ -24,7 +24,9 @@ import org.bukkit.inventory.meta.SkullMeta;
 
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * 낚시 메인 GUI (피드백).
@@ -50,7 +52,7 @@ public class MainGui extends AbstractGui {
     private static final int SLOT_CLOSE = 26;
 
     public MainGui(Player player) {
-        super(player, ROWS, ChatColor.DARK_AQUA + "낚시 메인메뉴");
+        super(player, ROWS, GuiTexts.text("main.title"));
     }
 
     /** 메인 GUI를 강제로 연다. (다른 GUI의 "메인으로" 버튼, 시프트+F에서 호출) */
@@ -72,17 +74,15 @@ public class MainGui extends AbstractGui {
         inventory.clear();
         fillBorder();
         setItem(SLOT_STATS, buildStatsIcon());
-        setItem(SLOT_NET, buildNavIcon(Material.CHEST, "어망", "낚은 물고기를 보관/정렬/꺼냅니다."));
-        setItem(SLOT_COLLECTION, buildNavIcon(Material.BOOK, "도감", "낚은 물고기를 등록하고 보상을 받습니다."));
-        setItem(SLOT_RANK, buildNavIcon(Material.GOLDEN_SWORD, "랭킹", "도감/사이즈/트로피 랭킹을 확인합니다."));
-        setItem(SLOT_TOURNAMENT, buildNavIcon(Material.FISHING_ROD, "대회", "낚시 대회 참가/정보를 확인합니다."));
-        setItem(SLOT_FILLET, buildNavIcon(Material.COOKED_COD, "생선 살 가공", "물고기를 생선 살로 가공합니다."));
+        setItem(SLOT_NET, GuiTexts.icon(Material.CHEST, "main.nav.net"));
+        setItem(SLOT_COLLECTION, GuiTexts.icon(Material.BOOK, "main.nav.collection"));
+        setItem(SLOT_RANK, GuiTexts.icon(Material.GOLDEN_SWORD, "main.nav.rank"));
+        setItem(SLOT_TOURNAMENT, GuiTexts.icon(Material.FISHING_ROD, "main.nav.tournament"));
+        setItem(SLOT_FILLET, GuiTexts.icon(Material.COOKED_COD, "main.nav.fillet"));
         setItem(SLOT_AUTOCATCH, buildAutoCatchIcon());
         setItem(SLOT_PRACTICE, buildPracticeIcon());
-        setItem(SLOT_FIGHT_HELP, buildNavIcon(Material.WRITABLE_BOOK, "트로피 파이트 설명",
-                "물고기와의 힘겨루기 게임 방식을 안내합니다."));
-        setItem(SLOT_CLOSE, GuiItems.createIcon(Material.BARRIER, ChatColor.RED + "닫기",
-                List.of(ChatColor.GRAY + "메뉴를 닫습니다.")));
+        setItem(SLOT_FIGHT_HELP, GuiTexts.icon(Material.WRITABLE_BOOK, "main.nav.fight-help"));
+        setItem(SLOT_CLOSE, GuiTexts.icon(Material.BARRIER, "main.close"));
     }
 
     private void fillBorder() {
@@ -107,7 +107,7 @@ public class MainGui extends AbstractGui {
         SkullMeta sm = (SkullMeta) head.getItemMeta();
         if (sm != null) {
             sm.setOwningPlayer(player);
-            sm.setDisplayName(ChatColor.GOLD + "내 낚시 스탯");
+            sm.setDisplayName(GuiTexts.text("main.stats.name"));
             sm.setLore(lines);
             head.setItemMeta(sm);
         }
@@ -125,7 +125,7 @@ public class MainGui extends AbstractGui {
         }
         InMcFishing p = plugin();
         if (p == null || p.getFishingService() == null) {
-            return List.of(ChatColor.GRAY + "플러그인이 초기화되지 않았습니다.");
+            return GuiTexts.lines("main.stats.not-initialized-lore");
         }
         List<String> lines = new ArrayList<>();
 
@@ -140,22 +140,24 @@ public class MainGui extends AbstractGui {
         String rodName = rod != null
                 ? (rod.getVanillaName() != null && !rod.getVanillaName().isBlank()
                         ? rod.getVanillaName() : rod.getId())
-                : "인식된 낚싯대 없음";
+                : GuiTexts.text("main.stats.no-rod");
 
-        lines.add(ChatColor.GRAY + "현재 낚싯대: " + ChatColor.WHITE + rodName);
+        lines.addAll(GuiTexts.lines("main.stats.rod-lore", Map.of("rod", rodName)));
 
         double reelPower = stats.defaultReelPower + (rod != null ? Math.max(0, rod.getReelPower()) : 0);
         double lineStrength = stats.defaultLineStrength + (rod != null ? Math.max(0, rod.getLineStrength()) : 0);
         double reelDurability = stats.defaultReelDurability + (rod != null ? Math.max(0, rod.getReelDurability()) : 0);
-        lines.add(ChatColor.YELLOW + "릴 파워: " + ChatColor.WHITE + String.format("%.1f", reelPower));
-        lines.add(ChatColor.YELLOW + "줄 강도: " + ChatColor.WHITE + String.format("%.1f", lineStrength));
-        lines.add(ChatColor.YELLOW + "릴 내구성: " + ChatColor.WHITE + String.format("%.1f", reelDurability));
+        lines.addAll(GuiTexts.lines("main.stats.fight-lore", Map.of(
+                "reel_power", String.format("%.1f", reelPower),
+                "line_strength", String.format("%.1f", lineStrength),
+                "reel_durability", String.format("%.1f", reelDurability))));
 
         if (fatigue != null) {
-            lines.add(ChatColor.AQUA + "피로도: " + ChatColor.WHITE + fatigue.getFatigue(player)
-                    + ChatColor.GRAY + " / " + ChatColor.WHITE + fatigue.getEffectiveMax(player));
-            lines.add(ChatColor.AQUA + "자연회복량: " + ChatColor.WHITE + fatigue.getEffectiveRecoveryAmount(player)
-                    + ChatColor.GRAY + " / " + ChatColor.WHITE + config.getFatigueRecoveryIntervalSeconds() + "초마다");
+            lines.addAll(GuiTexts.lines("main.stats.fatigue-lore", Map.of(
+                    "fatigue", String.valueOf(fatigue.getFatigue(player)),
+                    "max", String.valueOf(fatigue.getEffectiveMax(player)),
+                    "recovery", String.valueOf(fatigue.getEffectiveRecoveryAmount(player)),
+                    "interval", String.valueOf(config.getFatigueRecoveryIntervalSeconds()))));
         }
 
         if (rod != null && gradeRegistry != null && !gradeRegistry.getAll().isEmpty()) {
@@ -170,9 +172,11 @@ public class MainGui extends AbstractGui {
                                 .append(ChatColor.GRAY).append("+")
                                 .append(ChatColor.WHITE).append(rod.getBonusForGrade(g));
                     });
-            lines.add(ChatColor.GOLD + "등급 추가 출현확률: " + gradeBonus);
+            lines.addAll(GuiTexts.lines("main.stats.grade-bonus-lore",
+                    Map.of("bonus", gradeBonus.toString())));
         } else if (rod == null) {
-            lines.add(ChatColor.GOLD + "등급 추가 출현확률: " + ChatColor.GRAY + "등록된 낚싯대 없음");
+            lines.addAll(GuiTexts.lines("main.stats.grade-bonus-lore",
+                    Map.of("bonus", GuiTexts.text("main.stats.no-registered-rod"))));
         }
 
         return lines;
@@ -187,23 +191,27 @@ public class MainGui extends AbstractGui {
         PlayerFatigueManager fatigue = plugin().getFishingService().getFatigueManager();
         boolean on = prefs != null && prefs.isMinigameEnabled(player);
 
-        List<String> lore = new ArrayList<>();
-        lore.add(ChatColor.GRAY + "L/R 클릭 미니게임을 켜거나 끕니다.");
-        lore.add(ChatColor.GRAY + "OFF면 입질 후 자동으로 낚습니다. (자동 낚시)");
+        Map<String, String> ph = new HashMap<>();
+        ph.put("state", GuiTexts.text(on ? "main.minigame.on" : "main.minigame.off"));
+        ph.put("current", GuiTexts.text(on ? "main.minigame.current-on" : "main.minigame.current-off"));
         if (fatigue != null) {
-            lore.add(ChatColor.AQUA + "피로도: " + ChatColor.WHITE + fatigue.getFatigue(player)
-                    + ChatColor.GRAY + " / " + ChatColor.WHITE + fatigue.getEffectiveMax(player));
-            lore.add(ChatColor.AQUA + "회복: " + ChatColor.WHITE + fatigue.getEffectiveRecoveryAmount(player)
-                    + ChatColor.GRAY + " / " + ChatColor.WHITE
-                    + plugin().getFishingService().getConfigManager().getFatigueRecoveryIntervalSeconds() + "초마다");
+            ph.put("fatigue", String.valueOf(fatigue.getFatigue(player)));
+            ph.put("max", String.valueOf(fatigue.getEffectiveMax(player)));
+            ph.put("recovery", String.valueOf(fatigue.getEffectiveRecoveryAmount(player)));
+            ph.put("interval", String.valueOf(
+                    plugin().getFishingService().getConfigManager().getFatigueRecoveryIntervalSeconds()));
         }
-        if (fatigue != null && fatigue.isLocked(player)) {
-            lore.add(ChatColor.RED + "피로도가 낮아 미니게임 OFF가 잠겨 있습니다.");
+
+        List<String> lore = new ArrayList<>(GuiTexts.lines("main.minigame.lore", ph));
+        if (fatigue != null) {
+            lore.addAll(GuiTexts.lines("main.minigame.fatigue-lore", ph));
+            if (fatigue.isLocked(player)) {
+                lore.addAll(GuiTexts.lines("main.minigame.locked-lore", ph));
+            }
         }
-        lore.add(ChatColor.YELLOW + "현재: " + (on ? ChatColor.GREEN + "ON (미니게임)" : ChatColor.RED + "OFF (자동 낚시)"));
-        lore.add(ChatColor.GRAY + "클릭: 토글");
+        lore.addAll(GuiTexts.lines("main.minigame.footer-lore", ph));
         return GuiItems.createIcon(on ? Material.COMPARATOR : Material.REPEATER,
-                ChatColor.GOLD + "미니게임 " + (on ? "ON" : "OFF"), lore);
+                GuiTexts.text("main.minigame.name", ph), lore);
     }
 
     // ===== 연습모드 토글 =====
@@ -211,20 +219,10 @@ public class MainGui extends AbstractGui {
     private ItemStack buildPracticeIcon() {
         PlayerPreferenceManager prefs = plugin().getPlayerPreferenceManager();
         boolean on = prefs != null && prefs.isTrophyPracticeMode(player);
-        return GuiItems.createIcon(on ? Material.GOLDEN_SWORD : Material.STONE_SWORD,
-                ChatColor.GOLD + "트로피 파이트 연습모드 " + (on ? "ON" : "OFF"),
-                List.of(
-                        ChatColor.GRAY + "ON이면 일반 물고기여도 낚시 성공 시",
-                        ChatColor.GRAY + "트로피 파이트가 발동됩니다. (보상 없음)",
-                        ChatColor.GRAY + "정상 미니게임은 그대로 수행됩니다.",
-                        ChatColor.YELLOW + "현재: " + (on ? ChatColor.GREEN + "ON" : ChatColor.RED + "OFF"),
-                        ChatColor.GRAY + "클릭: 토글"));
-    }
-
-    private ItemStack buildNavIcon(Material material, String name, String desc) {
-        return GuiItems.createIcon(material, ChatColor.GOLD + name, List.of(
-                ChatColor.GRAY + desc,
-                ChatColor.GRAY + "클릭: " + name + " 열기"));
+        Map<String, String> ph = Map.of(
+                "state", GuiTexts.text(on ? "main.practice.on" : "main.practice.off"),
+                "current", GuiTexts.text(on ? "main.practice.current-on" : "main.practice.current-off"));
+        return GuiTexts.icon(on ? Material.GOLDEN_SWORD : Material.STONE_SWORD, "main.practice", ph);
     }
 
 
@@ -243,7 +241,7 @@ public class MainGui extends AbstractGui {
             case SLOT_NET -> {
                 NetManager net = plugin().getNetManager();
                 if (net == null) {
-                    player.sendMessage(ChatColor.RED + "어망 시스템이 비활성화되어 있습니다.");
+                    player.sendMessage(GuiTexts.text("main.net-disabled"));
                     return;
                 }
                 player.closeInventory();
@@ -252,7 +250,7 @@ public class MainGui extends AbstractGui {
             case SLOT_COLLECTION -> {
                 CollectionManager col = plugin().getCollectionManager();
                 if (col == null || !col.isEnabled()) {
-                    player.sendMessage(ChatColor.RED + "도감 시스템이 비활성화되어 있습니다.");
+                    player.sendMessage(GuiTexts.text("main.collection-disabled"));
                     return;
                 }
                 player.closeInventory();
@@ -261,7 +259,7 @@ public class MainGui extends AbstractGui {
             case SLOT_RANK -> {
                 RankingManager rank = plugin().getRankingManager();
                 if (rank == null || !rank.isEnabled()) {
-                    player.sendMessage(ChatColor.RED + "랭킹 시스템이 비활성화되어 있습니다.");
+                    player.sendMessage(GuiTexts.text("main.ranking-disabled"));
                     return;
                 }
                 player.closeInventory();
@@ -271,7 +269,7 @@ public class MainGui extends AbstractGui {
             case SLOT_TOURNAMENT -> {
                 TournamentManager t = plugin().getTournamentManager();
                 if (t == null) {
-                    player.sendMessage(ChatColor.RED + "대회 시스템이 비활성화되어 있습니다.");
+                    player.sendMessage(GuiTexts.text("main.tournament-disabled"));
                     return;
                 }
                 player.closeInventory();
@@ -280,7 +278,7 @@ public class MainGui extends AbstractGui {
             case SLOT_FILLET -> {
                 var fm = plugin().getFilletManager();
                 if (fm == null) {
-                    player.sendMessage(ChatColor.RED + "생선 살 가공 시스템이 초기화되지 않았습니다.");
+                    player.sendMessage(GuiTexts.text("main.fillet-disabled"));
                     return;
                 }
                 player.closeInventory();
@@ -290,7 +288,7 @@ public class MainGui extends AbstractGui {
                 PlayerPreferenceManager prefs = plugin().getPlayerPreferenceManager();
                 if (prefs != null) {
                     prefs.toggleMinigame(player);
-                    emitToggleActionBar("미니게임", prefs.isMinigameEnabled(player));
+                    emitToggleActionBar(GuiTexts.text("main.minigame.label"), prefs.isMinigameEnabled(player));
                     refresh();
                 }
             }
@@ -300,10 +298,10 @@ public class MainGui extends AbstractGui {
                     boolean next = prefs.toggleTrophyPracticeMode(player);
                     if (next) {
                         // 피드백: 연습모드 ON일 때 타이틀로 짧게 상태 표기
-                        player.sendTitle(ChatColor.translateAlternateColorCodes('&', "&e&l연습모드 ON"),
-                                ChatColor.translateAlternateColorCodes('&', "&7보상 없이 트로피 파이트 연습"), 5, 40, 10);
+                        player.sendTitle(GuiTexts.text("main.practice.title-on"),
+                                GuiTexts.text("main.practice.subtitle-on"), 5, 40, 10);
                     } else {
-                        player.sendTitle(ChatColor.translateAlternateColorCodes('&', "&7연습모드 OFF"), "", 5, 20, 10);
+                        player.sendTitle(GuiTexts.text("main.practice.title-off"), "", 5, 20, 10);
                     }
                     refresh();
                 }

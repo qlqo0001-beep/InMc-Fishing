@@ -556,3 +556,100 @@ gui:
       footer-lore:
         - "&7잡은 시간: &f{caught_at}"
         - "&e클릭: 인벤토리로 꺼내기"
+
+  # /fishing menu — 낚시 메인메뉴
+  main:
+    title: "&3낚시 메인메뉴"
+    net-disabled: "&c어망 시스템이 비활성화되어 있습니다."
+    collection-disabled: "&c도감 시스템이 비활성화되어 있습니다."
+    ranking-disabled: "&c랭킹 시스템이 비활성화되어 있습니다."
+    tournament-disabled: "&c대회 시스템이 비활성화되어 있습니다."
+    fillet-disabled: "&c생선 살 가공 시스템이 초기화되지 않았습니다."
+    close:
+      name: "&c닫기"
+      lore:
+        - "&7메뉴를 닫습니다."
+    # 다른 GUI로 이동하는 버튼들
+    nav:
+      net:
+        name: "&6어망"
+        lore:
+          - "&7낚은 물고기를 보관/정렬/꺼냅니다."
+          - "&7클릭: 어망 열기"
+      collection:
+        name: "&6도감"
+        lore:
+          - "&7낚은 물고기를 등록하고 보상을 받습니다."
+          - "&7클릭: 도감 열기"
+      rank:
+        name: "&6랭킹"
+        lore:
+          - "&7도감/사이즈/트로피 랭킹을 확인합니다."
+          - "&7클릭: 랭킹 열기"
+      tournament:
+        name: "&6대회"
+        lore:
+          - "&7낚시 대회 참가/정보를 확인합니다."
+          - "&7클릭: 대회 열기"
+      fillet:
+        name: "&6생선 살 가공"
+        lore:
+          - "&7물고기를 생선 살로 가공합니다."
+          - "&7클릭: 생선 살 가공 열기"
+      fight-help:
+        name: "&6트로피 파이트 설명"
+        lore:
+          - "&7물고기와의 힘겨루기 게임 방식을 안내합니다."
+          - "&7클릭: 트로피 파이트 설명 열기"
+    # 플레이어 머리 아이콘. /fishing stats 에서도 같은 줄을 씁니다.
+    stats:
+      name: "&6내 낚시 스탯"
+      not-initialized-lore:
+        - "&7플러그인이 초기화되지 않았습니다."
+      no-rod: "인식된 낚싯대 없음"
+      no-registered-rod: "&7등록된 낚싯대 없음"
+      rod-lore:
+        - "&7현재 낚싯대: &f{rod}"
+      fight-lore:
+        - "&e릴 파워: &f{reel_power}"
+        - "&e줄 강도: &f{line_strength}"
+        - "&e릴 내구성: &f{reel_durability}"
+      # 피로도 시스템이 켜져 있을 때만 붙습니다.
+      fatigue-lore:
+        - "&b피로도: &f{fatigue}&7 / &f{max}"
+        - "&b자연회복량: &f{recovery}&7 / &f{interval}초마다"
+      grade-bonus-lore:
+        - "&6등급 추가 출현확률: {bonus}"
+    minigame:
+      label: "미니게임"
+      name: "&6미니게임 {state}"
+      on: "ON"
+      off: "OFF"
+      current-on: "&aON (미니게임)"
+      current-off: "&cOFF (자동 낚시)"
+      lore:
+        - "&7L/R 클릭 미니게임을 켜거나 끕니다."
+        - "&7OFF면 입질 후 자동으로 낚습니다. (자동 낚시)"
+      fatigue-lore:
+        - "&b피로도: &f{fatigue}&7 / &f{max}"
+        - "&b회복: &f{recovery}&7 / &f{interval}초마다"
+      locked-lore:
+        - "&c피로도가 낮아 미니게임 OFF가 잠겨 있습니다."
+      footer-lore:
+        - "&e현재: {current}"
+        - "&7클릭: 토글"
+    practice:
+      name: "&6트로피 파이트 연습모드 {state}"
+      on: "ON"
+      off: "OFF"
+      current-on: "&aON"
+      current-off: "&cOFF"
+      title-on: "&e&l연습모드 ON"
+      subtitle-on: "&7보상 없이 트로피 파이트 연습"
+      title-off: "&7연습모드 OFF"
+      lore:
+        - "&7ON이면 일반 물고기여도 낚시 성공 시"
+        - "&7트로피 파이트가 발동됩니다. (보상 없음)"
+        - "&7정상 미니게임은 그대로 수행됩니다."
+        - "&e현재: {current}"
+        - "&7클릭: 토글"
