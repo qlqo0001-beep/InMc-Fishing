@@ -215,7 +215,7 @@ public class FightHUD {
         double remainingSeconds = Math.max(0, remainingTicks) / 20.0;
         Map<String, String> placeholders = scratch();
         placeholders.put("state_color", stateColor);
-        placeholders.put("state", state.getDisplayName());
+        placeholders.put("state", hudConfig.stateName(state));
         placeholders.put("stamina", round0(stamina));
         placeholders.put("reel", round0(reelState));
         placeholders.put("remaining_seconds", round1(remainingSeconds));

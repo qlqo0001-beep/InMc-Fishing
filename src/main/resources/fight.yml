@@ -303,6 +303,21 @@ trophy-fight:
     # true로 켜면 위 actionbar-format 뒤에 아래 형식이 덧붙습니다.
     show-action-power: false
     action-power-format: " &d행동력 &f{action_power}&7/&f{max_action_power}"
+    # 상태 표시명 — 비워두거나 키를 지우면 코드 기본값(한글 이름)을 씁니다.
+    # {state} 플레이스홀더에 들어가는 값입니다.
+    state-names:
+      rest: "휴식"
+      slow_move: "천천히 이동"
+      normal_move: "이동 중"
+      turn: "방향 전환"
+      charge: "강하게 돌진!"
+      final_struggle: "마지막 발악!!"
+      dive: "잠수!"
+      exhausted: "탈진!"
+      circle: "원형 유영"
+      jump: "점프!"
+      line_tangle: "줄 엉킴!"
+      stunned: "기절!"
     # Fish AI 상태 타이틀(메인) — {state_color} = 아래 state-color 설정, {state} = 상태 이름.
     # 아래 state-guide.<state>.title/subtitle 이 없을 때만 폴백으로 사용된다.
     state-title-format: "{state_color}{state} ({remaining_seconds}초)"

@@ -240,6 +240,9 @@ public class FightConfig {
         /** 상태별 타이틀 색상 — FishState 이름(소문자, _를 -로) → 색상 코드 */
         public final Map<String, String> stateColors;
 
+        /** 상태 표시명 재정의. 비어 있으면 FishState.getDisplayName()을 쓴다. */
+        private final Map<FishState, String> stateNames;
+
         /** 상태별 권장 행동 가이드 — FishState → (title, subtitle). config의 state-guide.<state> 로 재정의 가능 */
         public final Map<FishState, StateGuide> stateGuides;
 
@@ -264,7 +267,30 @@ public class FightConfig {
             this.stateSubtitleFormat = config.getString("trophy-fight.hud.state-subtitle-format",
                     " &7{remaining_seconds}초 후 변화");
             this.stateColors = loadStateColors(config);
+            this.stateNames = loadStateNames(config);
             this.stateGuides = loadStateGuides(config);
+        }
+
+        /**
+         * 상태 표시명. fight.yml의 trophy-fight.hud.state-names.&lt;state&gt; 로 바꿀 수 있다.
+         * 키가 없으면 FishState의 기본 한글 이름을 쓴다 — 자바 enum 자체는
+         * 밸런스 덤프의 기준이라 건드리지 않고, 표시 계층에서만 갈아끼운다.
+         */
+        public String stateName(FishState state) {
+            String name = stateNames.get(state);
+            return name != null ? name : state.getDisplayName();
+        }
+
+        private Map<FishState, String> loadStateNames(FileConfiguration config) {
+            Map<FishState, String> names = new java.util.EnumMap<>(FishState.class);
+            for (FishState state : FishState.values()) {
+                String key = "trophy-fight.hud.state-names." + state.name().toLowerCase(java.util.Locale.ROOT);
+                String value = config.getString(key);
+                if (value != null && !value.isBlank()) {
+                    names.put(state, value);
+                }
+            }
+            return names;
         }
 
         /** 주어진 상태의 권장 행동 가이드(title/subtitle)를 반환한다. 없으면 null. */
