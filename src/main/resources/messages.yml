@@ -653,3 +653,102 @@ gui:
         - "&7정상 미니게임은 그대로 수행됩니다."
         - "&e현재: {current}"
         - "&7클릭: 토글"
+
+  # /fishing collection — 도감
+  collection:
+    title: "&3낚시 도감"
+    ranking-disabled: "&c랭킹 시스템이 비활성화되어 있습니다."
+    label-grade: "{grade}등급"
+    label-all: "모든 등급"
+    registered: "&a{label} 물고기 {count}마리를 도감에 등록했습니다."
+    nothing-to-register: "&e등록할 수 있는 {label} 물고기가 없습니다."
+    tab:
+      active-lore:
+        - "&e현재 탭"
+      inactive-lore:
+        - "&7클릭하여 이동"
+    # 진행도 막대를 이루는 한 칸. 칸 수는 코드가 정합니다.
+    progress-bar:
+      filled: "&a■"
+      empty: "&7■"
+    progress:
+      name: "&6도감 진행도: {percent}%"
+      lore:
+        - "&7{bar}"
+        - "&f발견: {discovered}/{total}"
+        - "&f완전 등록: {perfect}/{total}"
+    claim-all:
+      name: "&6전체수령"
+      pending-lore:
+        - "&f대기 중인 보상: {count}개"
+      empty-lore:
+        - "&7대기 중인 보상이 없습니다."
+    register-grade:
+      name: "&b{grade}등급 모두 등록"
+      lore:
+        - "&7인벤토리와 어망의 물고기를 등록합니다."
+        - "&7물고기별 최대 슬롯까지 채워집니다."
+        - "&e클릭: {grade}등급 일괄 등록"
+    register-all:
+      name: "&a모든 등급 일괄 등록"
+      lore:
+        - "&7인벤토리와 어망의 모든 물고기를 등록합니다."
+        - "&7물고기별 최대 슬롯까지 채워집니다."
+        - "&e클릭: 모든 등급 일괄 등록"
+    register-unavailable:
+      name: "&7등급 일괄 등록"
+      lore:
+        - "&7등급 탭을 선택하면 사용할 수 있습니다."
+    # 아이템 이름 앞에 붙는 상태 표시
+    status:
+      inactive: "&c(삭제된 물고기) "
+      perfect: "&2(퍼펙트) "
+      registered: "&a(등록됨) "
+      discovered: "&e(발견) "
+      undiscovered: "&7(미발견) "
+    unknown:
+      name: "&7???"
+      lore:
+        - "&7아직 발견하지 못한 물고기입니다."
+    # 물고기 아이콘 로어. 조건에 따라 아래 블록들이 순서대로 이어 붙습니다.
+    entry:
+      grade-lore:
+        - "&7등급: &f{grade}"
+      lore:
+        - "&7등록: &f{registered}/{max_slots}"
+        - "&7인벤토리 보유: &f{inventory}마리"
+        - "&7어망 보유: &f{net}마리"
+        - "&7총 낚은 횟수: &f{caught}"
+        - "&6🏆 일반 트로피 획득: &e{trophy}회"
+        - "&6🏆 레어 트로피 획득: &c{rare_trophy}회"
+      unregistered-lore:
+        - "&7등록: &f0/{max_slots}"
+      divider:
+        - "&8─────────"
+      # infishing.admin 권한자에게만 보입니다.
+      admin-size-lore:
+        - "&7설정된 최소 크기: &f{min_size}cm"
+        - "&7설정된 최대 크기: &f{max_size}cm"
+      # 해금 전에는 -hidden 쪽이 대신 표시됩니다.
+      trophy-size-lore:
+        - "&6🏆 트로피 최소 크기: &e{size}cm"
+      trophy-size-hidden-lore:
+        - "&7🏆 트로피 최소 크기: &f{hidden}"
+      rare-trophy-size-lore:
+        - "&6🏆 레어 트로피 최소 크기: &c{size}cm"
+      rare-trophy-size-hidden-lore:
+        - "&7🏆 레어 트로피 최소 크기: &f{hidden}"
+      spawn-chance-lore:
+        - "&7등장 확률: &f{weight}%"
+      spawn-chance-hidden-lore:
+        - "&7등장 확률: &f{hidden}"
+      largest-size-lore:
+        - "&7내가 낚은 최대 사이즈: &b{size}cm"
+      smallest-size-lore:
+        - "&7내가 낚은 최소 사이즈: &b{size}cm"
+      first-caught-lore:
+        - "&7최초 발견: &f{date}"
+      register-hint-lore:
+        - "&e좌클릭: 도감에 등록 (아이템 1개 소모)"
+      withdraw-hint-lore:
+        - "&c시프트 우클릭: 1개 회수 (물고기 반환)"

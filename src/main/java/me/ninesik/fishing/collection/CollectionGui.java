@@ -3,6 +3,7 @@ package me.ninesik.fishing.collection;
 import me.ninesik.fishing.gui.AbstractGui;
 import me.ninesik.fishing.gui.GuiItems;
 import me.ninesik.fishing.gui.GuiLayout;
+import me.ninesik.fishing.gui.GuiTexts;
 import me.ninesik.fishing.model.Fish;
 import me.ninesik.fishing.service.RewardService;
 import org.bukkit.ChatColor;
@@ -13,7 +14,9 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * 도감 GUI.
@@ -39,7 +42,7 @@ public class CollectionGui extends AbstractGui {
     private int page = 0;
 
     public CollectionGui(Player player, CollectionManager collectionManager, RewardService rewardService) {
-        super(player, ROWS, ChatColor.DARK_AQUA + "낚시 도감");
+        super(player, ROWS, GuiTexts.text("collection.title"));
         this.collectionManager = collectionManager;
         this.rewardService = rewardService;
     }
@@ -64,7 +67,7 @@ public class CollectionGui extends AbstractGui {
             ChatColor color = active ? ChatColor.GREEN : colors[i];
             Material material = tabs[i].equals("RANK") ? Material.GOLDEN_SWORD : Material.PAPER;
             ItemStack item = GuiItems.createIcon(material, color + "[" + tabs[i] + "]",
-                    List.of(active ? ChatColor.YELLOW + "현재 탭" : ChatColor.GRAY + "클릭하여 이동"));
+                    GuiTexts.lines(active ? "collection.tab.active-lore" : "collection.tab.inactive-lore"));
             setItem(TAB_ROW * 9 + i, item);
         }
 
@@ -82,7 +85,7 @@ public class CollectionGui extends AbstractGui {
         int filled = (int) Math.round(progress * 10);
         StringBuilder bar = new StringBuilder();
         for (int i = 0; i < 10; i++) {
-            bar.append(i < filled ? ChatColor.GREEN + "■" : ChatColor.GRAY + "■");
+            bar.append(GuiTexts.text(i < filled ? "collection.progress-bar.filled" : "collection.progress-bar.empty"));
         }
         return bar.toString();
     }
@@ -112,40 +115,30 @@ public class CollectionGui extends AbstractGui {
         // 전체수령
         CollectionData data = collectionManager.getCollectionData(player);
         int pendingCount = data != null ? data.getPendingMilestoneRewards().size() : 0;
-        List<String> claimLore = pendingCount > 0
-                ? List.of(ChatColor.WHITE + "대기 중인 보상: " + pendingCount + "개")
-                : List.of(ChatColor.GRAY + "대기 중인 보상이 없습니다.");
-        setItem(CLAIM_ALL_SLOT, GuiItems.createIcon(Material.CHEST, ChatColor.GOLD + "전체수령", claimLore));
+        Map<String, String> claimPh = Map.of("count", String.valueOf(pendingCount));
+        setItem(CLAIM_ALL_SLOT, GuiItems.createIcon(Material.CHEST,
+                GuiTexts.text("collection.claim-all.name", claimPh),
+                GuiTexts.lines(pendingCount > 0
+                        ? "collection.claim-all.pending-lore" : "collection.claim-all.empty-lore", claimPh)));
 
         if (data != null) {
             double progress = calculateProgress(data);
-            setItem(PROGRESS_SLOT, GuiItems.createIcon(Material.BOOK,
-                    ChatColor.GOLD + "도감 진행도: " + String.format("%.1f", progress * 100) + "%",
-                    List.of(
-                            ChatColor.GRAY + buildProgressBar(progress),
-                            ChatColor.WHITE + "발견: " + data.getDiscoveredCount() + "/" + data.getActiveEntryCount(),
-                            ChatColor.WHITE + "완전 등록: " + data.getPerfectCount() + "/" + data.getActiveEntryCount()
-                    )));
+            setItem(PROGRESS_SLOT, GuiTexts.icon(Material.BOOK, "collection.progress", Map.of(
+                    "percent", String.format("%.1f", progress * 100),
+                    "bar", buildProgressBar(progress),
+                    "discovered", String.valueOf(data.getDiscoveredCount()),
+                    "perfect", String.valueOf(data.getPerfectCount()),
+                    "total", String.valueOf(data.getActiveEntryCount()))));
         }
 
         if (isGradeTab()) {
-            setItem(REGISTER_ALL_SLOT, GuiItems.createIcon(Material.HOPPER, ChatColor.AQUA + currentTab + "등급 모두 등록",
-                    List.of(
-                            ChatColor.GRAY + "인벤토리와 어망의 물고기를 등록합니다.",
-                            ChatColor.GRAY + "물고기별 최대 슬롯까지 채워집니다.",
-                            ChatColor.YELLOW + "클릭: " + currentTab + "등급 일괄 등록"
-                    )));
+            setItem(REGISTER_ALL_SLOT, GuiTexts.icon(Material.HOPPER, "collection.register-grade",
+                    Map.of("grade", currentTab)));
         } else if ("ALL".equals(currentTab)) {
             // 피드백: ALL 탭에서도 모든 등급을 일괄 등록할 수 있다.
-            setItem(REGISTER_ALL_SLOT, GuiItems.createIcon(Material.HOPPER, ChatColor.GREEN + "모든 등급 일괄 등록",
-                    List.of(
-                            ChatColor.GRAY + "인벤토리와 어망의 모든 물고기를 등록합니다.",
-                            ChatColor.GRAY + "물고기별 최대 슬롯까지 채워집니다.",
-                            ChatColor.YELLOW + "클릭: 모든 등급 일괄 등록"
-                    )));
+            setItem(REGISTER_ALL_SLOT, GuiTexts.icon(Material.HOPPER, "collection.register-all"));
         } else {
-            setItem(REGISTER_ALL_SLOT, GuiItems.createIcon(Material.PAPER, ChatColor.GRAY + "등급 일괄 등록",
-                    List.of(ChatColor.GRAY + "등급 탭을 선택하면 사용할 수 있습니다.")));
+            setItem(REGISTER_ALL_SLOT, GuiTexts.icon(Material.PAPER, "collection.register-unavailable"));
         }
 
         // 이전/다음 화살표 + 닫기 + 메인으로는 모든 6줄 GUI가 같은 자리를 쓴다 (GuiLayout).
@@ -174,19 +167,19 @@ public class CollectionGui extends AbstractGui {
         String statusPrefix;
         ChatColor statusColor;
         if (isInactive) {
-            statusPrefix = "(삭제된 물고기) ";
+            statusPrefix = GuiTexts.text("collection.status.inactive");
             statusColor = ChatColor.RED;
         } else if (isPerfect) {
-            statusPrefix = "(퍼펙트) ";
+            statusPrefix = GuiTexts.text("collection.status.perfect");
             statusColor = ChatColor.DARK_GREEN;
         } else if (isRegistered) {
-            statusPrefix = "(등록됨) ";
+            statusPrefix = GuiTexts.text("collection.status.registered");
             statusColor = ChatColor.GREEN;
         } else if (isDiscovered) {
-            statusPrefix = "(발견) ";
+            statusPrefix = GuiTexts.text("collection.status.discovered");
             statusColor = ChatColor.YELLOW;
         } else {
-            statusPrefix = "(미발견) ";
+            statusPrefix = GuiTexts.text("collection.status.undiscovered");
             statusColor = ChatColor.GRAY;
         }
 
@@ -198,74 +191,81 @@ public class CollectionGui extends AbstractGui {
         meta.setDisplayName(displayName);
 
         List<String> lore = new ArrayList<>();
-        lore.add(ChatColor.GRAY + "등급: " + ChatColor.WHITE + fish.getGrade().getId().toUpperCase());
+        lore.addAll(GuiTexts.lines("collection.entry.grade-lore",
+                Map.of("grade", fish.getGrade().getId().toUpperCase())));
         if (entry != null) {
             // 해금된 정보 키 목록 (등록 슬롯 수 기반)
             java.util.Set<String> unlocked = collectionManager.getUnlockedInfo(entry.getRegisteredSlots());
             String hidden = collectionManager.getUnlockHiddenText();
             boolean isAdmin = player.hasPermission("infishing.admin");
 
-            lore.add(ChatColor.GRAY + "등록: " + ChatColor.WHITE + entry.getRegisteredSlots() + "/" + entry.getMaxSlots());
-            lore.add(ChatColor.GRAY + "인벤토리 보유: " + ChatColor.WHITE
-                    + collectionManager.getInventoryFishAmount(player, fish) + "마리");
-            lore.add(ChatColor.GRAY + "어망 보유: " + ChatColor.WHITE
-                    + collectionManager.getNetFishAmount(player, fish) + "마리");
-            lore.add(ChatColor.GRAY + "총 낚은 횟수: " + ChatColor.WHITE + entry.getTotalCaught());
-
-            // 트로피 획득 횟수 (독립 관리)
-            lore.add(ChatColor.GOLD + "🏆 일반 트로피 획득: " + ChatColor.YELLOW + entry.getTrophyCount() + "회");
-            lore.add(ChatColor.GOLD + "🏆 레어 트로피 획득: " + ChatColor.RED + entry.getRareTrophyCount() + "회");
+            Map<String, String> ph = new HashMap<>();
+            ph.put("registered", String.valueOf(entry.getRegisteredSlots()));
+            ph.put("max_slots", String.valueOf(entry.getMaxSlots()));
+            ph.put("inventory", String.valueOf(collectionManager.getInventoryFishAmount(player, fish)));
+            ph.put("net", String.valueOf(collectionManager.getNetFishAmount(player, fish)));
+            ph.put("caught", String.valueOf(entry.getTotalCaught()));
+            ph.put("trophy", String.valueOf(entry.getTrophyCount()));
+            ph.put("rare_trophy", String.valueOf(entry.getRareTrophyCount()));
+            ph.put("hidden", hidden);
+            ph.put("min_size", String.format("%.1f", fish.getMinSize()));
+            ph.put("max_size", String.format("%.1f", fish.getMaxSize()));
+            ph.put("weight", String.valueOf(fish.getWeight()));
+            lore.addAll(GuiTexts.lines("collection.entry.lore", ph));
 
             // 설정값 기반 정보 — 해금 시스템 적용
             if (fish.hasSize()) {
-                lore.add(ChatColor.DARK_GRAY + "─────────");
+                lore.addAll(GuiTexts.lines("collection.entry.divider", ph));
                 // 설정 크기는 어드민만 보이게
                 if (isAdmin) {
-                    lore.add(ChatColor.GRAY + "설정된 최소 크기: " + ChatColor.WHITE + String.format("%.1f", fish.getMinSize()) + "cm");
-                    lore.add(ChatColor.GRAY + "설정된 최대 크기: " + ChatColor.WHITE + String.format("%.1f", fish.getMaxSize()) + "cm");
+                    lore.addAll(GuiTexts.lines("collection.entry.admin-size-lore", ph));
                 }
                 // 트로피 최소 크기 — 해금 시 공개
                 if (unlocked.contains("trophy-size")) {
-                    double trophySize = fish.getAvgSize() * rewardService.getTrophyThreshold();
-                    lore.add(ChatColor.GOLD + "🏆 트로피 최소 크기: " + ChatColor.YELLOW + String.format("%.1f", trophySize) + "cm");
+                    ph.put("size", String.format("%.1f", fish.getAvgSize() * rewardService.getTrophyThreshold()));
+                    lore.addAll(GuiTexts.lines("collection.entry.trophy-size-lore", ph));
                 } else {
-                    lore.add(ChatColor.GRAY + "🏆 트로피 최소 크기: " + ChatColor.WHITE + hidden);
+                    lore.addAll(GuiTexts.lines("collection.entry.trophy-size-hidden-lore", ph));
                 }
                 // 레어 트로피 최소 크기 — 해금 시 공개
                 if (unlocked.contains("rare-trophy-size")) {
-                    double rareTrophySize = fish.getMaxSize() * rewardService.getRareTrophyThreshold();
-                    lore.add(ChatColor.GOLD + "🏆 레어 트로피 최소 크기: " + ChatColor.RED + String.format("%.1f", rareTrophySize) + "cm");
+                    ph.put("size", String.format("%.1f", fish.getMaxSize() * rewardService.getRareTrophyThreshold()));
+                    lore.addAll(GuiTexts.lines("collection.entry.rare-trophy-size-lore", ph));
                 } else {
-                    lore.add(ChatColor.GRAY + "🏆 레어 트로피 최소 크기: " + ChatColor.WHITE + hidden);
+                    lore.addAll(GuiTexts.lines("collection.entry.rare-trophy-size-hidden-lore", ph));
                 }
                 // 등장 확률 — 해금 시 공개
                 if (unlocked.contains("spawn-chance")) {
-                    lore.add(ChatColor.GRAY + "등장 확률: " + ChatColor.WHITE + fish.getWeight() + "%");
+                    lore.addAll(GuiTexts.lines("collection.entry.spawn-chance-lore", ph));
                 } else {
-                    lore.add(ChatColor.GRAY + "등장 확률: " + ChatColor.WHITE + hidden);
+                    lore.addAll(GuiTexts.lines("collection.entry.spawn-chance-hidden-lore", ph));
                 }
-                lore.add(ChatColor.DARK_GRAY + "─────────");
+                lore.addAll(GuiTexts.lines("collection.entry.divider", ph));
             }
 
             // 진행도 기반 추가 정보 공개 (내가 직접 낚은 기록) — 해금 시스템 적용
             if (unlocked.contains("largest-size") && entry.getLargestSize() > 0) {
-                lore.add(ChatColor.GRAY + "내가 낚은 최대 사이즈: " + ChatColor.AQUA + String.format("%.1f", entry.getLargestSize()) + "cm");
+                ph.put("size", String.format("%.1f", entry.getLargestSize()));
+                lore.addAll(GuiTexts.lines("collection.entry.largest-size-lore", ph));
             }
             if (unlocked.contains("smallest-size") && entry.getSmallestSize() > 0 && entry.getSmallestSize() != entry.getLargestSize()) {
-                lore.add(ChatColor.GRAY + "내가 낚은 최소 사이즈: " + ChatColor.AQUA + String.format("%.1f", entry.getSmallestSize()) + "cm");
+                ph.put("size", String.format("%.1f", entry.getSmallestSize()));
+                lore.addAll(GuiTexts.lines("collection.entry.smallest-size-lore", ph));
             }
             if (unlocked.contains("first-caught") && entry.getFirstCaught() != null) {
-                lore.add(ChatColor.GRAY + "최초 발견: " + ChatColor.WHITE + entry.getFirstCaught().toLocalDate());
+                ph.put("date", String.valueOf(entry.getFirstCaught().toLocalDate()));
+                lore.addAll(GuiTexts.lines("collection.entry.first-caught-lore", ph));
             }
         } else {
-            lore.add(ChatColor.GRAY + "등록: " + ChatColor.WHITE + "0/" + collectionManager.getDefaultMaxSlots());
+            lore.addAll(GuiTexts.lines("collection.entry.unregistered-lore",
+                    Map.of("max_slots", String.valueOf(collectionManager.getDefaultMaxSlots()))));
         }
         if (!isInactive && entry != null) {
             if (isRegistered || isDiscovered) {
-                lore.add(ChatColor.YELLOW + "좌클릭: 도감에 등록 (아이템 1개 소모)");
+                lore.addAll(GuiTexts.lines("collection.entry.register-hint-lore"));
             }
             if (isRegistered) {
-                lore.add(ChatColor.RED + "시프트 우클릭: 1개 회수 (물고기 반환)");
+                lore.addAll(GuiTexts.lines("collection.entry.withdraw-hint-lore"));
             }
         }
         meta.setLore(lore);
@@ -275,8 +275,8 @@ public class CollectionGui extends AbstractGui {
             base.setType(Material.GRAY_DYE);
             ItemMeta unknownMeta = base.getItemMeta();
             if (unknownMeta != null) {
-                unknownMeta.setDisplayName(ChatColor.GRAY + "???");
-                unknownMeta.setLore(List.of(ChatColor.GRAY + "아직 발견하지 못한 물고기입니다."));
+                unknownMeta.setDisplayName(GuiTexts.text("collection.unknown.name"));
+                unknownMeta.setLore(GuiTexts.lines("collection.unknown.lore"));
                 base.setItemMeta(unknownMeta);
             }
         } else if (isPerfect) {
@@ -324,7 +324,7 @@ public class CollectionGui extends AbstractGui {
                                 collectionManager.getRegistryManager()
                         ).open();
                     } else {
-                        player.sendMessage(ChatColor.RED + "랭킹 시스템이 비활성화되어 있습니다.");
+                        player.sendMessage(GuiTexts.text("collection.ranking-disabled"));
                     }
                     return;
                 }
@@ -348,11 +348,14 @@ public class CollectionGui extends AbstractGui {
                 int registered = isGradeTab()
                         ? collectionManager.registerAllByGrade(player, currentTab)
                         : collectionManager.registerAll(player);
-                String label = isGradeTab() ? currentTab + "등급" : "모든 등급";
+                String label = isGradeTab()
+                        ? GuiTexts.text("collection.label-grade", Map.of("grade", currentTab))
+                        : GuiTexts.text("collection.label-all");
                 if (registered > 0) {
-                    player.sendMessage(ChatColor.GREEN + label + " 물고기 " + registered + "마리를 도감에 등록했습니다.");
+                    player.sendMessage(GuiTexts.text("collection.registered",
+                            Map.of("label", label, "count", String.valueOf(registered))));
                 } else {
-                    player.sendMessage(ChatColor.YELLOW + "등록할 수 있는 " + label + " 물고기가 없습니다.");
+                    player.sendMessage(GuiTexts.text("collection.nothing-to-register", Map.of("label", label)));
                 }
                 refresh();
             } else if (slot == CLAIM_ALL_SLOT) {
