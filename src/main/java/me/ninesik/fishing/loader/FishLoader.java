@@ -99,6 +99,10 @@ public class FishLoader {
                     // 피로도 회복 물약: fatigue-recovery가 0보다 크면 물약으로 취급된다.
                     // 아이템 자체에서 회복량을 설정한다 (config가 아닌 items/*.yml의 fatigue-recovery 필드).
                     int fatigueRecovery = itemSection.getInt("fatigue-recovery", 0);
+                    // 도감 최대 슬롯. collections.yml 주석이 "items/*.yml에서 개별로
+                    // max-slots를 설정하면 그 값이 우선한다"고 안내하는데 실제로는
+                    // 읽는 코드가 없어 거짓 안내였다. 0이면 미지정(기본값 사용).
+                    int maxSlots = Math.max(0, itemSection.getInt("max-slots", 0));
 
                     Fish fish = Fish.builder()
                             .id(id)
@@ -117,6 +121,7 @@ public class FishLoader {
                             .avgSize(avgSize)
                             .customModelData(itemSection.getInt("custom-model-data", 0))
                             .fatigueRecovery(fatigueRecovery)
+                            .maxSlots(maxSlots)
                             .build();
 
                     fishMap.put(id, fish);

@@ -28,6 +28,12 @@ public class Fish {
     // 아이템 자체에서 회복량을 설정한다 (config가 아닌 items/*.yml의 fatigue-recovery 필드).
     private final int fatigueRecovery;
 
+    /**
+     * 도감 최대 등록 슬롯 수. 0 이하면 미지정으로 보고 collections.yml의
+     * default-max-slots를 쓴다 (CollectionManager.resolveMaxSlots).
+     */
+    private final int maxSlots;
+
     private Fish(Builder b) {
         this.id = b.id;
         this.useType = b.useType;
@@ -45,6 +51,7 @@ public class Fish {
         this.avgSize = b.avgSize;
         this.customModelData = b.customModelData;
         this.fatigueRecovery = b.fatigueRecovery;
+        this.maxSlots = b.maxSlots;
     }
 
     public String getId() { return id; }
@@ -64,6 +71,8 @@ public class Fish {
     public double getAvgSize() { return avgSize; }
     public int getCustomModelData() { return customModelData; }
     public int getFatigueRecovery() { return fatigueRecovery; }
+    /** 0 이하면 미지정 — 호출측이 기본값으로 대체한다. */
+    public int getMaxSlots() { return maxSlots; }
 
     /**
      * 피로도 회복 물약인지 여부. fatigue-recovery가 0보다 크면 물약으로 취급한다.
@@ -98,6 +107,7 @@ public class Fish {
         private double avgSize = 55.0;
         private int customModelData = 0;
         private int fatigueRecovery = 0;
+        private int maxSlots = 0;
 
         public Builder id(String v) { id = v; return this; }
         public Builder useType(String v) { useType = v; return this; }
@@ -115,6 +125,7 @@ public class Fish {
         public Builder avgSize(double v) { avgSize = v; return this; }
         public Builder customModelData(int v) { customModelData = v; return this; }
         public Builder fatigueRecovery(int v) { fatigueRecovery = v; return this; }
+        public Builder maxSlots(int v) { maxSlots = v; return this; }
 
         public Fish build() {
             if (id == null || id.isEmpty())

@@ -680,8 +680,12 @@ public class CollectionManager {
         return true;
     }
 
+    /**
+     * 이 물고기의 도감 최대 등록 슬롯 수.
+     * items/*.yml의 max-slots가 있으면 그 값, 없으면 collections.yml의 default-max-slots.
+     */
     private int resolveMaxSlots(Fish fish) {
-        // TODO: items/*.yml에서 max-slots 필드를 읽어오도록 Fish 모델 확장 (세션 13 후반)
-        return defaultMaxSlots;
+        int perFish = fish.getMaxSlots();
+        return perFish > 0 ? perFish : defaultMaxSlots;
     }
 }
