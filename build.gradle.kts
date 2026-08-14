@@ -17,6 +17,8 @@ repositories {
     maven("https://repo.papermc.io/repository/maven-public/")
     // WorldGuard / WorldEdit
     maven("https://maven.enginehub.org/repo/")
+    // PlaceholderAPI
+    maven("https://repo.extendedclip.com/releases/")
 }
 
 dependencies {
@@ -43,6 +45,12 @@ dependencies {
     compileOnly("com.sk89q.worldguard:worldguard-core:7.0.18") { isTransitive = false }
     compileOnly("com.sk89q.worldedit:worldedit-bukkit:7.4.0") { isTransitive = false }
     compileOnly("com.sk89q.worldedit:worldedit-core:7.4.0") { isTransitive = false }
+
+    // PlaceholderAPI도 compileOnly가 필요하다. placeholder를 등록하려면
+    // 추상 클래스 PlaceholderExpansion을 상속해야 하는데, 추상 클래스라
+    // java.lang.reflect.Proxy로는 만들 수 없다(인터페이스만 지원).
+    // 서버에 PAPI가 없으면 확장을 아예 생성하지 않는다 — PlaceholderAPIHook 참고.
+    compileOnly("me.clip:placeholderapi:2.12.3") { isTransitive = false }
 
     // bStats 메트릭스 — 최종 jar(Shadow)에만 병합된다.
     implementation("org.bstats:bstats-bukkit:3.2.1")
