@@ -3,6 +3,7 @@ package me.ninesik.fishing.net;
 import me.ninesik.fishing.gui.AbstractGui;
 import me.ninesik.fishing.gui.GuiItems;
 import me.ninesik.fishing.gui.GuiLayout;
+import me.ninesik.fishing.gui.GuiTexts;
 import me.ninesik.fishing.model.Fish;
 import me.ninesik.fishing.registry.RegistryManager;
 import me.ninesik.fishing.service.RewardService;
@@ -14,7 +15,9 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * 어망(Net) GUI.
@@ -44,7 +47,7 @@ public class NetGui extends AbstractGui {
     private int page = 0;
 
     public NetGui(Player player, NetManager netManager, RewardService rewardService, RegistryManager registryManager) {
-        super(player, ROWS, ChatColor.DARK_AQUA + "어망");
+        super(player, ROWS, GuiTexts.text("net.title"));
         this.netManager = netManager;
         this.rewardService = rewardService;
         this.registryManager = registryManager;
@@ -80,38 +83,23 @@ public class NetGui extends AbstractGui {
 
     private void renderBottom() {
         // 정렬 토글
-        String sortName = switch (sortMode) {
-            case TYPE -> "이름순";
-            case SIZE -> "사이즈";
-            case GRADE -> "등급";
-        };
-        setItem(SORT_SLOT, GuiItems.createIcon(Material.HOPPER, ChatColor.GOLD + "정렬: " + sortName,
-                List.of(ChatColor.GRAY + "클릭하여 변경 (이름순 → 사이즈 → 등급)")));
+        String sortName = GuiTexts.text("net.sort-mode." + sortMode.name().toLowerCase(java.util.Locale.ROOT));
+        setItem(SORT_SLOT, GuiTexts.icon(Material.HOPPER, "net.sort", Map.of("mode", sortName)));
 
         NetData data = netManager.getNetData(player);
 
         // 사용량 표시
         if (data != null) {
-            setItem(USAGE_SLOT, GuiItems.createIcon(Material.CHEST,
-                    ChatColor.GOLD + "어망 사용량: " + data.size() + "/" + data.getMaxSize(),
-                    List.of(ChatColor.GRAY + "위 물고기 클릭 시 인벤토리로 꺼냅니다.",
-                            ChatColor.GRAY + "아래 인벤토리의 물고기 클릭 시 어망에 넣습니다.")));
+            setItem(USAGE_SLOT, GuiTexts.icon(Material.CHEST, "net.usage", Map.of(
+                    "used", String.valueOf(data.size()),
+                    "max", String.valueOf(data.getMaxSize()))));
         }
 
         // 전체 꺼내기 (인벤토리 빈자리만큼)
-        setItem(TAKE_ALL_SLOT, GuiItems.createIcon(Material.HOPPER_MINECART, ChatColor.AQUA + "전체 꺼내기",
-                List.of(
-                        ChatColor.GRAY + "인벤토리에 빈자리가 있는 만큼",
-                        ChatColor.GRAY + "어망의 물고기를 순서대로 꺼냅니다."
-                )));
+        setItem(TAKE_ALL_SLOT, GuiTexts.icon(Material.HOPPER_MINECART, "net.take-all"));
 
         // 피드백: 어망에서 도감 일괄 등록 (인벤토리/어망의 물고기를 도감 슬롯에 등록)
-        setItem(REGISTER_SLOT, GuiItems.createIcon(Material.BOOK, ChatColor.GREEN + "도감 일괄 등록",
-                List.of(
-                        ChatColor.GRAY + "어망과 인벤토리의 물고기를",
-                        ChatColor.GRAY + "도감에 일괄 등록합니다.",
-                        ChatColor.YELLOW + "클릭: 도감 일괄 등록"
-                )));
+        setItem(REGISTER_SLOT, GuiTexts.icon(Material.BOOK, "net.register-all"));
 
         // 이전/다음 화살표 + 닫기 + 메인으로는 모든 6줄 GUI가 같은 자리를 쓴다 (GuiLayout).
         GuiLayout.renderFooter(getInventory(), page,
@@ -124,7 +112,7 @@ public class NetGui extends AbstractGui {
             ItemStack unknown = new ItemStack(Material.BARRIER, 1);
             ItemMeta meta = unknown.getItemMeta();
             if (meta != null) {
-                meta.setDisplayName(ChatColor.RED + "삭제된 물고기");
+                meta.setDisplayName(GuiTexts.text("net.deleted-fish"));
                 meta.setLore(List.of(ChatColor.GRAY + "fishId: " + entry.getFishId()));
                 unknown.setItemMeta(meta);
             }
@@ -147,9 +135,13 @@ public class NetGui extends AbstractGui {
         meta.setDisplayName(ChatColor.WHITE + stripped);
 
         List<String> lore = new ArrayList<>();
-        lore.add(ChatColor.GRAY + "등급: " + ChatColor.WHITE + fish.getGrade().getId().toUpperCase());
+        Map<String, String> ph = new HashMap<>();
+        ph.put("grade", fish.getGrade().getId().toUpperCase());
+        ph.put("size", String.format("%.1f", entry.getSize()));
+        ph.put("caught_at", String.valueOf(entry.getCaughtAt().toLocalDate()));
+        lore.addAll(GuiTexts.lines("net.entry.lore", ph));
         if (fish.hasSize() && entry.getSize() > 0) {
-            lore.add(ChatColor.GRAY + "사이즈: " + ChatColor.AQUA + String.format("%.1f", entry.getSize()) + "cm");
+            lore.addAll(GuiTexts.lines("net.entry.size-lore", ph));
         }
         // 트로피/레어 표시 (피드백 - 어망에서 확인 가능해야 함).
         // 기존 저장 데이터(트로피 플래그 없음)는 size 기반으로 재판정해 폴백한다.
@@ -160,12 +152,11 @@ public class NetGui extends AbstractGui {
             isTrophy = !isRare && rewardService.isTrophyBySize(fish, entry.getSize());
         }
         if (isRare) {
-            lore.add(ChatColor.RED + "🏆 레어 트로피");
+            lore.addAll(GuiTexts.lines("net.entry.rare-trophy-lore", ph));
         } else if (isTrophy) {
-            lore.add(ChatColor.GOLD + "🏆 트로피");
+            lore.addAll(GuiTexts.lines("net.entry.trophy-lore", ph));
         }
-        lore.add(ChatColor.GRAY + "잡은 시간: " + ChatColor.WHITE + entry.getCaughtAt().toLocalDate());
-        lore.add(ChatColor.YELLOW + "클릭: 인벤토리로 꺼내기");
+        lore.addAll(GuiTexts.lines("net.entry.footer-lore", ph));
         meta.setLore(lore);
         base.setItemMeta(meta);
         return base;
@@ -183,10 +174,10 @@ public class NetGui extends AbstractGui {
                 }
                 if (netManager.addFromInventory(player, clicked)) {
                     event.getClickedInventory().setItem(event.getSlot(), null);
-                    player.sendMessage(ChatColor.GREEN + "물고기를 어망에 넣었습니다.");
+                    player.sendMessage(GuiTexts.text("net.stored"));
                     refresh();
                 } else {
-                    player.sendMessage(ChatColor.RED + "어망이 가득 찼거나 넣을 수 없습니다.");
+                    player.sendMessage(GuiTexts.text("net.store-failed"));
                 }
             }
             return;
@@ -213,9 +204,9 @@ public class NetGui extends AbstractGui {
             } else if (slot == TAKE_ALL_SLOT) {
                 int count = netManager.removeAll(player);
                 if (count > 0) {
-                    player.sendMessage(ChatColor.GREEN + "어망에서 물고기 " + count + "마리를 꺼냈습니다.");
+                    player.sendMessage(GuiTexts.text("net.taken", Map.of("count", String.valueOf(count))));
                 } else {
-                    player.sendMessage(ChatColor.RED + "꺼낼 수 있는 물고기가 없거나 인벤토리에 빈자리가 없습니다.");
+                    player.sendMessage(GuiTexts.text("net.take-failed"));
                 }
                 page = 0;
                 refresh();
@@ -227,14 +218,14 @@ public class NetGui extends AbstractGui {
                 me.ninesik.fishing.collection.CollectionManager col =
                         me.ninesik.fishing.InMcFishing.getInstance().getCollectionManager();
                 if (col == null || !col.isEnabled()) {
-                    player.sendMessage(ChatColor.RED + "도감 시스템이 비활성화되어 있습니다.");
+                    player.sendMessage(GuiTexts.text("net.collection-disabled"));
                     return;
                 }
                 int registered = col.registerAll(player);
                 if (registered > 0) {
-                    player.sendMessage(ChatColor.GREEN + "도감에 물고기 " + registered + "마리를 등록했습니다.");
+                    player.sendMessage(GuiTexts.text("net.registered", Map.of("count", String.valueOf(registered))));
                 } else {
-                    player.sendMessage(ChatColor.YELLOW + "등록할 수 있는 물고기가 없습니다.");
+                    player.sendMessage(GuiTexts.text("net.nothing-to-register"));
                 }
                 refresh();
             } else if (slot == GuiLayout.SLOT_BACK_MAIN) {

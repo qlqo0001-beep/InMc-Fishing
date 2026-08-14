@@ -466,3 +466,93 @@ gui:
         - "&7일반 트로피: &e{normal}"
         - "&7레어 트로피: &6{rare}"
         - "&7총 트로피: &a{total}"
+
+  # /fishing fillet — 생선 살 가공
+  fillet:
+    title: "&4생선 살 가공"
+    cancelled: "&e가공을 취소하고 물고기를 돌려받았습니다."
+    inventory-full: "&c인벤토리에 빈자리가 없어 수령할 수 없습니다."
+    inventory-full-partial: "&c인벤토리에 빈자리가 없어 일부만 수령했습니다."
+    no-empty-slot: "&c빈 가공 슬롯이 없습니다."
+    locked-slot:
+      name: "&c잠긴 확장 슬롯"
+      lore:
+        - "&7어드민에게 문의하세요."
+        - "&7/fishing fillet setSlots <플레이어> add 1"
+    claim-all:
+      name: "&a완료된 가공품 모두 수령"
+      lore: []
+    empty-slot:
+      name: "&7빈 가공 슬롯 #{index}"
+      lore:
+        - "&7인벤토리의 물고기를 클릭해 등록하세요."
+    # 트로피 물고기일 때만 아래 줄이 로어에 끼어듭니다. 일반 물고기면 줄이 없습니다.
+    trophy-lore:
+      - "&6트로피"
+    rare-trophy-lore:
+      - "&d레어 트로피"
+    processing:
+      name: "&e가공 중... #{index}"
+      lore:
+        - "&7물고기: {fish}"
+        - "&7등급: {grade} · 수량: {quantity}"
+      # 트로피 줄 뒤에 붙습니다.
+      footer-lore:
+        - ""
+        - "&e남은 시간: {remaining}"
+        - "&7시프트 우클릭: 가공 취소 (물고기 반환)"
+    complete:
+      name: "&a가공 완료 #{index} - 클릭해 수령"
+      lore:
+        - "&7물고기: {fish}"
+        - "&7등급: {grade} · 수량: {quantity}"
+
+  # /fishing net — 어망
+  net:
+    title: "&3어망"
+    deleted-fish: "&c삭제된 물고기"
+    stored: "&a물고기를 어망에 넣었습니다."
+    store-failed: "&c어망이 가득 찼거나 넣을 수 없습니다."
+    taken: "&a어망에서 물고기 {count}마리를 꺼냈습니다."
+    take-failed: "&c꺼낼 수 있는 물고기가 없거나 인벤토리에 빈자리가 없습니다."
+    collection-disabled: "&c도감 시스템이 비활성화되어 있습니다."
+    registered: "&a도감에 물고기 {count}마리를 등록했습니다."
+    nothing-to-register: "&e등록할 수 있는 물고기가 없습니다."
+    # 정렬 버튼에 표시되는 이름. 키 이름은 코드의 정렬 모드와 1:1로 맞춰야 합니다.
+    sort-mode:
+      type: "이름순"
+      size: "사이즈"
+      grade: "등급"
+    sort:
+      name: "&6정렬: {mode}"
+      lore:
+        - "&7클릭하여 변경 (이름순 → 사이즈 → 등급)"
+    usage:
+      name: "&6어망 사용량: {used}/{max}"
+      lore:
+        - "&7위 물고기 클릭 시 인벤토리로 꺼냅니다."
+        - "&7아래 인벤토리의 물고기 클릭 시 어망에 넣습니다."
+    take-all:
+      name: "&b전체 꺼내기"
+      lore:
+        - "&7인벤토리에 빈자리가 있는 만큼"
+        - "&7어망의 물고기를 순서대로 꺼냅니다."
+    register-all:
+      name: "&a도감 일괄 등록"
+      lore:
+        - "&7어망과 인벤토리의 물고기를"
+        - "&7도감에 일괄 등록합니다."
+        - "&e클릭: 도감 일괄 등록"
+    entry:
+      lore:
+        - "&7등급: &f{grade}"
+      # 사이즈가 있는 물고기에만 붙습니다.
+      size-lore:
+        - "&7사이즈: &b{size}cm"
+      trophy-lore:
+        - "&6🏆 트로피"
+      rare-trophy-lore:
+        - "&c🏆 레어 트로피"
+      footer-lore:
+        - "&7잡은 시간: &f{caught_at}"
+        - "&e클릭: 인벤토리로 꺼내기"

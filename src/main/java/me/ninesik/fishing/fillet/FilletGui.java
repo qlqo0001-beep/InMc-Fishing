@@ -4,6 +4,7 @@ import me.ninesik.fishing.InMcFishing;
 import me.ninesik.fishing.gui.AbstractGui;
 import me.ninesik.fishing.gui.GuiItems;
 import me.ninesik.fishing.gui.GuiLayout;
+import me.ninesik.fishing.gui.GuiTexts;
 import me.ninesik.fishing.gui.MainGui;
 import me.ninesik.fishing.fillet.FilletStorage.FilletActiveSlot;
 import org.bukkit.Bukkit;
@@ -16,7 +17,9 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public final class FilletGui extends AbstractGui {
 
@@ -49,7 +52,7 @@ public final class FilletGui extends AbstractGui {
     private List<FilletActiveSlot> activeSlots = List.of();
 
     public FilletGui(Player player, FilletManager manager) {
-        super(player, ROWS, ChatColor.DARK_RED + "생선 살 가공");
+        super(player, ROWS, GuiTexts.text("fillet.title"));
         this.manager = manager;
         this.maxSlots = Math.min(manager.getMaxSlots(player), SLOT_POS.length);
         reloadSlots();
@@ -88,58 +91,67 @@ public final class FilletGui extends AbstractGui {
             }
         }
         if (maxSlots < SLOT_POS.length) {
-            ItemStack lock = new ItemStack(Material.BARRIER);
-            ItemMeta lm = lock.getItemMeta();
-            lm.setDisplayName(ChatColor.RED + "잠긴 확장 슬롯");
-            lm.setLore(List.of(ChatColor.GRAY + "어드민에게 문의하세요.",
-                    ChatColor.GRAY + "/fishing fillet setSlots <플레이어> add 1"));
-            lock.setItemMeta(lm);
-            setItem(SLOT_POS[maxSlots], lock);
+            setItem(SLOT_POS[maxSlots], GuiTexts.icon(Material.BARRIER, "fillet.locked-slot"));
         }
     }
 
     private void renderButtons() {
         if (activeSlots.stream().anyMatch(FilletActiveSlot::isComplete)) {
-            setItem(CLAIM_ALL, GuiItems.createIcon(Material.GREEN_WOOL,
-                    ChatColor.GREEN + "완료된 가공품 모두 수령", List.of()));
+            setItem(CLAIM_ALL, GuiTexts.icon(Material.GREEN_WOOL, "fillet.claim-all"));
         }
         // 가공 GUI는 페이지가 없으므로 totalPages=1 (화살표 미표시).
         GuiLayout.renderFooter(getInventory(), 0, 1);
     }
 
     private ItemStack buildEmptyIcon(int idx) {
-        ItemStack item = new ItemStack(Material.WHITE_STAINED_GLASS_PANE);
-        ItemMeta m = item.getItemMeta();
-        m.setDisplayName(ChatColor.GRAY + "빈 가공 슬롯 #" + (idx + 1));
-        m.setLore(List.of(ChatColor.GRAY + "인벤토리의 물고기를 클릭해 등록하세요."));
-        item.setItemMeta(m); return item;
+        return GuiTexts.icon(Material.WHITE_STAINED_GLASS_PANE, "fillet.empty-slot",
+                Map.of("index", String.valueOf(idx + 1)));
     }
 
     private ItemStack buildProcessingIcon(FilletActiveSlot slot, int idx) {
-        ItemStack item = new ItemStack(Material.CLOCK);
-        ItemMeta m = item.getItemMeta();
-        m.setDisplayName(ChatColor.YELLOW + "가공 중... #" + (idx + 1));
         int r = slot.remainingSeconds();
-        List<String> lore = new ArrayList<>();
-        lore.add(ChatColor.GRAY + "물고기: " + slot.fishId());
-        lore.add(ChatColor.GRAY + "등급: " + slot.gradeId().toUpperCase() + " · 수량: " + slot.quantity());
-        if (slot.isRareTrophy()) lore.add(ChatColor.LIGHT_PURPLE + "레어 트로피");
-        else if (slot.isTrophy()) lore.add(ChatColor.GOLD + "트로피");
-        lore.add(""); lore.add(ChatColor.YELLOW + "남은 시간: " + (r/60) + ":" + String.format("%02d", r%60));
-        lore.add(ChatColor.GRAY + "시프트 우클릭: 가공 취소 (물고기 반환)");
+        Map<String, String> ph = slotPlaceholders(slot, idx);
+        ph.put("remaining", (r / 60) + ":" + String.format("%02d", r % 60));
+
+        ItemStack item = GuiTexts.icon(Material.CLOCK, "fillet.processing", ph);
+        ItemMeta m = item.getItemMeta();
+        List<String> lore = new ArrayList<>(m.getLore() == null ? List.of() : m.getLore());
+        lore.addAll(trophyLore(slot));
+        lore.addAll(GuiTexts.lines("fillet.processing.footer-lore", ph));
         m.setLore(lore); item.setItemMeta(m); return item;
     }
 
     private ItemStack buildCompleteIcon(FilletActiveSlot slot, int idx) {
-        ItemStack item = new ItemStack(Material.LIME_STAINED_GLASS_PANE);
+        ItemStack item = GuiTexts.icon(Material.LIME_STAINED_GLASS_PANE, "fillet.complete",
+                slotPlaceholders(slot, idx));
         ItemMeta m = item.getItemMeta();
-        m.setDisplayName(ChatColor.GREEN + "가공 완료 #" + (idx+1) + " - 클릭해 수령");
-        List<String> lore = new ArrayList<>();
-        lore.add(ChatColor.GRAY + "물고기: " + slot.fishId());
-        lore.add(ChatColor.GRAY + "등급: " + slot.gradeId().toUpperCase() + " · 수량: " + slot.quantity());
-        if (slot.isRareTrophy()) lore.add(ChatColor.LIGHT_PURPLE + "레어 트로피");
-        else if (slot.isTrophy()) lore.add(ChatColor.GOLD + "트로피");
+        List<String> lore = new ArrayList<>(m.getLore() == null ? List.of() : m.getLore());
+        lore.addAll(trophyLore(slot));
         m.setLore(lore); item.setItemMeta(m); return item;
+    }
+
+    /**
+     * 슬롯 아이콘 로어에 공통으로 쓰이는 값들.
+     * 가공 중/완료 아이콘이 같은 정보를 보여주므로 한 곳에서 만든다.
+     */
+    private Map<String, String> slotPlaceholders(FilletActiveSlot slot, int idx) {
+        Map<String, String> ph = new HashMap<>();
+        ph.put("index", String.valueOf(idx + 1));
+        ph.put("fish", slot.fishId());
+        ph.put("grade", slot.gradeId().toUpperCase());
+        ph.put("quantity", String.valueOf(slot.quantity()));
+        return ph;
+    }
+
+    /** 트로피 표시 줄. 일반 물고기면 빈 목록이라 줄 자체가 생기지 않는다. */
+    private List<String> trophyLore(FilletActiveSlot slot) {
+        if (slot.isRareTrophy()) {
+            return GuiTexts.lines("fillet.rare-trophy-lore");
+        }
+        if (slot.isTrophy()) {
+            return GuiTexts.lines("fillet.trophy-lore");
+        }
+        return List.of();
     }
 
     private int findEmptySlot() {
@@ -170,7 +182,7 @@ public final class FilletGui extends AbstractGui {
                     ItemStack returned = manager.cancelFillet(player, i);
                     if (returned != null) {
                         me.ninesik.fishing.util.InventoryUtil.giveOrDrop(player, returned);
-                        player.sendMessage(ChatColor.YELLOW + "가공을 취소하고 물고기를 돌려받았습니다.");
+                        player.sendMessage(GuiTexts.text("fillet.cancelled"));
                         player.playSound(player.getLocation(), Sound.ENTITY_ITEM_PICKUP, 0.5f, 1.2f);
                     }
                     refreshNextTick();
@@ -186,7 +198,7 @@ public final class FilletGui extends AbstractGui {
                     player.playSound(player.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 0.5f, 1.5f);
                 } else {
                     // claimFillet은 인벤토리 공간이 없으면 슬롯을 유지한 채 null을 반환한다.
-                    player.sendMessage(ChatColor.RED + "인벤토리에 빈자리가 없어 수령할 수 없습니다.");
+                    player.sendMessage(GuiTexts.text("fillet.inventory-full"));
                 }
                 refreshNextTick();
                 return;
@@ -212,7 +224,7 @@ public final class FilletGui extends AbstractGui {
 
         int empty = findEmptySlot();
         if (empty < 0) {
-            player.sendMessage(ChatColor.RED + "빈 가공 슬롯이 없습니다.");
+            player.sendMessage(GuiTexts.text("fillet.no-empty-slot"));
             return;
         }
 
@@ -255,7 +267,7 @@ public final class FilletGui extends AbstractGui {
             player.playSound(player.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 0.5f, 1.5f);
         }
         if (full) {
-            player.sendMessage(ChatColor.RED + "인벤토리에 빈자리가 없어 일부만 수령했습니다.");
+            player.sendMessage(GuiTexts.text("fillet.inventory-full-partial"));
         }
         refreshNextTick();
     }
