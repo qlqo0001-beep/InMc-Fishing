@@ -8,7 +8,6 @@ public class DependencyManager {
     private PlaceholderAPIHook placeholderAPIHook;
     private VaultHook vaultHook;
     private WorldGuardHook worldGuardHook;
-    private ProtocolLibHook protocolLibHook;
 
     public DependencyManager(InMcFishing plugin) {
         this.plugin = plugin;
@@ -19,7 +18,6 @@ public class DependencyManager {
         this.placeholderAPIHook = new PlaceholderAPIHook(plugin);
         this.vaultHook = new VaultHook(plugin);
         this.worldGuardHook = new WorldGuardHook(plugin);
-        this.protocolLibHook = new ProtocolLibHook(plugin);
     }
 
     public MMOItemsHook getMMOItems() {
@@ -36,10 +34,6 @@ public class DependencyManager {
 
     public WorldGuardHook getWorldGuard() {
         return worldGuardHook;
-    }
-
-    public ProtocolLibHook getProtocolLib() {
-        return protocolLibHook;
     }
 
     public void shutdown() {

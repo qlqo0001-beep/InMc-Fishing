@@ -22,6 +22,32 @@ import java.util.concurrent.ConcurrentHashMap;
  * </ul>
  *
  * <p>색상/포맷은 FightConfig(hud 설정)에서 조정할 수 있다.</p>
+ *
+ * <p><b>클라이언트 전용 연출을 추가할 때 (ProtocolLib 대신 읽을 것):</b>
+ * 예전에는 "그 플레이어에게만 보이는" 효과를 내려면 ProtocolLib으로 패킷을
+ * 직접 만들어야 했다. 지금 타깃인 Paper API에는 같은 일을 하는 공개 메서드가
+ * 이미 있으므로 <b>외부 패킷 라이브러리를 다시 들이지 않는다.</b>
+ * (그래서 {@code ProtocolLibHook}은 삭제했다 — 스텁이라 실제로 하는 일이 없으면서
+ * 콘솔에는 "hooked successfully"를 찍어 어드민을 오도하고 있었다.)</p>
+ *
+ * <p>파이트 연출에 바로 쓸 수 있는 것들 — 전부 해당 플레이어에게만 전송되고
+ * 서버 상태를 바꾸지 않는다(월드에 실제 변화가 없어 롤백 걱정이 없다):</p>
+ * <ul>
+ *   <li>{@code player.sendHurtAnimation(yaw)} — 물고기가 강하게 저항할 때 피격 흔들림</li>
+ *   <li>{@code player.sendExperienceChange(progress, level)} — 경험치 바를 파이트
+ *       게이지로 전용. 실제 경험치는 그대로다</li>
+ *   <li>{@code player.sendEquipmentChange(entity, slot, item)} — 파이트 중에만
+ *       다른 낚싯대를 든 것처럼 보이게 함</li>
+ *   <li>{@code player.sendBlockChange(loc, blockData)} / {@code sendMultiBlockChange} —
+ *       수면 물결 등 지형 연출</li>
+ *   <li>{@code player.hideEntity(plugin, e)} / {@code showEntity(plugin, e)} —
+ *       특정 플레이어에게만 보이는 연출용 엔티티</li>
+ *   <li>{@code player.sendPotionEffectChange(...)} — 실제로 효과를 걸지 않고
+ *       화면 오버레이만</li>
+ * </ul>
+ *
+ * <p>위 목록으로 안 되는 경우에만 패킷 라이브러리를 검토한다. 그때도
+ * 최신 Paper API에 대응 메서드가 생겼는지 먼저 확인할 것.</p>
  */
 public class FightHUD {
 

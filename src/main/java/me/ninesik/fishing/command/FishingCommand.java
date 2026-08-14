@@ -310,7 +310,6 @@ public class FishingCommand implements CommandExecutor, TabCompleter {
         sender.sendMessage("§eMMOItems: §f" + plugin.getDependencyManager().getMMOItems().isAvailable());
         sender.sendMessage("§ePlaceholderAPI: §f" + plugin.getDependencyManager().getPlaceholderAPI().isAvailable());
         sender.sendMessage("§eWorldGuard: §f" + plugin.getDependencyManager().getWorldGuard().isAvailable());
-        sender.sendMessage("§eProtocolLib: §f" + plugin.getDependencyManager().getProtocolLib().isAvailable());
         sender.sendMessage("§e도감: §f" + (collectionManager.isEnabled() ? "활성화" : "비활성화")
                 + " (캐시 " + (collectionManager != null ? collectionManager.getCachedPlayerCount() : 0) + "명)");
         sender.sendMessage("§e랭킹: §f" + (rankingManager.isEnabled() ? "활성화" : "비활성화"));
