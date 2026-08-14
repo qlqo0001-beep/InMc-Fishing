@@ -1,5 +1,6 @@
 package me.ninesik.fishing.net;
 
+import me.ninesik.fishing.util.Msg;
 import org.bukkit.Bukkit;
 import me.ninesik.fishing.InMcFishing;
 import me.ninesik.fishing.model.Fish;
@@ -77,8 +78,8 @@ public class NetManager {
                     "어망 로드 실패 — 이번 접속에서는 저장을 차단합니다: " + player.getName(), e);
             Bukkit.getScheduler().runTask(plugin, () -> {
                 if (player.isOnline()) {
-                    player.sendMessage(ChatColor.RED + "어망 데이터를 불러오지 못했습니다. 관리자에게 문의하세요.");
-                    player.sendMessage(ChatColor.GRAY + "(데이터 보호를 위해 이번 접속에서는 어망이 저장되지 않습니다)");
+                    Msg.send(player, "net.load-failed");
+                    Msg.send(player, "net.load-failed-detail");
                 }
             });
             return;
@@ -195,13 +196,13 @@ public class NetManager {
 
         Fish fish = registryManager.getFishRegistry().getById(entry.getFishId());
         if (fish == null) {
-            player.sendMessage(ChatColor.RED + "이 물고기는 더 이상 존재하지 않습니다.");
+            Msg.send(player, "net.fish-gone");
             return false;
         }
 
         ItemStack item = rewardService.createItemStack(fish, 1, entry.getSize(), entry.isTrophy(), entry.isRareTrophy());
         if (item == null) {
-            player.sendMessage(ChatColor.RED + "물고기 아이템 생성에 실패했습니다.");
+            Msg.send(player, "net.item-create-failed");
             return false;
         }
 
@@ -209,11 +210,11 @@ public class NetManager {
         if (!remaining.isEmpty()) {
             // 인벤토리 부족 — 어망에 되돌린다
             data.add(entry);
-            player.sendMessage(ChatColor.RED + "인벤토리에 빈자리가 없어 꺼낼 수 없습니다.");
+            Msg.send(player, "net.inventory-full");
             return false;
         }
 
-        player.sendMessage(ChatColor.GREEN + "어망에서 물고기를 꺼냈습니다.");
+        Msg.send(player, "net.taken-one");
         return true;
     }
 
@@ -262,7 +263,7 @@ public class NetManager {
         // 캐시에 없으면 아직 로드 중(또는 로드 실패)이다. 여기서 동기 DB 조회를 하면
         // 메인 스레드가 멈추고, 진행 중인 비동기 로드와 경쟁해 데이터가 덮어써진다.
         if (cache.get(player.getUniqueId()) == null) {
-            player.sendMessage(ChatColor.YELLOW + "어망 데이터를 불러오는 중입니다. 잠시 후 다시 시도해 주세요.");
+            Msg.send(player, "net.still-loading");
             return;
         }
         new NetGui(player, this, rewardService, registryManager).open();

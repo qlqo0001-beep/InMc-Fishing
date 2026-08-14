@@ -21,6 +21,7 @@ import me.ninesik.fishing.reward.RollEngine;
 import me.ninesik.fishing.reward.RollEngine.RollResult;
 import me.ninesik.fishing.service.RewardService;
 import me.ninesik.fishing.session.FishingSessionManager;
+import me.ninesik.fishing.util.Msg;
 import me.ninesik.fishing.util.InventoryUtil;
 import me.ninesik.fishing.util.Texts;
 import io.papermc.paper.event.entity.FishHookStateChangeEvent;
@@ -462,7 +463,9 @@ public class FishingListener implements Listener {
                     } else {
                         player.getInventory().setItemInMainHand(new ItemStack(Material.AIR));
                     }
-                    player.sendMessage("§a피로도가 " + recovery + "만큼 회복되었습니다. (현재: " + result + ")");
+                    Msg.send(player, "fatigue.recovered", Map.of(
+                            "amount", String.valueOf(recovery),
+                            "current", String.valueOf(result)));
                     event.setCancelled(true);
                     return;
                 }

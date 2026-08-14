@@ -5,6 +5,7 @@ import me.ninesik.fishing.config.ConfigManager;
 import me.ninesik.fishing.dependency.VaultHook;
 import me.ninesik.fishing.event.FishCatchEvent;
 import me.ninesik.fishing.model.Fish;
+import me.ninesik.fishing.util.Msg;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.configuration.ConfigurationSection;
@@ -229,7 +230,7 @@ public class TournamentManager {
     public boolean join(Player player, String id) {
         Tournament tournament = tournaments.get(id.toLowerCase());
         if (tournament == null) {
-            player.sendMessage(ChatColor.RED + "존재하지 않는 대회입니다.");
+            Msg.send(player, "tournament.not-found");
             return false;
         }
 
@@ -237,11 +238,11 @@ public class TournamentManager {
         if (tournament.isRunning()) {
             TournamentEntry existing = tournament.getEntries().get(player.getUniqueId());
             if (existing != null && !existing.hasLeft()) {
-                player.sendMessage(ChatColor.RED + "이미 참가 중인 대회입니다.");
+                Msg.send(player, "tournament.already-joined");
                 return false;
             }
             if (tournament.getEntries().size() >= tournament.getMaxPlayers()) {
-                player.sendMessage(ChatColor.RED + "대회 인원이 가득 찼습니다.");
+                Msg.send(player, "tournament.full");
                 return false;
             }
 
@@ -250,15 +251,15 @@ public class TournamentManager {
             if (fee > 0) {
                 VaultHook vault = plugin.getDependencyManager().getVault();
                 if (!vault.isAvailable()) {
-                    player.sendMessage(ChatColor.RED + "참가비 처리를 위한 Vault 이코노미가 연결되지 않았습니다.");
+                    Msg.send(player, "tournament.no-economy");
                     return false;
                 }
                 if (!vault.has(player, fee)) {
-                    player.sendMessage(ChatColor.RED + "참가비가 부족합니다. (필요: " + fee + ")");
+                    Msg.send(player, "tournament.not-enough-money", Map.of("fee", String.valueOf(fee)));
                     return false;
                 }
                 if (!vault.withdraw(player, fee)) {
-                    player.sendMessage(ChatColor.RED + "참가비 처리에 실패했습니다.");
+                    Msg.send(player, "tournament.fee-failed");
                     return false;
                 }
             }
@@ -271,16 +272,16 @@ public class TournamentManager {
             // HUD 즉시 표시
             hudManager.refreshPlayer(player);
 
-            player.sendMessage(ChatColor.GREEN + "진행 중인 대회에 참여했습니다: " + ChatColor.stripColor(tournament.getName()));
+            Msg.send(player, "tournament.joined", Map.of("name", ChatColor.stripColor(tournament.getName())));
             return true;
         }
 
         if (tournament.isRegistered(player.getUniqueId())) {
-            player.sendMessage(ChatColor.RED + "이미 사전 신청한 대회입니다.");
+            Msg.send(player, "tournament.already-applied");
             return false;
         }
         if (tournament.getRegisteredPlayers().size() >= tournament.getMaxPlayers()) {
-            player.sendMessage(ChatColor.RED + "대회 인원이 가득 찼습니다.");
+            Msg.send(player, "tournament.full");
             return false;
         }
 
@@ -289,21 +290,21 @@ public class TournamentManager {
         if (fee > 0) {
             VaultHook vault = plugin.getDependencyManager().getVault();
             if (!vault.isAvailable()) {
-                player.sendMessage(ChatColor.RED + "참가비 처리를 위한 Vault 이코노미가 연결되지 않았습니다.");
+                Msg.send(player, "tournament.no-economy");
                 return false;
             }
             if (!vault.has(player, fee)) {
-                player.sendMessage(ChatColor.RED + "참가비가 부족합니다. (필요: " + fee + ")");
+                Msg.send(player, "tournament.not-enough-money", Map.of("fee", String.valueOf(fee)));
                 return false;
             }
             if (!vault.withdraw(player, fee)) {
-                player.sendMessage(ChatColor.RED + "참가비 처리에 실패했습니다.");
+                Msg.send(player, "tournament.fee-failed");
                 return false;
             }
         }
 
         tournament.registerPlayer(player.getUniqueId());
-        player.sendMessage(ChatColor.GREEN + "대회에 사전 신청했습니다: " + ChatColor.stripColor(tournament.getName()));
+        Msg.send(player, "tournament.applied", Map.of("name", ChatColor.stripColor(tournament.getName())));
         return true;
     }
 
@@ -314,7 +315,7 @@ public class TournamentManager {
     public boolean leave(Player player, String id) {
         Tournament tournament = tournaments.get(id.toLowerCase());
         if (tournament == null) {
-            player.sendMessage(ChatColor.RED + "존재하지 않는 대회입니다.");
+            Msg.send(player, "tournament.not-found");
             return false;
         }
         if (!tournament.isRunning()) {
@@ -322,16 +323,16 @@ public class TournamentManager {
             if (tournament.isRegistered(player.getUniqueId())) {
                 tournament.unregisterPlayer(player.getUniqueId());
                 refund(player, tournament);
-                player.sendMessage(ChatColor.GREEN + "대회 사전 신청을 취소했습니다: " + ChatColor.stripColor(tournament.getName()));
+                Msg.send(player, "tournament.application-cancelled", Map.of("name", ChatColor.stripColor(tournament.getName())));
                 return true;
             }
-            player.sendMessage(ChatColor.RED + "신청하지 않은 대회입니다.");
+            Msg.send(player, "tournament.not-applied");
             return false;
         }
 
         TournamentEntry entry = tournament.getEntries().get(player.getUniqueId());
         if (entry == null || entry.hasLeft()) {
-            player.sendMessage(ChatColor.RED + "참가 중인 대회가 아닙니다.");
+            Msg.send(player, "tournament.not-participating");
             return false;
         }
 
@@ -339,7 +340,7 @@ public class TournamentManager {
         refund(player, tournament);
         // HUD 제거
         hudManager.removePlayer(player);
-        player.sendMessage(ChatColor.GREEN + "대회에서 퇴장했습니다: " + ChatColor.stripColor(tournament.getName()));
+        Msg.send(player, "tournament.left", Map.of("name", ChatColor.stripColor(tournament.getName())));
         return true;
     }
 

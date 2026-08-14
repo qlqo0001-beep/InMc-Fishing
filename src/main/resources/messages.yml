@@ -752,3 +752,37 @@ gui:
         - "&e좌클릭: 도감에 등록 (아이템 1개 소모)"
       withdraw-hint-lore:
         - "&c시프트 우클릭: 1개 회수 (물고기 반환)"
+
+# ============================================================
+#  [notify] GUI 밖에서 플레이어에게 나가는 알림
+#  값을 비우면 해당 알림이 전송되지 않습니다.
+# ============================================================
+notify:
+  tournament:
+    not-found: "&c존재하지 않는 대회입니다."
+    already-joined: "&c이미 참가 중인 대회입니다."
+    already-applied: "&c이미 사전 신청한 대회입니다."
+    not-applied: "&c신청하지 않은 대회입니다."
+    not-participating: "&c참가 중인 대회가 아닙니다."
+    full: "&c대회 인원이 가득 찼습니다."
+    no-economy: "&c참가비 처리를 위한 Vault 이코노미가 연결되지 않았습니다."
+    not-enough-money: "&c참가비가 부족합니다. (필요: {fee})"
+    fee-failed: "&c참가비 처리에 실패했습니다."
+    joined: "&a진행 중인 대회에 참여했습니다: {name}"
+    applied: "&a대회에 사전 신청했습니다: {name}"
+    application-cancelled: "&a대회 사전 신청을 취소했습니다: {name}"
+    left: "&a대회에서 퇴장했습니다: {name}"
+  net:
+    load-failed: "&c어망 데이터를 불러오지 못했습니다. 관리자에게 문의하세요."
+    load-failed-detail: "&7(데이터 보호를 위해 이번 접속에서는 어망이 저장되지 않습니다)"
+    still-loading: "&e어망 데이터를 불러오는 중입니다. 잠시 후 다시 시도해 주세요."
+    fish-gone: "&c이 물고기는 더 이상 존재하지 않습니다."
+    item-create-failed: "&c물고기 아이템 생성에 실패했습니다."
+    inventory-full: "&c인벤토리에 빈자리가 없어 꺼낼 수 없습니다."
+    taken-one: "&a어망에서 물고기를 꺼냈습니다."
+  collection:
+    load-failed: "&c도감 데이터를 불러오지 못했습니다. 관리자에게 문의하세요."
+    load-failed-detail: "&7(데이터 보호를 위해 이번 접속에서는 도감이 저장되지 않습니다)"
+    still-loading: "&e도감 데이터를 불러오는 중입니다. 잠시 후 다시 시도해 주세요."
+  fatigue:
+    recovered: "&a피로도가 {amount}만큼 회복되었습니다. (현재: {current})"

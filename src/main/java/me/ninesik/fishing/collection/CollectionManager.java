@@ -11,6 +11,7 @@ import me.ninesik.fishing.registry.FishRegistry;
 import me.ninesik.fishing.registry.RegistryManager;
 import me.ninesik.fishing.service.RewardService;
 import me.ninesik.fishing.util.Sounds;
+import me.ninesik.fishing.util.Msg;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.configuration.file.FileConfiguration;
@@ -166,8 +167,8 @@ public class CollectionManager {
                     "도감 로드 실패 — 이번 접속에서는 저장을 차단합니다: " + player.getName(), e);
             Bukkit.getScheduler().runTask(plugin, () -> {
                 if (player.isOnline()) {
-                    player.sendMessage("§c도감 데이터를 불러오지 못했습니다. 관리자에게 문의하세요.");
-                    player.sendMessage("§7(데이터 보호를 위해 이번 접속에서는 도감이 저장되지 않습니다)");
+                    Msg.send(player, "collection.load-failed");
+                    Msg.send(player, "collection.load-failed-detail");
                 }
             });
             return;
@@ -525,7 +526,7 @@ public class CollectionManager {
         // 동기 로드를 했는데, 물고기 종 수만큼 쿼리가 나가 서버가 멈추고 진행 중인
         // 비동기 로드와 경쟁해 데이터가 덮어써졌다. 어망(openNetGui)과 같은 방식으로 맞춘다.
         if (cache.get(player.getUniqueId()) == null) {
-            player.sendMessage("§e도감 데이터를 불러오는 중입니다. 잠시 후 다시 시도해 주세요.");
+            Msg.send(player, "collection.still-loading");
             return;
         }
         new CollectionGui(player, this, rewardService).open();
