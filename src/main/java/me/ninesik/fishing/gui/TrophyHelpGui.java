@@ -21,7 +21,10 @@ public class TrophyHelpGui extends AbstractGui {
     private static final int SLOT_CONTROL = 12;
     private static final int SLOT_STATE = 14;
     private static final int SLOT_FAIL = 16;
-    private static final int SLOT_BACK = 31;
+    // 하단 버튼은 GuiLayout 규칙을 따른다 — 6줄 GUI(48/50)와 같은 열을
+    // 마지막 줄에 적용하므로, 플레이어가 보는 위치가 GUI마다 달라지지 않는다.
+    private static final int SLOT_CLOSE = GuiLayout.closeSlot(ROWS);
+    private static final int SLOT_BACK = GuiLayout.backSlot(ROWS);
 
     public TrophyHelpGui(Player player) {
         super(player, ROWS, ChatColor.GOLD + "트로피 파이트 설명");
@@ -62,8 +65,8 @@ public class TrophyHelpGui extends AbstractGui {
                         ChatColor.RED + "릴 상태 ≤ 0 (파손)",
                         ChatColor.RED + "제한 시간 초과")));
 
-        setItem(SLOT_BACK, GuiItems.createIcon(Material.OAK_DOOR, ChatColor.GOLD + "메인 GUI로",
-                List.of(ChatColor.GRAY + "낚시 메인메뉴로 돌아갑니다.")));
+        setItem(SLOT_CLOSE, GuiLayout.closeIcon());
+        setItem(SLOT_BACK, GuiLayout.backToMainIcon());
     }
 
     @Override
@@ -74,6 +77,8 @@ public class TrophyHelpGui extends AbstractGui {
         }
         if (slot == SLOT_BACK) {
             MainGui.open(player);
+        } else if (slot == SLOT_CLOSE) {
+            player.closeInventory();
         }
     }
 }
