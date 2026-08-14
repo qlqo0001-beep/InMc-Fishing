@@ -15,13 +15,34 @@ java {
 repositories {
     mavenCentral()
     maven("https://repo.papermc.io/repository/maven-public/")
+    // WorldGuard / WorldEdit
+    maven("https://maven.enginehub.org/repo/")
 }
 
 dependencies {
     // 확정 사항(PROGRESS_ARCHIVE.md): paperweight-userdev 미적용, 순수 compileOnly만 사용.
-    // MMOItems/PlaceholderAPI/Vault/WorldGuard/ProtocolLib는 리플렉션 기반 연동이라
-    // 별도 compileOnly 의존성이 필요 없다 (dependency/*.Hook.java에서 확인됨).
     compileOnly("io.papermc.paper:paper-api:26.2.build.+")
+
+    // MMOItems / Vault는 리플렉션 기반 연동이라 compileOnly가 필요 없다
+    // (dependency/*.Hook.java 참고).
+    //
+    // WorldGuard는 예외다. 지역 조회가
+    // WorldGuard → Platform → RegionContainer → RegionQuery → ApplicableRegionSet
+    // → StateFlag 로 이어지는 6단계라 리플렉션으로 쓰면 코드가 길어지는 것에 더해,
+    // 오타나 상위 버전의 시그니처 변경이 전부 런타임에야 드러난다. compileOnly로
+    // 두면 컴파일 단계에서 잡히고 최종 jar 크기에도 영향이 없다.
+    // 서버에 WorldGuard가 없어도 동작해야 하므로 진입점에서 isAvailable()로 가드한다.
+    //
+    // isTransitive = false가 필수다. WorldEdit이 Gradle 모듈 메타데이터에
+    // "Mojang provides Guava/Gson" 사유로 guava:{strictly 33.5.0-jre},
+    // gson:{strictly 2.13.2} 제약을 걸어두는데, paper-api는 guava 33.6.0 /
+    // gson 2.14.0을 요구해서 해석 자체가 실패한다(런타임에는 서버가 둘 다
+    // 제공하므로 실제 충돌이 아니다). 컴파일에 필요한 건 아래 4개 모듈의
+    // 클래스뿐이라 전이 그래프를 통째로 끊는 편이 정확하다.
+    compileOnly("com.sk89q.worldguard:worldguard-bukkit:7.0.18") { isTransitive = false }
+    compileOnly("com.sk89q.worldguard:worldguard-core:7.0.18") { isTransitive = false }
+    compileOnly("com.sk89q.worldedit:worldedit-bukkit:7.4.0") { isTransitive = false }
+    compileOnly("com.sk89q.worldedit:worldedit-core:7.4.0") { isTransitive = false }
 
     // bStats 메트릭스 — 최종 jar(Shadow)에만 병합된다.
     implementation("org.bstats:bstats-bukkit:3.2.1")

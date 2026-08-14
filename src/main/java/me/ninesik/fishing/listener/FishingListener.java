@@ -201,6 +201,13 @@ public class FishingListener implements Listener {
             return;
         }
 
+        // 캐스팅 시점에도 검사하지만 여기서 한 번 더 본다. 보상이 실제로 지급되는
+        // 지점이라, 던진 뒤 금지 구역으로 이동한 경우를 여기서 막아야 한다.
+        // (캐스팅 쪽은 액션바로 사유를 알려주므로 여기서는 조용히 무시한다)
+        if (!plugin.getDependencyManager().getWorldGuard().isFishingEnabled(player)) {
+            return;
+        }
+
         // Trophy Fight 중에는 새 입질/미니게임 시작 방지
         if (trophyFightManager != null && trophyFightManager.isInFight(player)) {
             event.setCancelled(true);
@@ -373,6 +380,12 @@ public class FishingListener implements Listener {
         }
         if (!isAllowedWorld(player)) {
             sendCastStatus(player, "wrong-world", Map.of());
+            return;
+        }
+        // WorldGuard 구역 제한 — worldguard.yml에 fishing-enabled: false로 지정된 구역.
+        // WorldGuard 미설치/규칙 없음이면 곧바로 true라 비용이 거의 없다.
+        if (!plugin.getDependencyManager().getWorldGuard().isFishingEnabled(player)) {
+            sendCastStatus(player, "region-blocked", Map.of());
             return;
         }
         if (configManager.isRequireEmptySlot()

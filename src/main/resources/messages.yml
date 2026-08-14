@@ -80,6 +80,8 @@ cast-status:
   ready: "&a물고기를 기다리는 중~ &f{rod}"
   unregistered-rod: "&c등록되지 않은 낚싯대"
   wrong-world: "&c이 월드에서는 낚시 불가"
+  # WorldGuard 보호 구역에서 fishing-enabled: false 인 경우 (worldguard.yml)
+  region-blocked: "&c이 구역에서는 낚시할 수 없습니다"
   plugin-disabled: "&c낚시 플러그인 비활성"
   no-empty-slot: "&c인벤토리 빈칸이 필요합니다"
   minigame-off: "&f자동 낚시 모드 &8| &b피로도 {fatigue}"

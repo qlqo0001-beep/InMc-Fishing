@@ -34,6 +34,12 @@ public class WeightCalculator {
         // 5. Permission Modifier
         finalWeight *= getPermissionModifier(player, grade);
 
+        // 5-2. WorldGuard 구역 배수 (worldguard.yml의 grade-weight-multiplier)
+        // 다른 Modifier들과 같은 곱셈 위치다. WorldGuard 미설치·규칙 없음·
+        // player == null(시뮬레이션)이면 1.0이라 기존 동작이 그대로 유지된다.
+        finalWeight *= dependencyManager.getWorldGuard()
+                .getRegionGradeMultiplier(player, grade == null ? null : grade.getId());
+
         // 6. Rod bonus (덧셈)
         if (rod != null) {
             finalWeight += rod.getBonusForGrade(grade);
