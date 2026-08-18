@@ -88,6 +88,18 @@ public class FightSession {
      * 좌클릭(릴 감기) 시 무조건 리셋된다 (피드백: "좌클릭 하면 콤보 유지 안 되게").
      */
     private int releaseCombo = 0;
+
+    /**
+     * 좌클릭(릴 감기) 연타 콤보.
+     *
+     * <p>예전에는 우클릭 콤보만 셌고 좌클릭은 그 값을 0으로 리셋하기만 했다.
+     * HUD가 좌/우 콤보를 구분해 보여줄 수 있는데 좌클릭 쪽 값이 아예 없어서
+     * 한쪽만 표시됐다. 창/상한은 우클릭과 같은 설정을 쓴다.</p>
+     */
+    private int reelCombo = 0;
+
+    /** 마지막 좌클릭 콤보 시각. */
+    private long lastReelComboAt = 0L;
     /** 마지막 우클릭 콤보 갱신 시각(ms). */
     private long lastReleaseComboAt = 0L;
     /** 콤보 유지 윈도우(ms) — 이 시간 내 재우클릭이면 콤보가 유지된다. */
@@ -378,7 +390,14 @@ public class FightSession {
      * 릴 풀기 상태는 초기화하고(좌/우 상호 배타), 우클릭 연타 콤보도 리셋한다 (피드백).
      */
     public void registerReelClick() {
-        this.lastReelClickAt = System.currentTimeMillis();
+        long now = System.currentTimeMillis();
+        if (now - lastReelComboAt <= releaseComboWindowMillis) {
+            reelCombo = Math.min(maxReleaseCombo, reelCombo + 1);
+        } else {
+            reelCombo = 1;
+        }
+        lastReelComboAt = now;
+        this.lastReelClickAt = now;
         this.lastReleaseClickAt = 0L;
         this.releaseCombo = 0;
     }
@@ -399,6 +418,7 @@ public class FightSession {
         lastReleaseComboAt = now;
         this.lastReleaseClickAt = now;
         this.lastReelClickAt = 0L;
+        this.reelCombo = 0;
     }
 
     /**
@@ -408,12 +428,18 @@ public class FightSession {
         return releaseCombo;
     }
 
+    /** 현재 좌클릭(릴 감기) 연타 콤보. */
+    public int getReelCombo() {
+        return reelCombo;
+    }
+
     /**
      * 릴 조작을 즉시 정지 상태로 만든다. (명시적 정지용 — 선택적 보조 수단.
      * 스펙상 필수는 아니며, 클릭을 멈추기만 해도 유예시간 경과 후 자동으로 정지된다.)
      */
     public void stopReeling() {
         this.lastReelClickAt = 0L;
+        this.reelCombo = 0;
     }
 
     /**

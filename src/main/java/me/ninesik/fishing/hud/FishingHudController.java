@@ -85,7 +85,7 @@ public final class FishingHudController implements Listener {
         this.glyphRenderer = null;
         if (layout.enabled && itemsAdder.isPluginPresent()
                 && ItemsAdderGlyphs.available() && !table.isEmpty()) {
-            this.glyphs = new ItemsAdderGlyphs(layout.namespace, layout.offsetMagnitudes);
+            this.glyphs = new ItemsAdderGlyphs(layout.namespace, layout.offsetMagnitudes, plugin.getLogger());
             this.glyphRenderer = new GlyphHudRenderer(layout, table, (GlyphLine.Resolver) glyphs);
         } else if (layout.enabled && !itemsAdder.isPluginPresent()) {
             plugin.getLogger().info("[FishingHud] ItemsAdder 가 없어 보스바/액션바 폴백으로 동작합니다.");

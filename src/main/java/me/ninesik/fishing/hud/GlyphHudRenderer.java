@@ -2,8 +2,7 @@ package me.ninesik.fishing.hud;
 
 import me.ninesik.fishing.hud.glyph.GlyphLine;
 import me.ninesik.fishing.hud.glyph.GlyphTable;
-import net.md_5.bungee.api.ChatMessageType;
-import net.md_5.bungee.api.chat.TextComponent;
+import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import org.bukkit.entity.Player;
 
 /**
@@ -205,7 +204,16 @@ public final class GlyphHudRenderer implements HudRenderer {
         return Math.max(0, width - GlyphTable.SPACING);
     }
 
+    /**
+     * 액션바 전송.
+     *
+     * <p>Adventure 로 직접 보낸다. 예전에는 {@code player.spigot().sendMessage} +
+     * {@code TextComponent.fromLegacyText} 를 거쳤는데, 그 경로는 §x 헥스 색코드를
+     * 컴포넌트로 다시 쪼개는 레거시 변환이 한 겹 끼어 있어 글리프 문자열이
+     * 그대로 전달된다는 보장이 없다. HUD 는 문자 하나하나의 advance 가 곧 좌표라
+     * 중간 변환이 없는 편이 안전하다.</p>
+     */
     private void send(Player player, String line) {
-        player.spigot().sendMessage(ChatMessageType.ACTION_BAR, TextComponent.fromLegacyText(line));
+        player.sendActionBar(LegacyComponentSerializer.legacySection().deserialize(line));
     }
 }

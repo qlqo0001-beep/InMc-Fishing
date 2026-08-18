@@ -110,7 +110,10 @@ public class TrophyFightManager {
                 session.getTension(), session.getMaxTension(),
                 session.getReelState(), session.getMaxReelState(),
                 state.name(), remaining / 20.0, stateRatio,
-                session.getReleaseCombo(), 'R');
+                // 좌/우 콤보는 상호 배타라 0이 아닌 쪽을 보여준다.
+                // 좌클릭 콤보가 살아 있으면 그쪽이 우선이다(방금 누른 쪽이므로).
+                session.getReelCombo() > 0 ? session.getReelCombo() : session.getReleaseCombo(),
+                session.getReelCombo() > 0 ? 'L' : 'R');
         fishingHud.updateFight(player);
     }
 

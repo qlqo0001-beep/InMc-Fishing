@@ -59,9 +59,56 @@ public final class ItemsAdderGlyphs implements GlyphLine.Resolver {
     private final Map<String, String> glyphCache = new HashMap<>();
     private final Map<Integer, String> offsetCache = new HashMap<>();
 
-    public ItemsAdderGlyphs(String namespace, int[] magnitudes) {
+    public ItemsAdderGlyphs(String namespace, int[] magnitudes, java.util.logging.Logger logger) {
         this.namespace = namespace;
-        this.magnitudes = magnitudes.clone();
+        this.magnitudes = usableMagnitudes(magnitudes, logger);
+    }
+
+    /**
+     * 실제로 해석되는 오프셋 크기만 남긴다.
+     *
+     * <p>설정에 적힌 크기를 ItemsAdder가 모르면 {@code replaceFontImages} 가 입력을
+     * 그대로 돌려준다. 그걸 그냥 이어붙이면 액션바에 {@code :offset_128:} 같은 글자가
+     * 찍히고, 커서 계산은 옮겨졌다고 믿기 때문에 <b>라인 전체 폭이 프레임마다 달라져
+     * HUD가 좌우로 흔들린다.</b> 그래서 시작할 때 한 번 걸러낸다.</p>
+     *
+     * <p>못 쓰는 크기는 빼기만 하면 된다 — 남은 작은 크기들로 같은 거리를 만들 수 있다
+     * (1px 이 살아 있는 한 어떤 정수든 만들어진다).</p>
+     */
+    private static int[] usableMagnitudes(int[] configured, java.util.logging.Logger logger) {
+        if (!available()) {
+            return configured.clone();
+        }
+        java.util.List<Integer> ok = new java.util.ArrayList<>();
+        java.util.List<Integer> dropped = new java.util.ArrayList<>();
+        for (int m : configured) {
+            if (m > 0 && resolves(m) && resolves(-m)) {
+                ok.add(m);
+            } else if (m > 0) {
+                dropped.add(m);
+            }
+        }
+        if (!dropped.isEmpty()) {
+            logger.warning("[FishingHud] ItemsAdder 에 없는 오프셋 크기 " + dropped
+                    + " 를 제외했습니다. 남은 크기로 위치를 계산합니다.");
+        }
+        if (ok.isEmpty() || ok.get(ok.size() - 1) != 1) {
+            logger.warning("[FishingHud] 1px 오프셋(:offset_1: / :offset_-1:)이 없어 "
+                    + "글리프 HUD 를 정확히 배치할 수 없습니다. 기존 표시로 동작합니다.");
+            return new int[0];
+        }
+        int[] out = new int[ok.size()];
+        for (int i = 0; i < out.length; i++) {
+            out[i] = ok.get(i);
+        }
+        return out;
+    }
+
+    /** 이 크기의 오프셋 글리프가 실제로 치환되는가. */
+    private static boolean resolves(int step) {
+        String raw = ":offset_" + step + ":";
+        String replaced = replaceFontImages(raw);
+        return !replaced.isEmpty() && !replaced.equals(raw);
     }
 
     @Override
@@ -127,7 +174,8 @@ public final class ItemsAdderGlyphs implements GlyphLine.Resolver {
 
     /** 글리프가 하나라도 해석되는지(=리소스팩 콘텐츠가 로드됐는지) 확인. */
     public boolean isReady() {
-        return !glyph("card_bg").isEmpty();
+        // 오프셋을 하나도 못 쓰면 모든 글리프가 한 줄로 붙어버리므로 HUD 자체를 포기한다.
+        return magnitudes.length > 0 && !glyph("card_bg").isEmpty();
     }
 
     public void invalidate() {
