@@ -6,7 +6,7 @@ author: NineSik
 api-version: '1.21'
 aliases: [IF]
 
-softdepend: [MMOItems, PlaceholderAPI, Vault, WorldGuard]
+softdepend: [MMOItems, PlaceholderAPI, Vault, WorldGuard, ItemsAdder]
 
 # Paper 라이브러리 로더가 서버 기동 시 Maven Central에서 내려받아 격리 로드한다.
 # (shadowJar는 org.bstats만 병합하므로 이 드라이버는 jar에 포함되지 않는다.

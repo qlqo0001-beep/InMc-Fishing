@@ -145,6 +145,14 @@ public class FishAI {
     }
 
     /**
+     * 현재 상태의 전체 지속시간(틱). 남은 시간을 비율로 표시할 때 분모로 쓴다.
+     * 상태 전환 직후 0이 될 수 있으므로 호출측에서 0 나누기를 막아야 한다.
+     */
+    public int getStateDurationTicks() {
+        return stateDurationTicks;
+    }
+
+    /**
      * 현재 행동력을 반환한다.
      */
     public int getCurrentActionPower() {

@@ -77,6 +77,48 @@ public class TrophyFightManager {
     private final NamespacedKey movementKey;
     private final FightCalculator calculator;
     private final FightHUD hud = new FightHUD();
+
+    /**
+     * ItemsAdder 글리프 HUD. 없거나 이 플레이어가 못 쓰면 위의 {@link FightHUD}가
+     * 그대로 폴백으로 동작한다 — {@code fishingHud.showFight()}가 false를 돌려주는
+     * 경우가 그 신호다.
+     */
+    private me.ninesik.fishing.hud.FishingHudController fishingHud;
+
+    public void setHud(me.ninesik.fishing.hud.FishingHudController fishingHud) {
+        this.fishingHud = fishingHud;
+    }
+
+    /**
+     * 글리프 HUD에 이번 틱 값을 채워 보낸다.
+     *
+     * <p>버퍼는 세션당 하나를 재사용하므로 매 틱 객체를 만들지 않는다.
+     * 실제 전송은 hud.yml의 update-interval-ticks 주기로 묶이므로 매 틱 불러도 된다.</p>
+     */
+    private void updateGlyphHud(Player player, FightSession session, FishState state) {
+        FishAI ai = session.getFishAI();
+        int duration = ai.getStateDurationTicks();
+        int remaining = ai.getRemainingTicks();
+        // 상태 전환 직후 duration이 0이라 그대로 나누면 NaN이 된다.
+        double stateRatio = duration > 0 ? remaining / (double) duration : 0.0;
+
+        fishingHud.fightData(player).set(
+                session.getDistance(), session.getMaxDistance(),
+                session.getStamina(), session.getMaxStamina(),
+                // getMaxTension()은 getLineStrength()의 별칭이다 — 장력이 줄 강도를
+                // 넘으면 줄이 끊어지므로 상한이 곧 줄 강도다.
+                session.getTension(), session.getMaxTension(),
+                session.getReelState(), session.getMaxReelState(),
+                state.name(), remaining / 20.0, stateRatio,
+                session.getReleaseCombo(), 'R');
+        fishingHud.updateFight(player);
+    }
+
+    /** 이 플레이어의 파이트 화면을 글리프 HUD가 맡고 있는가. */
+    private boolean glyphHud(Player player) {
+        return fishingHud != null
+                && fishingHud.handles(player, me.ninesik.fishing.hud.HudMode.FIGHT);
+    }
     private BukkitTask tickTask;
     private int tickCount = 0;
 
@@ -271,8 +313,11 @@ public class TrophyFightManager {
         // WAITING → ACTIVE 즉시 전환
         session.transitionTo(FightState.ACTIVE);
 
-        // HUD 표시 + 플레이어 이동 제한
-        hud.showBossBar(player, session, configManager.getFightConfig().hud());
+        // HUD 표시 + 플레이어 이동 제한.
+        // 글리프 HUD가 맡으면 보스바를 띄우지 않는다 (겹쳐 보인다).
+        if (fishingHud == null || !fishingHud.showFight(player)) {
+            hud.showBossBar(player, session, configManager.getFightConfig().hud());
+        }
         restrictMovement(player);
 
         return session;
@@ -368,7 +413,10 @@ public class TrophyFightManager {
             session.transitionTo(endState);
         }
 
-        // HUD + 이동 해제
+        // HUD + 이동 해제. 승리·패배·취소 등 모든 종료 경로가 여기를 지난다.
+        if (fishingHud != null) {
+            fishingHud.hide(player);
+        }
         hud.hideBossBar(player);
         releaseMovement(player);
 
@@ -494,8 +542,11 @@ public class TrophyFightManager {
             // 물고기 상태를 타이틀로 계속 표시 (남은 지속시간 카운트다운 포함).
             // 매 틱 갱신해야 긴 상태(REST 등)에서 타이틀이 중간에 꺼지지 않는다
             // (패치예정.md 피드백: "상태의 유지가 길면 타이틀이 사라지는 문제가 있어").
-            hud.updateStateTitle(player, currentFishState, session.getFishAI().getRemainingTicks(),
-                    session.getStamina(), session.getReelState(), config.hud());
+            // 글리프 HUD는 상태를 카드로 그리므로 타이틀을 겹쳐 띄우지 않는다.
+            if (!glyphHud(player)) {
+                hud.updateStateTitle(player, currentFishState, session.getFishAI().getRemainingTicks(),
+                        session.getStamina(), session.getReelState(), config.hud());
+            }
 
             // 2-3. Fish Power/Resistance 계산
             // FishAI는 상태별 "기준값"만 반환하고, 등급×Rare Trophy 난이도 배수는
@@ -598,8 +649,12 @@ public class TrophyFightManager {
             }
 
             // 9. HUD 갱신 (매 틱)
-            hud.updateBossBar(player, session, session.getMaxDistance(), config.hud());
-            hud.updateActionBar(player, session, config.hud());
+            if (glyphHud(player)) {
+                updateGlyphHud(player, session, currentFishState);
+            } else {
+                hud.updateBossBar(player, session, session.getMaxDistance(), config.hud());
+                hud.updateActionBar(player, session, config.hud());
+            }
 
             // 10. 파티클/사운드 (config 인터벌)
             if (tickCount % particleInterval == 0) {

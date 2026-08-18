@@ -56,6 +56,9 @@ public final class InMcFishing extends JavaPlugin {
     private DependencyManager dependencyManager;
     private RegistryManager registryManager;
     private FishingService fishingService;
+
+    /** ItemsAdder 글리프 HUD 진입점. IA가 없어도 생성되며 내부에서 폴백을 고른다. */
+    private me.ninesik.fishing.hud.FishingHudController fishingHud;
     private CollectionManager collectionManager;
     private RankingManager rankingManager;
     private TournamentManager tournamentManager;
@@ -112,6 +115,17 @@ public final class InMcFishing extends JavaPlugin {
         );
         fishingService.initialize();
         fishingService.load();
+
+        // ItemsAdder 글리프 HUD. 생성자가 hud.yml 저장과 리스너 등록까지 처리한다.
+        // ItemsAdder가 없거나 플레이어가 리소스팩을 못 받으면 각 화면이 알아서
+        // 기존 표시(FightHUD 보스바·액션바 / 타임바 타이틀)로 내려간다.
+        this.fishingHud = new me.ninesik.fishing.hud.FishingHudController(this);
+        if (fishingService.getTrophyFightManager() != null) {
+            fishingService.getTrophyFightManager().setHud(fishingHud);
+        }
+        if (fishingService.getFishingMiniGame() != null) {
+            fishingService.getFishingMiniGame().setHud(fishingHud);
+        }
 
         // 유저 피드백(피로도 시스템): fishingService.initialize() 이후에야 fatigueManager가
         // 완전히 구성된다 (FishingService 생성자에서 만들어짐). 접속/퇴장 리스너 등록,
@@ -210,6 +224,10 @@ public final class InMcFishing extends JavaPlugin {
     @Override
     public void onDisable() {
         // 1. 스케줄러/서비스 정지
+        if (fishingHud != null) {
+            // 남아 있는 HUD를 전부 지운다. 안 지우면 재접속 때까지 액션바에 잔상이 남는다.
+            fishingHud.shutdown();
+        }
         if (filletManager != null) {
             filletManager.shutdown();
         }
@@ -375,6 +393,11 @@ public final class InMcFishing extends JavaPlugin {
 
     public PlayerPreferenceManager getPlayerPreferenceManager() {
         return playerPreferenceManager;
+    }
+
+    /** ItemsAdder 글리프 HUD. 초기화 전/IA 미설치여도 null 이 아니다. */
+    public me.ninesik.fishing.hud.FishingHudController getFishingHud() {
+        return fishingHud;
     }
 
     public TrophyFightManager getTrophyFightManager() {
