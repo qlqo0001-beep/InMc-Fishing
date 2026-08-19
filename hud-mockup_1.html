@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>트로피 파이트 HUD 시안 — BetterHud + ItemsAdder</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background:#1a1d24; color:#e8e6e3; font-family:'Segoe UI','Malgun Gothic',sans-serif; padding:28px; }
+  h1 { font-size:20px; margin-bottom:4px; }
+  .sub { color:#9aa0ab; font-size:13px; margin-bottom:20px; }
+  h2 { font-size:15px; margin:26px 0 10px; color:#ffd166; }
+  .screen {
+    position:relative; width:960px; height:540px; margin:0 auto;
+    background: linear-gradient(180deg,#7db9e8 0%,#5a9fd4 18%,#3d7fb5 38%,#2a5f8f 60%,#1d4569 80%,#132f4a 100%);
+    border:3px solid #000; border-radius:4px; overflow:hidden;
+    image-rendering: pixelated;
+  }
+  .px { font-family:'Courier New',monospace; font-weight:bold; letter-spacing:0; text-shadow:2px 2px 0 rgba(0,0,0,.7); }
+
+  /* ── 상단: 거리 트래커 ───────────────────────── */
+  .distance-track { position:absolute; top:22px; left:50%; transform:translateX(-50%); width:420px; }
+  .track-frame { position:relative; height:26px; background:rgba(10,20,35,.75); border:2px solid #0a1522; border-radius:2px;
+    box-shadow: inset 0 0 0 1px #3a5a7a; }
+  .track-line { position:absolute; top:12px; left:34px; right:14px; height:2px;
+    background:repeating-linear-gradient(90deg,#cfe8ff 0 6px,transparent 6px 10px); opacity:.8; }
+  .track-danger { position:absolute; top:4px; right:14px; width:70px; bottom:4px;
+    background:repeating-linear-gradient(-45deg,rgba(255,60,60,.28) 0 6px,transparent 6px 12px); border-left:2px solid #ff5c5c; }
+  .angler { position:absolute; left:8px; top:3px; font-size:16px; filter:drop-shadow(1px 1px 0 #000); }
+  .fishmark { position:absolute; left:63%; top:2px; font-size:17px; filter:drop-shadow(1px 1px 0 #000); animation: bob 1.2s infinite ease-in-out; }
+  @keyframes bob { 50% { transform:translateY(2px);} }
+  .track-label { text-align:center; font-size:13px; margin-top:5px; color:#ffe9a8; }
+
+  /* ── 중앙 우측: 물고기 상태 카드 ───────────────── */
+  .state-card { position:absolute; top:200px; left:50%; transform:translateX(70px); width:230px;
+    background:rgba(10,20,35,.78); border:2px solid #0a1522; box-shadow:inset 0 0 0 1px #3a5a7a; border-radius:2px; padding:10px 12px; }
+  .state-head { display:flex; align-items:center; gap:9px; }
+  .state-icon { width:34px; height:34px; background:#12283e; border:2px solid #ff9f43; display:flex; align-items:center; justify-content:center; font-size:20px; }
+  .state-name { font-size:17px; color:#ff9f43; }
+  .state-timer { margin-top:8px; height:8px; background:#0a1522; border:1px solid #3a5a7a; position:relative; }
+  .state-timer > div { position:absolute; inset:1px; width:62%; background:linear-gradient(180deg,#ffd166,#e8a33d); }
+  .state-sec { position:absolute; right:10px; top:10px; font-size:12px; color:#cfe8ff; }
+  .state-guide { margin-top:8px; font-size:12.5px; color:#ffd9b3; display:flex; align-items:center; gap:7px; }
+  .mouse { display:inline-block; width:16px; height:22px; border:2px solid #8fa8c0; border-radius:8px 8px 6px 6px; position:relative; background:#12283e; }
+  .mouse.right::after { content:''; position:absolute; right:1px; top:1px; width:5px; height:8px; background:#ff5c5c; border-radius:0 6px 0 0; animation:blink .6s infinite; }
+  @keyframes blink { 50% { opacity:.25; } }
+
+  /* ── 중앙 좌측: 콤보 ── */
+  .combo { position:absolute; top:214px; right:50%; transform:translateX(-80px); font-size:22px; color:#7ee8fa; }
+  .combo small { display:block; font-size:11px; color:#9ab8cc; text-align:right; }
+
+  /* ── 하단 게이지 클러스터 ─────────────────────── */
+  .cluster { position:absolute; bottom:86px; left:50%; transform:translateX(-50%); width:660px; }
+  .gauges { display:flex; align-items:flex-end; justify-content:center; gap:22px; }
+  .g { text-align:center; }
+  .g-label { font-size:11.5px; color:#bcd3e6; margin-bottom:4px; display:flex; align-items:center; justify-content:center; gap:5px; }
+  .bar { position:relative; height:14px; background:rgba(10,21,34,.85); border:2px solid #0a1522; box-shadow:inset 0 0 0 1px #3a5a7a; border-radius:2px; }
+  .bar > i { position:absolute; top:2px; bottom:2px; left:2px; border-radius:1px; }
+  .seg { background-image:repeating-linear-gradient(90deg,transparent 0 8px,rgba(0,0,0,.25) 8px 10px); }
+  .stamina { width:180px; } .stamina > i { width:34%; background:linear-gradient(180deg,#7bd97b,#3fae5c); }
+  .reel { width:180px; } .reel > i { width:76%; background:linear-gradient(180deg,#8ecbff,#4a90d9); }
+  .tension-wrap { width:240px; }
+  .tension { height:20px; } .tension > i { width:82%; background:linear-gradient(90deg,#57d95c 0 55%,#ffd44f 55% 78%,#ff5c5c 78% 100%); }
+  .tension-needle { position:absolute; top:-5px; left:82%; width:3px; height:28px; background:#fff; box-shadow:1px 1px 0 #000; animation:shake .18s infinite; }
+  @keyframes shake { 50% { transform:translateX(-1.5px);} }
+  .tension-danger-label { font-size:11px; color:#ff8a8a; margin-top:4px; animation:blink .5s infinite; }
+  .pct { font-size:11px; color:#e8f4ff; margin-top:3px; }
+
+  /* 핫바 목업 */
+  .hotbar { position:absolute; bottom:14px; left:50%; transform:translateX(-50%); display:flex; }
+  .slot { width:44px; height:44px; background:rgba(20,20,25,.7); border:2px solid #555; border-right-width:0; }
+  .slot:last-child { border-right-width:2px; }
+  .slot.sel { border:3px solid #eee; }
+  .crosshair { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); color:#fff; font-size:18px; opacity:.85; text-shadow:1px 1px 0 #000;}
+
+  /* 범례 */
+  .legend { width:960px; margin:14px auto 0; display:grid; grid-template-columns:1fr 1fr; gap:8px 26px; font-size:13px; color:#c8cdd6; }
+  .legend b { color:#ffd166; }
+  .note { width:960px; margin:18px auto 0; font-size:12.5px; color:#8f96a3; line-height:1.7; }
+</style>
+</head>
+<body>
+  <h1>트로피 파이트 HUD 시안 (BetterHud + ItemsAdder 리소스팩)</h1>
+  <div class="sub">기존 title/subtitle · bossbar · actionbar 텍스트를 전부 그래픽 HUD로 대체 — 예시 상황: 물고기 「돌진!」 상태, 장력 82% 위험 구간</div>
+
+  <div class="screen px">
+    <!-- 상단 거리 트래커 -->
+    <div class="distance-track">
+      <div class="track-frame">
+        <div class="track-line"></div>
+        <div class="track-danger"></div>
+        <span class="angler">🧍</span>
+        <span class="fishmark">🐟</span>
+      </div>
+      <div class="track-label">거리 87 / 150 M</div>
+    </div>
+
+    <div class="crosshair">+</div>
+
+    <!-- 상태 카드 -->
+    <div class="state-card">
+      <span class="state-sec">2.4초</span>
+      <div class="state-head">
+        <div class="state-icon">🐟</div>
+        <div class="state-name">강하게 돌진!</div>
+      </div>
+      <div class="state-timer"><div></div></div>
+      <div class="state-guide"><span class="mouse right"></span> 우클릭으로 줄을 풀어 버티세요!</div>
+    </div>
+
+    <!-- 콤보 -->
+    <div class="combo">x4<small>릴 풀기 콤보</small></div>
+
+    <!-- 하단 게이지 -->
+    <div class="cluster">
+      <div class="gauges">
+        <div class="g">
+          <div class="g-label">🐠 물고기 체력</div>
+          <div class="bar stamina seg"><i></i></div>
+          <div class="pct">34%</div>
+        </div>
+        <div class="g tension-wrap">
+          <div class="g-label">⚡ 낚싯줄 장력</div>
+          <div class="bar tension">
+            <i></i>
+            <div class="tension-needle"></div>
+          </div>
+          <div class="tension-danger-label">!! 줄이 끊어지기 직전 !!</div>
+        </div>
+        <div class="g">
+          <div class="g-label">🎣 릴 내구도</div>
+          <div class="bar reel seg"><i></i></div>
+          <div class="pct">76%</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 핫바 -->
+    <div class="hotbar">
+      <div class="slot sel"></div><div class="slot"></div><div class="slot"></div><div class="slot"></div><div class="slot"></div><div class="slot"></div><div class="slot"></div><div class="slot"></div><div class="slot"></div>
+    </div>
+  </div>
+
+  <div class="legend">
+    <div><b>① 거리 트래커 (상단)</b> — 물고기 아이콘이 실제 거리 비율 위치로 이동. 오른쪽 빗금 = 줄 끊김 위험 구간(max-distance). 기존 보스바 대체.</div>
+    <div><b>② 상태 카드 (중앙 우측)</b> — 12종 상태별 전용 아이콘+색상, 남은 시간 카운트다운 바, 좌/우클릭 행동 가이드(마우스 아이콘 점멸). 기존 title/subtitle 대체.</div>
+    <div><b>③ 장력 게이지 (하단 중앙, 크게)</b> — 안전/주의/위험 3색 구간이 그려진 트랙 위로 바늘(needle)이 이동. 80% 이상이면 게이지 테두리 점멸 + 경고문. 기존 보스바 게이지 대체.</div>
+    <div><b>④ 물고기 체력 / 릴 내구도 (하단 좌·우)</b> — 세그먼트형 게이지 + 퍼센트. 기존 액션바 텍스트 대체.</div>
+  </div>
+  <div class="note">
+    ※ 실제 인게임은 마인크래프트 비트맵 폰트/픽셀 텍스처로 렌더링되어 위 시안보다 픽셀아트 느낌이 강합니다. 이모지 자리는 전용 픽셀 아이콘(PNG)으로 제작됩니다.<br>
+    ※ HUD는 트로피 파이트 중에만 표시되고(연습모드 포함), 파이트가 끝나면 자동으로 사라집니다. 위치·색·문구는 BetterHud yml에서 수정 가능합니다.
+  </div>
+</body>
+</html>

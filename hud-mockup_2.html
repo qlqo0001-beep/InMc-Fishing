@@ -1,0 +1,226 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>낚시 미니게임 HUD — 중앙 상태 카드</title>
+  <style>
+    :root {
+      --outline: #06101a;
+      --line: #41617d;
+      --panel: rgba(8, 23, 38, .82);
+      --cream: #e8f4ff;
+      --gold: #ffd166;
+      --orange: #ff9f43;
+      --cyan: #7ee8fa;
+    }
+    * { box-sizing: border-box; }
+    body {
+      min-width: 1040px;
+      margin: 0;
+      padding: 30px;
+      color: var(--cream);
+      background: #151a22;
+      font-family: "Segoe UI", "Malgun Gothic", sans-serif;
+    }
+    h1, .subtitle, .caption { width: 960px; margin-left: auto; margin-right: auto; }
+    h1 { margin-top: 0; margin-bottom: 6px; font-size: 20px; }
+    .subtitle { margin-top: 0; margin-bottom: 20px; color: #99a7b6; font-size: 13px; }
+    .screen {
+      position: relative;
+      width: 960px;
+      height: 540px;
+      margin: auto;
+      overflow: hidden;
+      border: 3px solid #02070b;
+      border-radius: 5px;
+      background:
+        radial-gradient(ellipse at 50% 21%, rgba(181, 226, 247, .32), transparent 30%),
+        linear-gradient(#7db9e8 0%, #5a9fd4 20%, #3d7fb5 40%, #2a5f8f 62%, #173a5a 100%);
+      image-rendering: pixelated;
+    }
+    .px { font-family: "Courier New", monospace; font-weight: 700; text-shadow: 2px 2px 0 rgba(0,0,0,.65); }
+    .frame {
+      background: var(--panel);
+      border: 2px solid var(--outline);
+      border-radius: 2px;
+      box-shadow: inset 0 0 0 1px var(--line), 2px 3px 0 rgba(0,0,0,.18);
+    }
+    .distance {
+      position: absolute;
+      top: 22px;
+      left: 50%;
+      width: 420px;
+      transform: translateX(-50%);
+    }
+    .distance-track { position: relative; height: 26px; }
+    .track-line {
+      position: absolute;
+      top: 11px; left: 35px; right: 14px; height: 2px;
+      opacity: .9;
+      background: repeating-linear-gradient(90deg, #cfe8ff 0 6px, transparent 6px 10px);
+    }
+    .danger {
+      position: absolute;
+      top: 4px; right: 14px; bottom: 4px; width: 70px;
+      border-left: 2px solid #ff6565;
+      background: repeating-linear-gradient(-45deg, rgba(255, 71, 71, .34) 0 5px, transparent 5px 10px);
+    }
+    .angler, .fish { position: absolute; z-index: 1; top: 2px; font-size: 17px; }
+    .angler { left: 9px; color: #ffe7a6; }
+    .fish { left: 63%; color: #86f1ff; animation: bob 1.2s ease-in-out infinite; }
+    .distance-label { margin-top: 5px; color: #ffe9a8; text-align: center; font-size: 13px; }
+    .state-card {
+      position: absolute;
+      top: 184px;
+      left: 50%;
+      width: 262px;
+      padding: 11px 13px 12px;
+      transform: translateX(-50%);
+    }
+    .state-head { display: flex; align-items: center; gap: 9px; }
+    .state-icon {
+      display: grid;
+      width: 36px; height: 36px;
+      place-items: center;
+      color: #95efff;
+      background: #102840;
+      border: 2px solid var(--orange);
+      font-size: 21px;
+    }
+    .state-title { color: var(--orange); font-size: 17px; }
+    .state-sec { position: absolute; top: 12px; right: 13px; color: #cfe8ff; font-size: 12px; }
+    .state-timer {
+      position: relative;
+      height: 9px;
+      margin-top: 9px;
+      overflow: hidden;
+      background: #071522;
+      border: 1px solid var(--line);
+    }
+    .state-timer::after {
+      position: absolute; inset: 1px auto 1px 1px;
+      width: 62%;
+      content: "";
+      background: linear-gradient(#ffd166, #e8a33d);
+    }
+    .guide { display: flex; align-items: center; gap: 7px; margin-top: 9px; color: #ffd9b3; font-size: 12px; }
+    .mouse {
+      display: inline-block;
+      width: 16px; height: 22px;
+      border: 2px solid #9bb7cf;
+      border-radius: 8px 8px 5px 5px;
+      background: #102840;
+    }
+    .mouse::after {
+      display: block;
+      width: 5px; height: 8px;
+      margin: 1px 1px 0 auto;
+      content: "";
+      border-radius: 0 5px 0 0;
+      background: #ff5c5c;
+      animation: blink .6s step-end infinite;
+    }
+    .combo {
+      position: absolute;
+      top: 196px;
+      left: calc(50% - 248px);
+      min-width: 95px;
+      color: var(--cyan);
+      text-align: right;
+      font-size: 26px;
+    }
+    .combo small { display: block; margin-top: 2px; color: #a8c4d8; white-space: nowrap; font-size: 11px; }
+    .gauges {
+      position: absolute;
+      bottom: 86px;
+      left: 50%;
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+      gap: 22px;
+      width: 660px;
+      transform: translateX(-50%);
+    }
+    .gauge { text-align: center; }
+    .gauge-label { margin-bottom: 4px; color: #c4d9e9; font-size: 11px; }
+    .bar {
+      position: relative;
+      overflow: hidden;
+      height: 14px;
+      background: rgba(5, 18, 30, .84);
+      border: 2px solid var(--outline);
+      box-shadow: inset 0 0 0 1px var(--line);
+    }
+    .bar > i { position: absolute; top: 2px; bottom: 2px; left: 2px; display: block; }
+    .segment { background-image: repeating-linear-gradient(90deg, transparent 0 8px, rgba(0,0,0,.28) 8px 10px); }
+    .fish-hp, .reel { width: 180px; }
+    .fish-hp > i { width: 34%; background-color: #46b866; }
+    .reel > i { width: 76%; background-color: #4a90d9; }
+    .tension-wrap { width: 240px; }
+    .tension { height: 20px; }
+    .tension > i {
+      width: 82%;
+      background: linear-gradient(90deg, #57d95c 0 55%, #ffd44f 55% 78%, #ff5c5c 78%);
+    }
+    .needle {
+      position: absolute;
+      top: -5px; left: 82%;
+      width: 3px; height: 28px;
+      background: white;
+      box-shadow: 1px 1px 0 black;
+      animation: shake .18s linear infinite;
+    }
+    .percent { margin-top: 3px; font-size: 11px; }
+    .warning { margin-top: 4px; color: #ff9696; font-size: 10px; animation: blink .5s step-end infinite; }
+    .hotbar {
+      position: absolute;
+      bottom: 14px; left: 50%;
+      display: flex;
+      transform: translateX(-50%);
+    }
+    .slot {
+      width: 44px; height: 44px;
+      background: rgba(18,18,24,.7);
+      border: 2px solid #555;
+      border-right: 0;
+    }
+    .slot:last-child { border-right: 2px solid #555; }
+    .slot.selected { border: 3px solid #eee; }
+    .caption { margin-top: 14px; color: #aebcca; font-size: 13px; line-height: 1.65; }
+    .caption b { color: var(--gold); }
+    @keyframes bob { 50% { transform: translateY(2px); } }
+    @keyframes blink { 50% { opacity: .25; } }
+    @keyframes shake { 50% { transform: translateX(-1px); } }
+  </style>
+</head>
+<body>
+  <h1>낚시 미니게임 HUD — 중앙 상태 카드 시안</h1>
+  <p class="subtitle">ItemsAdder CUSTOM HUD 기준. 상태 카드는 화면 정중앙, 콤보는 카드의 왼쪽에 표시됩니다.</p>
+  <main class="screen px" aria-label="낚시 HUD 시안">
+    <section class="distance">
+      <div class="distance-track frame">
+        <span class="track-line"></span><span class="danger"></span>
+        <span class="angler">♟</span><span class="fish">◆</span>
+      </div>
+      <div class="distance-label">거리 87 / 150 m</div>
+    </section>
+    <section class="combo" aria-label="콤보">×4<small>리듬 유지 콤보</small></section>
+    <section class="state-card frame" aria-label="물고기 상태">
+      <span class="state-sec">2.4초</span>
+      <div class="state-head"><span class="state-icon">◆</span><span class="state-title">강하게 튀는 중!</span></div>
+      <div class="state-timer"></div>
+      <div class="guide"><span class="mouse"></span> 우클릭으로 줄을 버티세요!</div>
+    </section>
+    <section class="gauges" aria-label="낚시 상태 게이지">
+      <div class="gauge"><div class="gauge-label">◆ 물고기 체력</div><div class="bar fish-hp segment"><i></i></div><div class="percent">34%</div></div>
+      <div class="gauge tension-wrap"><div class="gauge-label">⚡ 낚싯줄 텐션</div><div class="bar tension"><i></i><b class="needle"></b></div><div class="warning">!! 줄이 끊어지기 직전 !!</div></div>
+      <div class="gauge"><div class="gauge-label">◌ 릴 감김</div><div class="bar reel segment"><i></i></div><div class="percent">76%</div></div>
+    </section>
+    <div class="hotbar" aria-hidden="true">
+      <i class="slot selected"></i><i class="slot"></i><i class="slot"></i><i class="slot"></i><i class="slot"></i><i class="slot"></i><i class="slot"></i><i class="slot"></i><i class="slot"></i>
+    </div>
+  </main>
+  <p class="caption"><b>변경 사항:</b> 물고기 상태 카드는 중앙에 고정했고, 콤보는 카드 왼쪽에 배치했습니다. 실제 게임에서는 각 패널과 수치가 ItemsAdder 글리프/PNG 레이어로 렌더링되며, 낚시 세션이 끝나면 전부 해제됩니다.</p>
+</body>
+</html>

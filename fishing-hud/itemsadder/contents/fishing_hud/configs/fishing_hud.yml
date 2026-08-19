@@ -1,0 +1,1201 @@
+# InMc-Fishing 낚시 HUD — ItemsAdder 콘텐츠
+# tools/build_hud_assets.py 가 생성합니다. 직접 수정하면 다음 빌드에서 덮어써집니다.
+#
+# 규칙: scale_ratio = PNG 높이(1:1 렌더), y_position = 아트 윗변의 베이스라인 기준 높이.
+#       PNG 아래쪽 투명 패딩이 곧 화면상의 세로 위치입니다.
+info:
+  namespace: fishing_hud
+
+font_images:
+  # ── 거리 트래커 ──
+  track_angler:
+    path: font/hud/track_angler.png
+    scale_ratio: 198
+    y_position: 197
+    permission: 0
+    show_in_gui: false
+    suggest_in_command: false
+  track_danger:
+    path: font/hud/track_danger.png
+    scale_ratio: 199
+    y_position: 198
+    permission: 0
+    show_in_gui: false
+    suggest_in_command: false
+  track_fish:
+    path: font/hud/track_fish.png
+    scale_ratio: 197
+    y_position: 196
+    permission: 0
+    show_in_gui: false
+    suggest_in_command: false
+  track_frame:
+    path: font/hud/track_frame.png
+    scale_ratio: 201
+    y_position: 200
+    permission: 0
+    show_in_gui: false
+    suggest_in_command: false
+
+  # ── 상태 카드 ──
+  card_bg:
+    path: font/hud/card_bg.png
+    scale_ratio: 153
+    y_position: 152
+    permission: 0
+    show_in_gui: false
+    suggest_in_command: false
+  card_timer_track:
+    path: font/hud/card_timer_track.png
+    scale_ratio: 119
+    y_position: 118
+    permission: 0
+    show_in_gui: false
+    suggest_in_command: false
+  mouse_left:
+    path: font/hud/mouse_left.png
+    scale_ratio: 113
+    y_position: 112
+    permission: 0
+    show_in_gui: false
+    suggest_in_command: false
+  mouse_right:
+    path: font/hud/mouse_right.png
+    scale_ratio: 113
+    y_position: 112
+    permission: 0
+    show_in_gui: false
+    suggest_in_command: false
+
+  # ── 상태 아이콘 ──
+  icon_charge:
+    path: font/hud/icon_charge.png
+    scale_ratio: 143
+    y_position: 142
+    permission: 0
+    show_in_gui: false
+    suggest_in_command: false
+  icon_circle:
+    path: font/hud/icon_circle.png
+    scale_ratio: 143
+    y_position: 142
+    permission: 0
+    show_in_gui: false
+    suggest_in_command: false
+  icon_dive:
+    path: font/hud/icon_dive.png
+    scale_ratio: 143
+    y_position: 142
+    permission: 0
+    show_in_gui: false
+    suggest_in_command: false
+  icon_exhausted:
+    path: font/hud/icon_exhausted.png
+    scale_ratio: 143
+    y_position: 142
+    permission: 0
+    show_in_gui: false
+    suggest_in_command: false
+  icon_final:
+    path: font/hud/icon_final.png
+    scale_ratio: 143
+    y_position: 142
+    permission: 0
+    show_in_gui: false
+    suggest_in_command: false
+  icon_jump:
+    path: font/hud/icon_jump.png
+    scale_ratio: 143
+    y_position: 142
+    permission: 0
+    show_in_gui: false
+    suggest_in_command: false
+  icon_normal:
+    path: font/hud/icon_normal.png
+    scale_ratio: 143
+    y_position: 142
+    permission: 0
+    show_in_gui: false
+    suggest_in_command: false
+  icon_rest:
+    path: font/hud/icon_rest.png
+    scale_ratio: 143
+    y_position: 142
+    permission: 0
+    show_in_gui: false
+    suggest_in_command: false
+  icon_slow:
+    path: font/hud/icon_slow.png
+    scale_ratio: 143
+    y_position: 142
+    permission: 0
+    show_in_gui: false
+    suggest_in_command: false
+  icon_tangle:
+    path: font/hud/icon_tangle.png
+    scale_ratio: 143
+    y_position: 142
+    permission: 0
+    show_in_gui: false
+    suggest_in_command: false
+  icon_turn:
+    path: font/hud/icon_turn.png
+    scale_ratio: 143
+    y_position: 142
+    permission: 0
+    show_in_gui: false
+    suggest_in_command: false
+
+  # ── 하단 게이지 ──
+  gauge_track:
+    path: font/hud/gauge_track.png
+    scale_ratio: 51
+    y_position: 50
+    permission: 0
+    show_in_gui: false
+    suggest_in_command: false
+  icon_bolt:
+    path: font/hud/icon_bolt.png
+    scale_ratio: 62
+    y_position: 61
+    permission: 0
+    show_in_gui: false
+    suggest_in_command: false
+  icon_hp:
+    path: font/hud/icon_hp.png
+    scale_ratio: 62
+    y_position: 61
+    permission: 0
+    show_in_gui: false
+    suggest_in_command: false
+  icon_reel:
+    path: font/hud/icon_reel.png
+    scale_ratio: 62
+    y_position: 61
+    permission: 0
+    show_in_gui: false
+    suggest_in_command: false
+  tension_needle:
+    path: font/hud/tension_needle.png
+    scale_ratio: 57
+    y_position: 56
+    permission: 0
+    show_in_gui: false
+    suggest_in_command: false
+  tension_track:
+    path: font/hud/tension_track.png
+    scale_ratio: 52
+    y_position: 51
+    permission: 0
+    show_in_gui: false
+    suggest_in_command: false
+
+  # ── 게이지 채움 조각(2진 조합) ──
+  fill_c1:
+    path: font/hud/fill_c1.png
+    scale_ratio: 118
+    y_position: 117
+    permission: 0
+    show_in_gui: false
+    suggest_in_command: false
+  fill_c16:
+    path: font/hud/fill_c16.png
+    scale_ratio: 118
+    y_position: 117
+    permission: 0
+    show_in_gui: false
+    suggest_in_command: false
+  fill_c2:
+    path: font/hud/fill_c2.png
+    scale_ratio: 118
+    y_position: 117
+    permission: 0
+    show_in_gui: false
+    suggest_in_command: false
+  fill_c32:
+    path: font/hud/fill_c32.png
+    scale_ratio: 118
+    y_position: 117
+    permission: 0
+    show_in_gui: false
+    suggest_in_command: false
+  fill_c4:
+    path: font/hud/fill_c4.png
+    scale_ratio: 118
+    y_position: 117
+    permission: 0
+    show_in_gui: false
+    suggest_in_command: false
+  fill_c64:
+    path: font/hud/fill_c64.png
+    scale_ratio: 118
+    y_position: 117
+    permission: 0
+    show_in_gui: false
+    suggest_in_command: false
+  fill_c8:
+    path: font/hud/fill_c8.png
+    scale_ratio: 118
+    y_position: 117
+    permission: 0
+    show_in_gui: false
+    suggest_in_command: false
+  fill_g1:
+    path: font/hud/fill_g1.png
+    scale_ratio: 49
+    y_position: 48
+    permission: 0
+    show_in_gui: false
+    suggest_in_command: false
+  fill_g16:
+    path: font/hud/fill_g16.png
+    scale_ratio: 49
+    y_position: 48
+    permission: 0
+    show_in_gui: false
+    suggest_in_command: false
+  fill_g2:
+    path: font/hud/fill_g2.png
+    scale_ratio: 49
+    y_position: 48
+    permission: 0
+    show_in_gui: false
+    suggest_in_command: false
+  fill_g32:
+    path: font/hud/fill_g32.png
+    scale_ratio: 49
+    y_position: 48
+    permission: 0
+    show_in_gui: false
+    suggest_in_command: false
+  fill_g4:
+    path: font/hud/fill_g4.png
+    scale_ratio: 49
+    y_position: 48
+    permission: 0
+    show_in_gui: false
+    suggest_in_command: false
+  fill_g64:
+    path: font/hud/fill_g64.png
+    scale_ratio: 49
+    y_position: 48
+    permission: 0
+    show_in_gui: false
+    suggest_in_command: false
+  fill_g8:
+    path: font/hud/fill_g8.png
+    scale_ratio: 49
+    y_position: 48
+    permission: 0
+    show_in_gui: false
+    suggest_in_command: false
+  fill_m1:
+    path: font/hud/fill_m1.png
+    scale_ratio: 72
+    y_position: 71
+    permission: 0
+    show_in_gui: false
+    suggest_in_command: false
+  fill_m16:
+    path: font/hud/fill_m16.png
+    scale_ratio: 72
+    y_position: 71
+    permission: 0
+    show_in_gui: false
+    suggest_in_command: false
+  fill_m2:
+    path: font/hud/fill_m2.png
+    scale_ratio: 72
+    y_position: 71
+    permission: 0
+    show_in_gui: false
+    suggest_in_command: false
+  fill_m32:
+    path: font/hud/fill_m32.png
+    scale_ratio: 72
+    y_position: 71
+    permission: 0
+    show_in_gui: false
+    suggest_in_command: false
+  fill_m4:
+    path: font/hud/fill_m4.png
+    scale_ratio: 72
+    y_position: 71
+    permission: 0
+    show_in_gui: false
+    suggest_in_command: false
+  fill_m64:
+    path: font/hud/fill_m64.png
+    scale_ratio: 72
+    y_position: 71
+    permission: 0
+    show_in_gui: false
+    suggest_in_command: false
+  fill_m8:
+    path: font/hud/fill_m8.png
+    scale_ratio: 72
+    y_position: 71
+    permission: 0
+    show_in_gui: false
+    suggest_in_command: false
+  fill_t1:
+    path: font/hud/fill_t1.png
+    scale_ratio: 50
+    y_position: 49
+    permission: 0
+    show_in_gui: false
+    suggest_in_command: false
+  fill_t16:
+    path: font/hud/fill_t16.png
+    scale_ratio: 50
+    y_position: 49
+    permission: 0
+    show_in_gui: false
+    suggest_in_command: false
+  fill_t2:
+    path: font/hud/fill_t2.png
+    scale_ratio: 50
+    y_position: 49
+    permission: 0
+    show_in_gui: false
+    suggest_in_command: false
+  fill_t32:
+    path: font/hud/fill_t32.png
+    scale_ratio: 50
+    y_position: 49
+    permission: 0
+    show_in_gui: false
+    suggest_in_command: false
+  fill_t4:
+    path: font/hud/fill_t4.png
+    scale_ratio: 50
+    y_position: 49
+    permission: 0
+    show_in_gui: false
+    suggest_in_command: false
+  fill_t64:
+    path: font/hud/fill_t64.png
+    scale_ratio: 50
+    y_position: 49
+    permission: 0
+    show_in_gui: false
+    suggest_in_command: false
+  fill_t8:
+    path: font/hud/fill_t8.png
+    scale_ratio: 50
+    y_position: 49
+    permission: 0
+    show_in_gui: false
+    suggest_in_command: false
+
+  # ── 숫자 글리프 ──
+  num_big_0:
+    path: font/hud/num_big_0.png
+    scale_ratio: 149
+    y_position: 148
+    permission: 0
+    show_in_gui: false
+    suggest_in_command: false
+  num_big_1:
+    path: font/hud/num_big_1.png
+    scale_ratio: 149
+    y_position: 148
+    permission: 0
+    show_in_gui: false
+    suggest_in_command: false
+  num_big_2:
+    path: font/hud/num_big_2.png
+    scale_ratio: 149
+    y_position: 148
+    permission: 0
+    show_in_gui: false
+    suggest_in_command: false
+  num_big_3:
+    path: font/hud/num_big_3.png
+    scale_ratio: 149
+    y_position: 148
+    permission: 0
+    show_in_gui: false
+    suggest_in_command: false
+  num_big_4:
+    path: font/hud/num_big_4.png
+    scale_ratio: 149
+    y_position: 148
+    permission: 0
+    show_in_gui: false
+    suggest_in_command: false
+  num_big_5:
+    path: font/hud/num_big_5.png
+    scale_ratio: 149
+    y_position: 148
+    permission: 0
+    show_in_gui: false
+    suggest_in_command: false
+  num_big_6:
+    path: font/hud/num_big_6.png
+    scale_ratio: 149
+    y_position: 148
+    permission: 0
+    show_in_gui: false
+    suggest_in_command: false
+  num_big_7:
+    path: font/hud/num_big_7.png
+    scale_ratio: 149
+    y_position: 148
+    permission: 0
+    show_in_gui: false
+    suggest_in_command: false
+  num_big_8:
+    path: font/hud/num_big_8.png
+    scale_ratio: 149
+    y_position: 148
+    permission: 0
+    show_in_gui: false
+    suggest_in_command: false
+  num_big_9:
+    path: font/hud/num_big_9.png
+    scale_ratio: 149
+    y_position: 148
+    permission: 0
+    show_in_gui: false
+    suggest_in_command: false
+  num_big_x:
+    path: font/hud/num_big_x.png
+    scale_ratio: 149
+    y_position: 148
+    permission: 0
+    show_in_gui: false
+    suggest_in_command: false
+  num_low_0:
+    path: font/hud/num_low_0.png
+    scale_ratio: 37
+    y_position: 36
+    permission: 0
+    show_in_gui: false
+    suggest_in_command: false
+  num_low_1:
+    path: font/hud/num_low_1.png
+    scale_ratio: 37
+    y_position: 36
+    permission: 0
+    show_in_gui: false
+    suggest_in_command: false
+  num_low_2:
+    path: font/hud/num_low_2.png
+    scale_ratio: 37
+    y_position: 36
+    permission: 0
+    show_in_gui: false
+    suggest_in_command: false
+  num_low_3:
+    path: font/hud/num_low_3.png
+    scale_ratio: 37
+    y_position: 36
+    permission: 0
+    show_in_gui: false
+    suggest_in_command: false
+  num_low_4:
+    path: font/hud/num_low_4.png
+    scale_ratio: 37
+    y_position: 36
+    permission: 0
+    show_in_gui: false
+    suggest_in_command: false
+  num_low_5:
+    path: font/hud/num_low_5.png
+    scale_ratio: 37
+    y_position: 36
+    permission: 0
+    show_in_gui: false
+    suggest_in_command: false
+  num_low_6:
+    path: font/hud/num_low_6.png
+    scale_ratio: 37
+    y_position: 36
+    permission: 0
+    show_in_gui: false
+    suggest_in_command: false
+  num_low_7:
+    path: font/hud/num_low_7.png
+    scale_ratio: 37
+    y_position: 36
+    permission: 0
+    show_in_gui: false
+    suggest_in_command: false
+  num_low_8:
+    path: font/hud/num_low_8.png
+    scale_ratio: 37
+    y_position: 36
+    permission: 0
+    show_in_gui: false
+    suggest_in_command: false
+  num_low_9:
+    path: font/hud/num_low_9.png
+    scale_ratio: 37
+    y_position: 36
+    permission: 0
+    show_in_gui: false
+    suggest_in_command: false
+  num_low_colon:
+    path: font/hud/num_low_colon.png
+    scale_ratio: 37
+    y_position: 36
+    permission: 0
+    show_in_gui: false
+    suggest_in_command: false
+  num_low_dot:
+    path: font/hud/num_low_dot.png
+    scale_ratio: 37
+    y_position: 36
+    permission: 0
+    show_in_gui: false
+    suggest_in_command: false
+  num_low_m:
+    path: font/hud/num_low_m.png
+    scale_ratio: 37
+    y_position: 36
+    permission: 0
+    show_in_gui: false
+    suggest_in_command: false
+  num_low_minus:
+    path: font/hud/num_low_minus.png
+    scale_ratio: 37
+    y_position: 36
+    permission: 0
+    show_in_gui: false
+    suggest_in_command: false
+  num_low_percent:
+    path: font/hud/num_low_percent.png
+    scale_ratio: 37
+    y_position: 36
+    permission: 0
+    show_in_gui: false
+    suggest_in_command: false
+  num_low_plus:
+    path: font/hud/num_low_plus.png
+    scale_ratio: 37
+    y_position: 36
+    permission: 0
+    show_in_gui: false
+    suggest_in_command: false
+  num_low_slash:
+    path: font/hud/num_low_slash.png
+    scale_ratio: 37
+    y_position: 36
+    permission: 0
+    show_in_gui: false
+    suggest_in_command: false
+  num_low_x:
+    path: font/hud/num_low_x.png
+    scale_ratio: 37
+    y_position: 36
+    permission: 0
+    show_in_gui: false
+    suggest_in_command: false
+  num_mid_0:
+    path: font/hud/num_mid_0.png
+    scale_ratio: 144
+    y_position: 143
+    permission: 0
+    show_in_gui: false
+    suggest_in_command: false
+  num_mid_1:
+    path: font/hud/num_mid_1.png
+    scale_ratio: 144
+    y_position: 143
+    permission: 0
+    show_in_gui: false
+    suggest_in_command: false
+  num_mid_2:
+    path: font/hud/num_mid_2.png
+    scale_ratio: 144
+    y_position: 143
+    permission: 0
+    show_in_gui: false
+    suggest_in_command: false
+  num_mid_3:
+    path: font/hud/num_mid_3.png
+    scale_ratio: 144
+    y_position: 143
+    permission: 0
+    show_in_gui: false
+    suggest_in_command: false
+  num_mid_4:
+    path: font/hud/num_mid_4.png
+    scale_ratio: 144
+    y_position: 143
+    permission: 0
+    show_in_gui: false
+    suggest_in_command: false
+  num_mid_5:
+    path: font/hud/num_mid_5.png
+    scale_ratio: 144
+    y_position: 143
+    permission: 0
+    show_in_gui: false
+    suggest_in_command: false
+  num_mid_6:
+    path: font/hud/num_mid_6.png
+    scale_ratio: 144
+    y_position: 143
+    permission: 0
+    show_in_gui: false
+    suggest_in_command: false
+  num_mid_7:
+    path: font/hud/num_mid_7.png
+    scale_ratio: 144
+    y_position: 143
+    permission: 0
+    show_in_gui: false
+    suggest_in_command: false
+  num_mid_8:
+    path: font/hud/num_mid_8.png
+    scale_ratio: 144
+    y_position: 143
+    permission: 0
+    show_in_gui: false
+    suggest_in_command: false
+  num_mid_9:
+    path: font/hud/num_mid_9.png
+    scale_ratio: 144
+    y_position: 143
+    permission: 0
+    show_in_gui: false
+    suggest_in_command: false
+  num_mid_colon:
+    path: font/hud/num_mid_colon.png
+    scale_ratio: 144
+    y_position: 143
+    permission: 0
+    show_in_gui: false
+    suggest_in_command: false
+  num_mid_dot:
+    path: font/hud/num_mid_dot.png
+    scale_ratio: 144
+    y_position: 143
+    permission: 0
+    show_in_gui: false
+    suggest_in_command: false
+  num_mid_m:
+    path: font/hud/num_mid_m.png
+    scale_ratio: 144
+    y_position: 143
+    permission: 0
+    show_in_gui: false
+    suggest_in_command: false
+  num_mid_minus:
+    path: font/hud/num_mid_minus.png
+    scale_ratio: 144
+    y_position: 143
+    permission: 0
+    show_in_gui: false
+    suggest_in_command: false
+  num_mid_percent:
+    path: font/hud/num_mid_percent.png
+    scale_ratio: 144
+    y_position: 143
+    permission: 0
+    show_in_gui: false
+    suggest_in_command: false
+  num_mid_plus:
+    path: font/hud/num_mid_plus.png
+    scale_ratio: 144
+    y_position: 143
+    permission: 0
+    show_in_gui: false
+    suggest_in_command: false
+  num_mid_slash:
+    path: font/hud/num_mid_slash.png
+    scale_ratio: 144
+    y_position: 143
+    permission: 0
+    show_in_gui: false
+    suggest_in_command: false
+  num_mid_x:
+    path: font/hud/num_mid_x.png
+    scale_ratio: 144
+    y_position: 143
+    permission: 0
+    show_in_gui: false
+    suggest_in_command: false
+  num_top_0:
+    path: font/hud/num_top_0.png
+    scale_ratio: 181
+    y_position: 180
+    permission: 0
+    show_in_gui: false
+    suggest_in_command: false
+  num_top_1:
+    path: font/hud/num_top_1.png
+    scale_ratio: 181
+    y_position: 180
+    permission: 0
+    show_in_gui: false
+    suggest_in_command: false
+  num_top_2:
+    path: font/hud/num_top_2.png
+    scale_ratio: 181
+    y_position: 180
+    permission: 0
+    show_in_gui: false
+    suggest_in_command: false
+  num_top_3:
+    path: font/hud/num_top_3.png
+    scale_ratio: 181
+    y_position: 180
+    permission: 0
+    show_in_gui: false
+    suggest_in_command: false
+  num_top_4:
+    path: font/hud/num_top_4.png
+    scale_ratio: 181
+    y_position: 180
+    permission: 0
+    show_in_gui: false
+    suggest_in_command: false
+  num_top_5:
+    path: font/hud/num_top_5.png
+    scale_ratio: 181
+    y_position: 180
+    permission: 0
+    show_in_gui: false
+    suggest_in_command: false
+  num_top_6:
+    path: font/hud/num_top_6.png
+    scale_ratio: 181
+    y_position: 180
+    permission: 0
+    show_in_gui: false
+    suggest_in_command: false
+  num_top_7:
+    path: font/hud/num_top_7.png
+    scale_ratio: 181
+    y_position: 180
+    permission: 0
+    show_in_gui: false
+    suggest_in_command: false
+  num_top_8:
+    path: font/hud/num_top_8.png
+    scale_ratio: 181
+    y_position: 180
+    permission: 0
+    show_in_gui: false
+    suggest_in_command: false
+  num_top_9:
+    path: font/hud/num_top_9.png
+    scale_ratio: 181
+    y_position: 180
+    permission: 0
+    show_in_gui: false
+    suggest_in_command: false
+  num_top_colon:
+    path: font/hud/num_top_colon.png
+    scale_ratio: 181
+    y_position: 180
+    permission: 0
+    show_in_gui: false
+    suggest_in_command: false
+  num_top_dot:
+    path: font/hud/num_top_dot.png
+    scale_ratio: 181
+    y_position: 180
+    permission: 0
+    show_in_gui: false
+    suggest_in_command: false
+  num_top_m:
+    path: font/hud/num_top_m.png
+    scale_ratio: 181
+    y_position: 180
+    permission: 0
+    show_in_gui: false
+    suggest_in_command: false
+  num_top_minus:
+    path: font/hud/num_top_minus.png
+    scale_ratio: 181
+    y_position: 180
+    permission: 0
+    show_in_gui: false
+    suggest_in_command: false
+  num_top_percent:
+    path: font/hud/num_top_percent.png
+    scale_ratio: 181
+    y_position: 180
+    permission: 0
+    show_in_gui: false
+    suggest_in_command: false
+  num_top_plus:
+    path: font/hud/num_top_plus.png
+    scale_ratio: 181
+    y_position: 180
+    permission: 0
+    show_in_gui: false
+    suggest_in_command: false
+  num_top_slash:
+    path: font/hud/num_top_slash.png
+    scale_ratio: 181
+    y_position: 180
+    permission: 0
+    show_in_gui: false
+    suggest_in_command: false
+  num_top_x:
+    path: font/hud/num_top_x.png
+    scale_ratio: 181
+    y_position: 180
+    permission: 0
+    show_in_gui: false
+    suggest_in_command: false
+
+  # ── 한글 라벨 ──
+  guide_charge:
+    path: font/hud/guide_charge.png
+    scale_ratio: 111
+    y_position: 110
+    permission: 0
+    show_in_gui: false
+    suggest_in_command: false
+  guide_circle:
+    path: font/hud/guide_circle.png
+    scale_ratio: 111
+    y_position: 110
+    permission: 0
+    show_in_gui: false
+    suggest_in_command: false
+  guide_dive:
+    path: font/hud/guide_dive.png
+    scale_ratio: 111
+    y_position: 110
+    permission: 0
+    show_in_gui: false
+    suggest_in_command: false
+  guide_exhausted:
+    path: font/hud/guide_exhausted.png
+    scale_ratio: 111
+    y_position: 110
+    permission: 0
+    show_in_gui: false
+    suggest_in_command: false
+  guide_final_struggle:
+    path: font/hud/guide_final_struggle.png
+    scale_ratio: 111
+    y_position: 110
+    permission: 0
+    show_in_gui: false
+    suggest_in_command: false
+  guide_jump:
+    path: font/hud/guide_jump.png
+    scale_ratio: 111
+    y_position: 110
+    permission: 0
+    show_in_gui: false
+    suggest_in_command: false
+  guide_line_tangle:
+    path: font/hud/guide_line_tangle.png
+    scale_ratio: 111
+    y_position: 110
+    permission: 0
+    show_in_gui: false
+    suggest_in_command: false
+  guide_normal_move:
+    path: font/hud/guide_normal_move.png
+    scale_ratio: 111
+    y_position: 110
+    permission: 0
+    show_in_gui: false
+    suggest_in_command: false
+  guide_rest:
+    path: font/hud/guide_rest.png
+    scale_ratio: 111
+    y_position: 110
+    permission: 0
+    show_in_gui: false
+    suggest_in_command: false
+  guide_slow_move:
+    path: font/hud/guide_slow_move.png
+    scale_ratio: 111
+    y_position: 110
+    permission: 0
+    show_in_gui: false
+    suggest_in_command: false
+  guide_turn:
+    path: font/hud/guide_turn.png
+    scale_ratio: 111
+    y_position: 110
+    permission: 0
+    show_in_gui: false
+    suggest_in_command: false
+  label_bite:
+    path: font/hud/label_bite.png
+    scale_ratio: 141
+    y_position: 140
+    permission: 0
+    show_in_gui: false
+    suggest_in_command: false
+  label_combo_left:
+    path: font/hud/label_combo_left.png
+    scale_ratio: 132
+    y_position: 131
+    permission: 0
+    show_in_gui: false
+    suggest_in_command: false
+  label_combo_right:
+    path: font/hud/label_combo_right.png
+    scale_ratio: 132
+    y_position: 131
+    permission: 0
+    show_in_gui: false
+    suggest_in_command: false
+  label_distance:
+    path: font/hud/label_distance.png
+    scale_ratio: 183
+    y_position: 182
+    permission: 0
+    show_in_gui: false
+    suggest_in_command: false
+  label_fish_hp:
+    path: font/hud/label_fish_hp.png
+    scale_ratio: 63
+    y_position: 62
+    permission: 0
+    show_in_gui: false
+    suggest_in_command: false
+  label_mg_fail:
+    path: font/hud/label_mg_fail.png
+    scale_ratio: 141
+    y_position: 140
+    permission: 0
+    show_in_gui: false
+    suggest_in_command: false
+  label_mg_guide:
+    path: font/hud/label_mg_guide.png
+    scale_ratio: 127
+    y_position: 126
+    permission: 0
+    show_in_gui: false
+    suggest_in_command: false
+  label_mg_success:
+    path: font/hud/label_mg_success.png
+    scale_ratio: 141
+    y_position: 140
+    permission: 0
+    show_in_gui: false
+    suggest_in_command: false
+  label_reel:
+    path: font/hud/label_reel.png
+    scale_ratio: 63
+    y_position: 62
+    permission: 0
+    show_in_gui: false
+    suggest_in_command: false
+  label_sec:
+    path: font/hud/label_sec.png
+    scale_ratio: 144
+    y_position: 143
+    permission: 0
+    show_in_gui: false
+    suggest_in_command: false
+  label_tension:
+    path: font/hud/label_tension.png
+    scale_ratio: 63
+    y_position: 62
+    permission: 0
+    show_in_gui: false
+    suggest_in_command: false
+  label_warn:
+    path: font/hud/label_warn.png
+    scale_ratio: 37
+    y_position: 36
+    permission: 0
+    show_in_gui: false
+    suggest_in_command: false
+  state_charge:
+    path: font/hud/state_charge.png
+    scale_ratio: 142
+    y_position: 141
+    permission: 0
+    show_in_gui: false
+    suggest_in_command: false
+  state_circle:
+    path: font/hud/state_circle.png
+    scale_ratio: 142
+    y_position: 141
+    permission: 0
+    show_in_gui: false
+    suggest_in_command: false
+  state_dive:
+    path: font/hud/state_dive.png
+    scale_ratio: 142
+    y_position: 141
+    permission: 0
+    show_in_gui: false
+    suggest_in_command: false
+  state_exhausted:
+    path: font/hud/state_exhausted.png
+    scale_ratio: 142
+    y_position: 141
+    permission: 0
+    show_in_gui: false
+    suggest_in_command: false
+  state_final_struggle:
+    path: font/hud/state_final_struggle.png
+    scale_ratio: 142
+    y_position: 141
+    permission: 0
+    show_in_gui: false
+    suggest_in_command: false
+  state_jump:
+    path: font/hud/state_jump.png
+    scale_ratio: 142
+    y_position: 141
+    permission: 0
+    show_in_gui: false
+    suggest_in_command: false
+  state_line_tangle:
+    path: font/hud/state_line_tangle.png
+    scale_ratio: 142
+    y_position: 141
+    permission: 0
+    show_in_gui: false
+    suggest_in_command: false
+  state_normal_move:
+    path: font/hud/state_normal_move.png
+    scale_ratio: 142
+    y_position: 141
+    permission: 0
+    show_in_gui: false
+    suggest_in_command: false
+  state_rest:
+    path: font/hud/state_rest.png
+    scale_ratio: 142
+    y_position: 141
+    permission: 0
+    show_in_gui: false
+    suggest_in_command: false
+  state_slow_move:
+    path: font/hud/state_slow_move.png
+    scale_ratio: 142
+    y_position: 141
+    permission: 0
+    show_in_gui: false
+    suggest_in_command: false
+  state_turn:
+    path: font/hud/state_turn.png
+    scale_ratio: 142
+    y_position: 141
+    permission: 0
+    show_in_gui: false
+    suggest_in_command: false
+
+  # ── L/R 미니게임 ──
+  mg_key_l_active:
+    path: font/hud/mg_key_l_active.png
+    scale_ratio: 113
+    y_position: 112
+    permission: 0
+    show_in_gui: false
+    suggest_in_command: false
+  mg_key_l_done:
+    path: font/hud/mg_key_l_done.png
+    scale_ratio: 113
+    y_position: 112
+    permission: 0
+    show_in_gui: false
+    suggest_in_command: false
+  mg_key_l_idle:
+    path: font/hud/mg_key_l_idle.png
+    scale_ratio: 113
+    y_position: 112
+    permission: 0
+    show_in_gui: false
+    suggest_in_command: false
+  mg_key_r_active:
+    path: font/hud/mg_key_r_active.png
+    scale_ratio: 113
+    y_position: 112
+    permission: 0
+    show_in_gui: false
+    suggest_in_command: false
+  mg_key_r_done:
+    path: font/hud/mg_key_r_done.png
+    scale_ratio: 113
+    y_position: 112
+    permission: 0
+    show_in_gui: false
+    suggest_in_command: false
+  mg_key_r_idle:
+    path: font/hud/mg_key_r_idle.png
+    scale_ratio: 113
+    y_position: 112
+    permission: 0
+    show_in_gui: false
+    suggest_in_command: false
+  mg_panel_l:
+    path: font/hud/mg_panel_l.png
+    scale_ratio: 147
+    y_position: 146
+    permission: 0
+    show_in_gui: false
+    suggest_in_command: false
+  mg_panel_m1:
+    path: font/hud/mg_panel_m1.png
+    scale_ratio: 147
+    y_position: 146
+    permission: 0
+    show_in_gui: false
+    suggest_in_command: false
+  mg_panel_m16:
+    path: font/hud/mg_panel_m16.png
+    scale_ratio: 147
+    y_position: 146
+    permission: 0
+    show_in_gui: false
+    suggest_in_command: false
+  mg_panel_m2:
+    path: font/hud/mg_panel_m2.png
+    scale_ratio: 147
+    y_position: 146
+    permission: 0
+    show_in_gui: false
+    suggest_in_command: false
+  mg_panel_m32:
+    path: font/hud/mg_panel_m32.png
+    scale_ratio: 147
+    y_position: 146
+    permission: 0
+    show_in_gui: false
+    suggest_in_command: false
+  mg_panel_m4:
+    path: font/hud/mg_panel_m4.png
+    scale_ratio: 147
+    y_position: 146
+    permission: 0
+    show_in_gui: false
+    suggest_in_command: false
+  mg_panel_m64:
+    path: font/hud/mg_panel_m64.png
+    scale_ratio: 147
+    y_position: 146
+    permission: 0
+    show_in_gui: false
+    suggest_in_command: false
+  mg_panel_m8:
+    path: font/hud/mg_panel_m8.png
+    scale_ratio: 147
+    y_position: 146
+    permission: 0
+    show_in_gui: false
+    suggest_in_command: false
+  mg_panel_r:
+    path: font/hud/mg_panel_r.png
+    scale_ratio: 147
+    y_position: 146
+    permission: 0
+    show_in_gui: false
+    suggest_in_command: false
+  mg_timer_track:
+    path: font/hud/mg_timer_track.png
+    scale_ratio: 73
+    y_position: 72
+    permission: 0
+    show_in_gui: false
+    suggest_in_command: false
+
