@@ -57,6 +57,12 @@ public final class HudLayout {
     public final String fallbackBossbar;
     public final String fallbackActionbar;
 
+    /**
+     * ItemsAdder 오프셋 글리프 1개당 실제 이동량 오차(px).
+     * HUD 가 좌우로 흔들릴 때 1 또는 -1 로 맞춘다. 0이면 보정하지 않는다.
+     */
+    public final int offsetCharCorrection;
+
     private final Map<String, String> colors = new HashMap<>();
     private final Map<String, StateStyle> states = new HashMap<>();
     private final Map<String, Integer> layout = new HashMap<>();
@@ -65,7 +71,8 @@ public final class HudLayout {
         enabled = cfg.getBoolean("enabled", true);
         namespace = cfg.getString("namespace", "fishing_hud");
         requireResourcePack = cfg.getBoolean("require-resourcepack", true);
-        updateIntervalTicks = Math.max(1, cfg.getInt("update-interval-ticks", 2));
+        updateIntervalTicks = Math.max(1, cfg.getInt("update-interval-ticks", 1));
+        offsetCharCorrection = cfg.getInt("offset-char-correction", 0);
         tensionWarnThreshold = cfg.getDouble("warning.tension-threshold", 0.8);
         blinkPeriodTicks = Math.max(2, cfg.getInt("warning.blink-period-ticks", 10));
         fightMode = parseMode(cfg.getString("fight.mode", "glyph"));

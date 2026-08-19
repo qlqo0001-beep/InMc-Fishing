@@ -49,7 +49,7 @@ public final class GlyphHudRenderer implements HudRenderer {
 
     @Override
     public void updateFight(Player player, FightHudData d) {
-        GlyphLine line = new GlyphLine(table, resolver);
+        GlyphLine line = new GlyphLine(table, resolver, layout.offsetCharCorrection);
 
         // ── 1. 거리 트래커 (상단) ──────────────────────────────
         int trackX = layout.x("track.x", -100);
@@ -153,7 +153,7 @@ public final class GlyphHudRenderer implements HudRenderer {
 
     @Override
     public void updateMinigame(Player player, MinigameHudData d) {
-        GlyphLine line = new GlyphLine(table, resolver);
+        GlyphLine line = new GlyphLine(table, resolver, layout.offsetCharCorrection);
 
         // 클릭 수(등급별 3~9회)에 따라 패널 폭이 달라진다.
         int keyWidth = table.width("mg_key_l_idle");

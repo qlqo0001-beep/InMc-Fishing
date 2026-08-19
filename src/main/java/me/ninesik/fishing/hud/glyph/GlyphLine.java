@@ -28,19 +28,38 @@ public final class GlyphLine {
     private final GlyphTable table;
     private final Resolver resolver;
     private int cursor;
+
+    /**
+     * 이번 라인에 실제로 나간 오프셋 글리프 문자 수.
+     *
+     * <p>흔들림 보정에 쓴다. 오프셋 문자 하나가 요청한 px 보다 {@code correction} 만큼
+     * 더(또는 덜) 움직이면, 그 오차가 문자 수에 비례해 쌓여 라인 전체 폭이 달라진다.
+     * 게이지 채움 조각이 많아질수록 오프셋 문자도 늘어나므로 프레임마다 폭이 흔들린다.</p>
+     */
+    private int offsetChars;
+
+    /** 오프셋 문자 1개당 실제 이동량 오차(px). 0이면 보정하지 않는다. */
+    private final int correction;
     private String pendingColor = "";
     private String lastColor;
 
     public GlyphLine(GlyphTable table, Resolver resolver) {
+        this(table, resolver, 0);
+    }
+
+    public GlyphLine(GlyphTable table, Resolver resolver, int correction) {
         this.table = table;
         this.resolver = resolver;
+        this.correction = correction;
     }
 
     /** 커서를 절대 x 로 이동. */
     public GlyphLine move(int x) {
         int delta = x - cursor;
         if (delta != 0) {
-            out.append(resolver.offset(delta));
+            String moved = resolver.offset(delta);
+            out.append(moved);
+            offsetChars += moved.codePointCount(0, moved.length());
             cursor = x;
         }
         return this;
@@ -191,9 +210,23 @@ public final class GlyphLine {
         return this;
     }
 
-    /** 커서를 0 으로 되돌려 전체 advance 를 0 으로 만든 최종 문자열. */
+    /**
+     * 커서를 0 으로 되돌려 전체 advance 를 0 으로 만든 최종 문자열.
+     *
+     * <p>{@code correction} 이 0이 아니면 오프셋 문자 수만큼 쌓인 오차를 마지막에 상쇄한다.
+     * 상쇄용 오프셋 자체도 문자를 더하므로 몇 번 반복해 수렴시킨다.</p>
+     */
     public String build() {
         move(0);
+        if (correction != 0) {
+            for (int i = 0; i < 5; i++) {
+                int target = -correction * offsetChars;
+                if (cursor == target) {
+                    break;
+                }
+                move(target);
+            }
+        }
         return out.toString();
     }
 
