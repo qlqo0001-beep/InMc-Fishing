@@ -121,58 +121,6 @@ public class FishingMiniGame implements MiniGame {
         this.fatigueManager = fatigueManager;
     }
 
-    /**
-     * ItemsAdder 글리프 HUD. null 이거나 이 플레이어가 못 쓰면 기존 타임바 타이틀이
-     * 그대로 표시된다 — {@code showMinigame()} 가 false 를 돌려주는 경우가 그 신호다.
-     */
-    private me.ninesik.fishing.hud.FishingHudController fishingHud;
-
-    /** 글리프 HUD 갱신 태스크. 타임바는 1초 단위라 시간 막대가 뚝뚝 끊겨서 따로 돌린다. */
-    private final Map<UUID, BukkitTask> hudTasks = new ConcurrentHashMap<>();
-
-    public void setHud(me.ninesik.fishing.hud.FishingHudController fishingHud) {
-        this.fishingHud = fishingHud;
-    }
-
-    /** 세션의 클릭 시퀀스를 HUD가 읽는 L/R 문자열로 바꾼다. */
-    private static char[] hudSequence(java.util.List<me.ninesik.fishing.session.ClickInput> inputs) {
-        char[] out = new char[inputs.size()];
-        for (int i = 0; i < out.length; i++) {
-            out[i] = inputs.get(i).name().startsWith("LEFT") ? 'L' : 'R';
-        }
-        return out;
-    }
-
-    /**
-     * 글리프 HUD를 매 틱 갱신하는 태스크를 건다.
-     * 남은 시간은 타임바의 초 단위 값이 아니라 벽시계로 계산해서 막대가 매끄럽게 줄어든다.
-     */
-    private void startHudTask(Player player, char[] sequence, int timeLimitSeconds) {
-        UUID uuid = player.getUniqueId();
-        long deadline = System.currentTimeMillis() + timeLimitSeconds * 1000L;
-        double totalMillis = timeLimitSeconds * 1000.0;
-        BukkitTask task = plugin.getServer().getScheduler().runTaskTimer(plugin, () -> {
-            Player online = plugin.getServer().getPlayer(uuid);
-            FishingSession session = online == null ? null : sessionManager.getSession(online);
-            if (online == null || session == null || !session.isActive()) {
-                stopHudTask(uuid);
-                return;
-            }
-            double ratio = (deadline - System.currentTimeMillis()) / totalMillis;
-            fishingHud.minigameData(online).set(sequence, session.getCurrentIndex(), ratio,
-                    me.ninesik.fishing.hud.MinigameHudData.Phase.PLAYING);
-            fishingHud.updateMinigame(online);
-        }, 1L, 1L);
-        hudTasks.put(uuid, task);
-    }
-
-    private void stopHudTask(UUID uuid) {
-        BukkitTask task = hudTasks.remove(uuid);
-        if (task != null) {
-            task.cancel();
-        }
-    }
-
     @Override
     public void start(Player player, Grade grade, RewardEntry reward) {
         if (gameManager.hasActiveGame(player)) {
@@ -213,12 +161,6 @@ public class FishingMiniGame implements MiniGame {
         timeBar.setOnTimeout(() -> stop(player, GameResult.TIMEOUT));
         timeBars.put(uuid, timeBar);
         timeBar.start();
-
-        // 글리프 HUD가 미니게임을 맡으면 키 카드 패널을 띄우고 매 틱 갱신한다.
-        // false면 위 TimeBarMiniGame의 타이틀 표시가 그대로 폴백이 된다.
-        if (fishingHud != null && fishingHud.showMinigame(player)) {
-            startHudTask(player, hudSequence(clickInputs), timeLimitSeconds);
-        }
 
         // 입질(시작) 사운드 — 클릭 사운드(control)와는 별도로 config.yml의 sounds.bite 사용
         Sounds.play(player, configManager.getSound("bite"));
@@ -312,14 +254,6 @@ public class FishingMiniGame implements MiniGame {
                 // 틱 갱신을 기다리지 않고 즉시 타이틀 갱신
                 TimeBarMiniGame tb = timeBars.get(player.getUniqueId());
                 if (tb != null) tb.refresh();
-                // 눌린 칸이 바로 넘어가야 손맛이 사므로 갱신 주기를 기다리지 않는다.
-                if (fishingHud != null) {
-                    fishingHud.minigameData(player).set(
-                            hudSequence(session.getSequence()), next, 
-                            fishingHud.minigameData(player).timeRatio,
-                            me.ninesik.fishing.hud.MinigameHudData.Phase.PLAYING);
-                    fishingHud.flush(player);
-                }
             } else {
                 // 마지막 입력 성공 — 시퀀스 완료, setCurrentIndex 호출 없이 즉시 성공 처리
                 stop(player, GameResult.SUCCESS);
@@ -351,13 +285,6 @@ public class FishingMiniGame implements MiniGame {
         TimeBarMiniGame timeBar = timeBars.remove(uuid);
         if (timeBar != null) {
             timeBar.stop();
-        }
-
-        // 글리프 HUD 정리. 성공/실패 연출을 한 프레임 보여주고 지운다.
-        // 파이트로 이어지는 경우 TrophyFightManager.startFight가 showFight로 이어받는다.
-        stopHudTask(uuid);
-        if (fishingHud != null) {
-            fishingHud.hide(player);
         }
 
         // 세션 종료 (CAS — 한 번만 성공)

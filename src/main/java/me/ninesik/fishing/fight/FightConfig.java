@@ -207,10 +207,41 @@ public class FightConfig {
 
     /** BossBar/ActionBar 표시 설정. */
     public static class HudConfig {
+        /**
+         * HUD 표시 방식 — {@code vanilla}(기본: 보스바/액션바/타이틀) 또는
+         * {@code betterhud}(외부 BetterHud 플러그인이 그래픽 HUD를 그림).
+         *
+         * <p>{@code betterhud} 모드에서는 이 플러그인이 파이트 중 보스바·액션바·상태
+         * 타이틀을 일절 출력하지 않는다. 대신 PlaceholderAPI 확장
+         * ({@code %inmcfishing_fight_*%})이 매 틱 파이트 수치를 노출하고, BetterHud가
+         * 그 값을 읽어 리소스팩 HUD를 렌더링한다. 시작 인트로(!!!/3/2/1/START!!)
+         * 연출 타이틀은 파이트 HUD가 아니므로 모드와 무관하게 유지된다.</p>
+         *
+         * <p>리소스팩을 아직 받지 못한 유저가 많거나 문제가 생기면 이 값을
+         * {@code vanilla}로 되돌리는 것만으로 즉시 기존 텍스트 HUD로 롤백된다.</p>
+         */
+        public final String mode;
         /** BossBar 게이지 색상 — 안정/주의/위험 */
         public final String barColorSafe;
         public final String barColorWarning;
         public final String barColorDanger;
+
+        // --- 경고 임계값 ---
+        // 파이트 실패 조건은 셋(줄 끊김·물고기 도망·릴 파손)인데 예전에는 장력에만 경고가
+        // 있었고, 그 임계값(0.8/0.5)조차 FightHUD와 PlaceholderExpansion 두 곳에
+        // 하드코딩돼 있었다. 세 경고를 한 자리에서 조율할 수 있게 config로 끌어올린다.
+
+        /** 장력 위험(빨강·점멸) 시작 비율 = 현재 장력 / 줄 강도. */
+        public final double tensionDangerRatio;
+        /** 장력 주의(노랑) 시작 비율. */
+        public final double tensionWarningRatio;
+        /**
+         * 거리 경고 시작 % (현재 거리 / 최대 거리).
+         * 기본 85 — BetterHud frame_track.png의 빨간 위험 구간이 시작되는 지점과 맞춘 값이다.
+         */
+        public final double distanceDangerPercent;
+        /** 릴 내구도 경고 시작 % — 남은 내구도가 이 값 "미만"이면 경고. */
+        public final double reelDangerPercent;
         /** BossBar 네임 텍스트 포맷 ({distance} = 현재 Distance 값) */
         public final String bossBarTitleFormat;
         /** ActionBar 텍스트 포맷 ({stamina}/{power}/{resistance}/{reel} = 각 수치) */
@@ -250,13 +281,30 @@ public class FightConfig {
         public record StateGuide(String title, String subtitle) {
         }
 
+        /** BetterHud 모드인지 — true면 이 플러그인의 보스바/액션바/타이틀 출력을 끈다. */
+        public boolean isBetterHud() {
+            return "betterhud".equals(mode);
+        }
+
         public HudConfig(FileConfiguration config) {
+            // 알 수 없는 값은 vanilla로 흡수 — 오타로 HUD가 통째로 사라지는 사고 방지.
+            String rawMode = config.getString("trophy-fight.hud.mode", "vanilla")
+                    .trim().toLowerCase(java.util.Locale.ROOT);
+            this.mode = rawMode.equals("betterhud") ? "betterhud" : "vanilla";
             this.showActionPower = config.getBoolean("trophy-fight.hud.show-action-power", false);
             this.actionPowerFormat = config.getString("trophy-fight.hud.action-power-format",
                     " &d행동력 &f{action_power}&7/&f{max_action_power}");
             this.barColorSafe = config.getString("trophy-fight.hud.bar-color-safe", "&a");
             this.barColorWarning = config.getString("trophy-fight.hud.bar-color-warning", "&e");
             this.barColorDanger = config.getString("trophy-fight.hud.bar-color-danger", "&c");
+            this.tensionDangerRatio = clamp(
+                    config.getDouble("trophy-fight.hud.tension-danger-ratio", 0.75), 0.0, 1.0);
+            this.tensionWarningRatio = clamp(
+                    config.getDouble("trophy-fight.hud.tension-warning-ratio", 0.5), 0.0, 1.0);
+            this.distanceDangerPercent = clamp(
+                    config.getDouble("trophy-fight.hud.distance-danger-percent", 85.0), 0.0, 100.0);
+            this.reelDangerPercent = clamp(
+                    config.getDouble("trophy-fight.hud.reel-danger-percent", 30.0), 0.0, 100.0);
             // 기본값은 배포 fight.yml과 문자 그대로 같아야 한다 — 어드민이 키를 지웠을 때
             // 갑자기 영문 포맷으로 바뀌는 일이 없도록.
             this.bossBarTitleFormat = config.getString("trophy-fight.hud.bossbar-title-format",
@@ -296,6 +344,11 @@ public class FightConfig {
         /** 주어진 상태의 권장 행동 가이드(title/subtitle)를 반환한다. 없으면 null. */
         public StateGuide getStateGuide(FishState state) {
             return stateGuides.get(state);
+        }
+
+        /** 오타난 임계값(음수·200 같은 값)으로 경고가 영영 안 뜨거나 항상 뜨는 사고를 막는다. */
+        private static double clamp(double value, double min, double max) {
+            return Math.max(min, Math.min(max, value));
         }
 
         private Map<String, String> loadStateColors(FileConfiguration config) {
@@ -782,12 +835,17 @@ public class FightConfig {
             this.rareTrophyActionPowerMultiplier =
                     Math.max(1, config.getInt(p + "rare-trophy-action-power-multiplier", 2));
             this.rodBonusDistanceRatio = config.getDouble(p + "rod-bonus-distance-ratio", 0.1);
+            // 좌클릭 연타 보너스. 기본 0 — 켜기 전까지 기존 밸런스와 완전히 동일하다.
+            this.reelDistancePerCombo = Math.max(0.0, config.getDouble(p + "reel-distance-per-combo", 0.0));
+            this.reelStaminaPerCombo = Math.max(0.0, config.getDouble(p + "reel-stamina-per-combo", 0.0));
 
             String i = "trophy-fight.input.";
             this.reelGraceMillis = Math.max(0, config.getLong(i + "reel-grace-millis", 250L));
             this.releaseGraceMillis = Math.max(0, config.getLong(i + "release-grace-millis", 250L));
             this.releaseComboWindowMillis = Math.max(0, config.getLong(i + "release-combo-window-millis", 250L));
             this.maxReleaseCombo = Math.max(1, config.getInt(i + "max-release-combo", 10));
+            this.reelComboWindowMillis = Math.max(0, config.getLong(i + "reel-combo-window-millis", 250L));
+            this.maxReelCombo = Math.max(1, config.getInt(i + "max-reel-combo", 10));
         }
 
         /** 레어 트로피의 스탯 난이도 배수. */
@@ -805,6 +863,15 @@ public class FightConfig {
         public final long releaseComboWindowMillis;
         /** 우클릭 연타 콤보 상한. */
         public final int maxReleaseCombo;
+        /** 좌클릭 연타 콤보로 인정되는 간격(ms). */
+        public final long reelComboWindowMillis;
+        /** 좌클릭 연타 콤보 상한. */
+        public final int maxReelCombo;
+
+        /** 좌클릭 콤보 1당 추가되는 거리 감소량. 0이면 콤보는 표시만 되고 수치 효과가 없다. */
+        public final double reelDistancePerCombo;
+        /** 좌클릭 콤보 1당 추가되는 물고기 체력 감소량. 0이면 효과 없음. */
+        public final double reelStaminaPerCombo;
     }
 
     // ===================== General =====================
@@ -820,11 +887,42 @@ public class FightConfig {
         /** Fight 활성화 여부 */
         public final boolean enabled;
 
+        // --- 실패 유예 (회복 창) ---
+        // 파이트 틱은 1틱마다 돈다. 유예가 없으면 수치가 한계에 닿는 그 틱에 즉시 실패라,
+        // 75%/85%/30% 경고를 보고 반응해도 만회할 틈이 사실상 없었다.
+        // 유예 안에 조건에서 벗어나면 실패하지 않고, 벗어나면 타이머는 초기화된다.
+        // 0 = 유예 없음(예전처럼 즉시 실패).
+
+        /** 장력이 줄 강도에 도달한 뒤 실제 실패까지의 유예(ms). */
+        public final long lineSnappedGraceMillis;
+        /** 거리가 최대 거리에 도달한 뒤 실제 실패까지의 유예(ms). */
+        public final long distanceExceededGraceMillis;
+        /** 릴 내구도가 0에 도달한 뒤 실제 실패까지의 유예(ms). */
+        public final long reelBrokenGraceMillis;
+
         public GeneralConfig(FileConfiguration config) {
             this.enabled = config.getBoolean("trophy-fight.enabled", true);
             this.maxTimeSeconds = config.getInt("trophy-fight.max-time-seconds", 120);
             // 하한 1 — sound.interval과 같은 이유 (tickCount % particleInterval)
             this.particleInterval = Math.max(1, config.getInt("trophy-fight.particle-interval", 2));
+
+            String g = "trophy-fight.fail-grace.";
+            this.lineSnappedGraceMillis = Math.max(0, config.getLong(g + "line-snapped-millis", 300L));
+            this.distanceExceededGraceMillis = Math.max(0, config.getLong(g + "distance-exceeded-millis", 300L));
+            this.reelBrokenGraceMillis = Math.max(0, config.getLong(g + "reel-broken-millis", 300L));
+        }
+
+        /**
+         * 실패 원인에 해당하는 유예 시간(ms). 유예 대상이 아닌 원인(제한 시간 초과 등)은 0.
+         * 원인이 늘어날 때 호출부마다 switch를 쓰지 않도록 여기 모아둔다.
+         */
+        public long failGraceMillis(FightFailReason reason) {
+            return switch (reason) {
+                case LINE_SNAPPED -> lineSnappedGraceMillis;
+                case DISTANCE_EXCEEDED -> distanceExceededGraceMillis;
+                case REEL_BROKEN -> reelBrokenGraceMillis;
+                case TIMEOUT, NONE -> 0L;
+            };
         }
     }
 
