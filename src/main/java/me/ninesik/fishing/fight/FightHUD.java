@@ -123,10 +123,10 @@ public class FightHUD {
 
         // Tension 위험도에 따른 게이지 색 + 타이틀 색상 접두사 (config 값 사용)
         String colorPrefix;
-        if (tensionRatio >= 0.8) {
+        if (tensionRatio >= hudConfig.tensionDangerRatio) {
             bar.setColor(BarColor.RED);
             colorPrefix = hudConfig.barColorDanger;
-        } else if (tensionRatio >= 0.5) {
+        } else if (tensionRatio >= hudConfig.tensionWarningRatio) {
             bar.setColor(BarColor.YELLOW);
             colorPrefix = hudConfig.barColorWarning;
         } else {

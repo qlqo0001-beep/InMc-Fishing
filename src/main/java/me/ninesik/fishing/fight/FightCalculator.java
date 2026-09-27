@@ -300,6 +300,30 @@ public class FightCalculator {
     }
 
     /**
+     * 좌클릭(릴 감기) 연타 콤보로 추가되는 거리 감소량. 우클릭 콤보가 장력을 깎는 것과 대칭이다.
+     *
+     * <p>계수 {@code reel-distance-per-combo}의 기본값은 0이라 아무것도 하지 않는다.
+     * 어드민이 fight.yml에서 켜야 효과가 생긴다.</p>
+     *
+     * @param combo 현재 좌클릭 연타 콤보 (0이면 0.0)
+     * @return 거리 변화량에 더할 값 (음수 = 거리 감소)
+     */
+    public double calculateReelDistanceComboBonus(int combo) {
+        return -(calc().reelDistancePerCombo * Math.max(0, combo));
+    }
+
+    /**
+     * 좌클릭(릴 감기) 연타 콤보로 추가되는 물고기 체력 감소량.
+     * {@code reel-stamina-per-combo} 기본값 0 → 0.0.
+     *
+     * @param combo 현재 좌클릭 연타 콤보 (0이면 0.0)
+     * @return Stamina 감소량에 더할 값 (양수 = 더 많이 깎임)
+     */
+    public double calculateReelStaminaComboBonus(int combo) {
+        return calc().reelStaminaPerCombo * Math.max(0, combo);
+    }
+
+    /**
      * 릴 풀기(우클릭) 시 Reel State 회복량을 계산한다.
      * 모든 물고기 상태에서 동일하게 회복된다 (피드백).
      *

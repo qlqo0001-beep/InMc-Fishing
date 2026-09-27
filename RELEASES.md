@@ -13,6 +13,8 @@
 
 | 버전 | 날짜 | 구분 | 한 줄 요약 |
 |---|---|---|---|
+| **1.6.1** | 2026-08-22 | 🛠 패치 | 실패 3종에 유예 시간(회복 창) 추가 + 배포 기본값을 실서버 튜닝값으로 교체 |
+| **1.6.0** | 2026-08-22 | ✨ 메이저 | 트로피 파이트 그래픽 HUD 신설 (BetterHud) — 위험 경고 3종 + 좌/우 콤보 |
 | **1.5.1** | 2026-08-09 | 🛠 패치 | 가공 취소·give bait/fillet·GUI 개편·실패 메시지 버그 수정 |
 | **1.5.0** | 2026-08-08 | ✨ 메이저 | SQLite DB·미끼(Bait)·생선 살(Fillet) 시스템 신설 |
 | **1.4.9** | 2026-08-07 | 🛠 패치 | STUNNED(기절) 상태 Distance 회수 속도 개선 |
@@ -33,6 +35,153 @@
 | **1.0.0** | 2026-08-03 | 🏷 기준 | 최초 전체 기능 완성 |
 
 ---
+
+---
+
+## [1.6.1] - 2026-08-22 — 🛠 패치
+
+**실패 3종에 유예 시간(회복 창) 추가** — 경고를 보고 반응하면 만회할 수 있게.
+
+### ⏱️ 실패 유예 (회복 창)
+1.6.0 에서 위험 경고 3종을 붙였지만, 파이트 수치는 **1틱(0.05초)마다** 계산되어
+한계에 닿는 그 틱에 즉시 실패했다. 경고를 띄워놓고 반응할 틈은 안 주는 셈이었다.
+
+- ✨ **실패 조건에 도달해도 유예(기본 0.3초) 안에 수치를 되돌리면 실패하지 않는다**
+- 🔁 조건에서 벗어나면 타이머가 초기화되고, 다시 도달하면 처음부터 다시 센다
+- 🧭 실패 원인별로 **독립된 타이머** — 셋이 동시에 돌 수 있고, 먼저 만료된 쪽이 실패 원인이 된다
+- 🏆 승리 판정이 여전히 우선 — 거리 유예가 도는 중에 역전해서 이기면 승리로 끝난다
+- ⚠️ 유예 중에도 수치는 계속 움직인다. **판정을 미룰 뿐 수치를 얼려주지 않으므로**,
+  실제로 조건 아래로 되돌려야 살아남는다
+
+| 실패 조건 | 판정 | 유예 중 회복 수단 |
+|---|---|---|
+| 줄 끊김 | `Tension ≥ LineStrength` | 우클릭(릴 풀기)으로 장력 감소 |
+| 물고기 도망 | `Distance ≥ MaxDistance` | 좌클릭(릴 감기)으로 거리 감소 |
+| 릴 파손 | `ReelState ≤ 0` | 클릭을 멈추면 자연회복, 우클릭이면 더 빠르게 |
+
+제한 시간 초과(`TIMEOUT`)는 유예 대상이 아니다 — 그대로 즉시 종료된다.
+
+### ⚙️ 새 설정 키 (`fight.yml`)
+```yaml
+trophy-fight:
+  fail-grace:
+    line-snapped-millis: 300       # 장력이 줄 강도에 도달
+    distance-exceeded-millis: 300  # 거리가 최대 거리에 도달
+    reel-broken-millis: 300        # 릴 내구도 0
+```
+셋 다 **0 으로 두면 1.6.0 이전처럼 닿는 즉시 실패**한다 (유예 기능 끄기).
+
+### 🖥️ HUD — 유예 전용 최종 경고
+- ✨ 위험도 플레이스홀더에 **`3` = 유예 중(곧 실패)** 단계 추가
+  (`fight_danger` / `fight_distance_danger` / `fight_reel_danger`)
+- 3으로 올라가면 기존 `== 2` 조건이 저절로 꺼져서, 일반 경고 → 최종 경고 전환이
+  HUD 요소마다 조건 하나로 배타 처리된다
+- 🔴 유예 동안 해당 게이지만 **점멸이 3틱 → 1틱으로 빨라지고** 최종 경고문으로 바뀐다
+  (`!!! 줄 끊어짐 !!!` / `!!! 줄 길이 한계 !!!` / `!!! 릴 파손 !!!`)
+- 🖼️ **새 이미지는 만들지 않았다** — 기존 알림 PNG 를 프레임 간격만 줄여 재사용한다.
+  유예가 0.3초(6틱)라 글자를 읽을 시간이 없고, 그 순간 눈에 들어오는 건 점멸 속도 변화다
+
+### ⚖️ 배포 기본값을 실서버 튜닝값으로 교체
+`fight.yml` 의 기본값 **76줄**을 운영 서버에서 실제로 굴려보며 맞춘 값으로 갈아끼웠다.
+지금까지 배포본은 Phase 6 이관 당시의 코드 기본값 그대로였고, 실제로 쓰이는 값과 크게 벌어져 있었다.
+
+- ⚖️ 파이트 전반이 **길고 완만해진다** — 거리 회수·장력 계수를 대체로 낮췄다
+  (`bonus-reel-coefficient` 0.105 → 0.025, `release-tension-per-combo` 2.0 → 0.5,
+  `fish-escape-coefficient` 0.004 → 0.002)
+- 🎣 상태별 `reel-distance-multiplier` / `release-distance-multiplier` 재조정 (10종)
+- ⌨️ 입력 유예 4종 250ms → **300ms**
+- 💬 `state-guide` 안내 문구 12개 교체
+- 🔁 좌클릭 콤보 계수를 0 → `reel-distance-per-combo: 0.001` / `reel-stamina-per-combo: 0.01`
+  로 켜서 배포한다 (1.6.0에서는 표시만 되고 효과가 없었다)
+
+### ⚠️ 업그레이드 시 주의
+- 🖥️ **`hud.mode` 기본값이 `vanilla` → `betterhud` 로 바뀐다.** BetterHud 가 없는 환경에서는
+  파이트 HUD 가 아예 보이지 않으므로(보스바·액션바도 함께 억제됨) `vanilla` 로 되돌려야 한다
+- 🔧 자바 하드코딩 fallback 은 이번에 맞추지 않았다. `fight.yml` 에서 **키를 지우면**
+  그 항목만 옛 값으로 조용히 되돌아간다 (예: `release-tension-per-combo` 를 지우면 0.5가 아니라 2.0).
+  값을 바꾸고 싶으면 키를 지우지 말고 숫자를 고칠 것
+- 🗑️ **ItemsAdder 글리프 HUD 코드는 이 빌드에 없다.** 1.5.1 이후 저장소에 따로 올라갔던
+  ItemsAdder HUD(`hud/` 패키지, `hud.yml`, `hud_sprites.yml`)는 BetterHud 방식으로 대체되어 제거했다
+- 📐 `distance-danger-percent` 는 80 이다. HUD 거리 트래커 그림의 빨간 구간은 85% 지점에서
+  시작하므로, 경고가 마커보다 살짝 먼저 뜬다 (의도된 조기 경고)
+
+#### 파일
+- **수정 7개**: `FightConfig.java`(GeneralConfig 유예 3키 + `failGraceMillis()`),
+  `FightSession.java`(`tickFailGrace` / `isInFailGrace` 래치), `TrophyFightManager.java`(판정 3곳),
+  `FishingPlaceholderExpansion.java`(위험도 3단계), `fight.yml`(유예 키 + 기본값 76줄 교체), `plugin.yml`, `build.gradle.kts`(버전 1.6.1)
+- **삭제**: ItemsAdder 글리프 HUD — `hud/` 패키지 13개, `hud.yml`, `hud_sprites.yml`
+  (연결 코드가 있던 `InMcFishing`, `FishingMiniGame`, `FishingService` 도 함께 정리)
+- 🖼️ HUD 리소스(`images/` `layouts/`)는 서버의 `plugins/BetterHud/` 에 있어 이 저장소 밖이다
+- ✅ 빌드 `BUILD SUCCESSFUL` · 유예 로직은 기존 밸런스 수식·조건식을 건드리지 않는다 (판정 타이밍만 늦춤)
+
+---
+
+## [1.6.0] - 2026-08-22 — ✨ 메이저
+
+**트로피 파이트 그래픽 HUD 신설 (BetterHud 연동)** — 보스바·액션바·타이틀 텍스트를 전용 그래픽 HUD로 대체하고, 실패 조건 3가지에 각각 위험 경고를 붙였다.
+
+### 🖥️ 그래픽 HUD 신설
+- ✨ **파이트 전용 HUD 6블록** — 거리 트래커 · 물고기 상태 카드 · 콤보 · 물고기 체력 · 낚싯줄 장력 · 릴 내구도
+- ✨ `trophy-fight.hud.mode: betterhud` 로 전환. `vanilla` 로 되돌리면 **즉시 기존 텍스트 HUD로 롤백**된다
+  (리소스팩을 못 받은 유저가 많거나 문제가 생겼을 때의 탈출구)
+- 🔌 **연동 창구는 PlaceholderAPI 하나뿐** — 플러그인은 BetterHud 에 컴파일·런타임 의존을 갖지 않는다.
+  BetterHud 가 `%inmcfishing_fight_*%` 를 틱 단위로 읽어 스스로 렌더링한다
+- 🎬 시작 인트로(`!!!` / 3 / 2 / 1 / `START!!`) 연출은 HUD 모드와 무관하게 유지
+
+### 🚨 위험 경고 3종
+파이트 실패 조건은 셋인데 그동안 장력에만 경고가 있었다. 나머지 둘을 채우고 임계값을 전부 설정으로 뺐다.
+
+| 실패 조건 | 경고 시점 | 연출 |
+|---|---|---|
+| 줄 끊김 (`Tension ≥ LineStrength`) | **75%** (기존 80%) | 장력 게이지 테두리 점멸 + `!! 줄이 끊어지기 직전 !!` |
+| 물고기 도망 (`Distance ≥ MaxDistance`) | **85%** ✨신설 | 거리 트래커 테두리 점멸 + `!! 줄이 끊어질 거리 !!` |
+| 릴 파손 (`ReelState ≤ 0`) | **30% 미만** ✨신설 | 릴 게이지 테두리 점멸 + `!! 릴이 부서지기 직전 !!` |
+
+- 🔧 임계값 4개를 `trophy-fight.hud.*` 로 이관 — 이전엔 `FishingPlaceholderExpansion` 과 `FightHUD` 두 곳에
+  `0.8` / `0.5` 가 따로 하드코딩돼 있어 한쪽만 고치면 어긋났다
+- 📐 거리 기본값 85% 는 HUD 거리 트래커 그림의 빨간 위험 구간이 시작되는 지점과 맞춘 값이다
+- ✨ 신규 플레이스홀더 `%inmcfishing_fight_distance_danger%` · `%inmcfishing_fight_reel_danger%` (0=안전, 2=위험)
+
+### 🔁 좌클릭(릴 감기) 콤보 신설
+- ✨ 우클릭 콤보와 **완전 대칭**으로 좌클릭 연타 콤보 추가. 반대쪽 클릭이 들어오면 서로를 리셋한다
+- 🖥️ 동시에 쌓일 수 없으므로 HUD 는 **같은 자리에서 교대 표시** — 우클릭 `릴 풀기 콤보`(청록) / 좌클릭 `릴 감기 콤보`(초록)
+- ⚖️ 효과 2종(추가 거리 감소 · 추가 물고기 체력 감소)을 넣되 **계수 기본값은 0** —
+  켜기 전까지 기존 밸런스와 수치가 완전히 동일하다. 어드민이 `fight.yml` 에서 조금씩 올려 쓰는 방식
+- ✨ 신규 플레이스홀더 `%inmcfishing_fight_reel_combo%`
+
+### ⚙️ 새 설정 키 (`fight.yml`)
+```yaml
+trophy-fight:
+  hud:
+    tension-danger-ratio: 0.75     # 장력 위험(빨강·점멸) 시작 비율
+    tension-warning-ratio: 0.5     # 장력 주의(노랑) 시작 비율
+    distance-danger-percent: 85    # 거리 경고 시작 % (HUD 빨간 구간과 일치)
+    reel-danger-percent: 30        # 릴 내구도 경고 시작 % (미만일 때)
+  input:
+    reel-combo-window-millis: 250  # 좌클릭 연타가 콤보로 이어지는 간격
+    max-reel-combo: 10             # 좌클릭 콤보 상한
+  calc:
+    reel-distance-per-combo: 0.0   # 좌클릭 콤보 1당 추가 거리 감소 (0 = 표시만)
+    reel-stamina-per-combo: 0.0    # 좌클릭 콤보 1당 추가 물고기 체력 감소 (0 = 표시만)
+```
+
+### ⚠️ 업그레이드 시 주의
+- 🗑️ **`plugins/InMc-Fishing-1.5.1-all.jar` 를 반드시 삭제**하고 1.6.0 jar 을 넣을 것.
+  파일명이 달라 두 개가 함께 로드된다
+- 🖼️ **HUD 리소스(BetterHud 설정·이미지)는 이 저장소에 없다.** 서버의 `plugins/BetterHud/`
+  (`huds/` `layouts/` `images/` `texts/` `assets/inmc_fight/`) 에 따로 있고, 플러그인이 설치하지 않는다
+- 📌 HUD 이미지는 한 장이 **가로·세로 256px 를 넘으면 안 된다** — 마인크래프트 글리프 아틀라스
+  (`FontTexture` 256×256) 에 못 들어가 그 이미지만 조용히 사라진다 (로그도 안 남는다)
+
+#### 파일
+- **수정 7개**: `FishingPlaceholderExpansion.java`, `FightConfig.java`, `FightSession.java`,
+  `FightCalculator.java`, `TrophyFightManager.java`, `FightHUD.java`, `fight.yml`
+- ✅ 빌드 `BUILD SUCCESSFUL` · 기존 밸런스 수식은 한 줄도 건드리지 않았다 (신규 계수 기본 0)
+
+#### 이 릴리즈에 함께 포함된 것
+1.5.1 이후 HUD 작업과 별개로 진행된 **대규모 안정화·설정화 작업(Phase 0~8)** 도 이 빌드에 들어 있다 —
+DB 안전성, 아이템 손실 차단, 메인 스레드 블로킹 제거, 파이트 밸런스 수식 `fight.yml` 이관,
+하드코딩 문구 전면 이관, PlaceholderAPI·WorldGuard 실동작화 등. 자세한 내용은 `REVIEW-2026-08.md` 참고.
 
 ---
 

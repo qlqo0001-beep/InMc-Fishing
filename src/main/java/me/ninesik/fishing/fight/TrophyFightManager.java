@@ -77,51 +77,6 @@ public class TrophyFightManager {
     private final NamespacedKey movementKey;
     private final FightCalculator calculator;
     private final FightHUD hud = new FightHUD();
-
-    /**
-     * ItemsAdder 글리프 HUD. 없거나 이 플레이어가 못 쓰면 위의 {@link FightHUD}가
-     * 그대로 폴백으로 동작한다 — {@code fishingHud.showFight()}가 false를 돌려주는
-     * 경우가 그 신호다.
-     */
-    private me.ninesik.fishing.hud.FishingHudController fishingHud;
-
-    public void setHud(me.ninesik.fishing.hud.FishingHudController fishingHud) {
-        this.fishingHud = fishingHud;
-    }
-
-    /**
-     * 글리프 HUD에 이번 틱 값을 채워 보낸다.
-     *
-     * <p>버퍼는 세션당 하나를 재사용하므로 매 틱 객체를 만들지 않는다.
-     * 실제 전송은 hud.yml의 update-interval-ticks 주기로 묶이므로 매 틱 불러도 된다.</p>
-     */
-    private void updateGlyphHud(Player player, FightSession session, FishState state) {
-        FishAI ai = session.getFishAI();
-        int duration = ai.getStateDurationTicks();
-        int remaining = ai.getRemainingTicks();
-        // 상태 전환 직후 duration이 0이라 그대로 나누면 NaN이 된다.
-        double stateRatio = duration > 0 ? remaining / (double) duration : 0.0;
-
-        fishingHud.fightData(player).set(
-                session.getDistance(), session.getMaxDistance(),
-                session.getStamina(), session.getMaxStamina(),
-                // getMaxTension()은 getLineStrength()의 별칭이다 — 장력이 줄 강도를
-                // 넘으면 줄이 끊어지므로 상한이 곧 줄 강도다.
-                session.getTension(), session.getMaxTension(),
-                session.getReelState(), session.getMaxReelState(),
-                state.name(), remaining / 20.0, stateRatio,
-                // 좌/우 콤보는 상호 배타라 0이 아닌 쪽을 보여준다.
-                // 좌클릭 콤보가 살아 있으면 그쪽이 우선이다(방금 누른 쪽이므로).
-                session.getReelCombo() > 0 ? session.getReelCombo() : session.getReleaseCombo(),
-                session.getReelCombo() > 0 ? 'L' : 'R');
-        fishingHud.updateFight(player);
-    }
-
-    /** 이 플레이어의 파이트 화면을 글리프 HUD가 맡고 있는가. */
-    private boolean glyphHud(Player player) {
-        return fishingHud != null
-                && fishingHud.handles(player, me.ninesik.fishing.hud.HudMode.FIGHT);
-    }
     private BukkitTask tickTask;
     private int tickCount = 0;
 
@@ -316,10 +271,12 @@ public class TrophyFightManager {
         // WAITING → ACTIVE 즉시 전환
         session.transitionTo(FightState.ACTIVE);
 
-        // HUD 표시 + 플레이어 이동 제한.
-        // 글리프 HUD가 맡으면 보스바를 띄우지 않는다 (겹쳐 보인다).
-        if (fishingHud == null || !fishingHud.showFight(player)) {
-            hud.showBossBar(player, session, configManager.getFightConfig().hud());
+        // HUD 표시 + 플레이어 이동 제한
+        // betterhud 모드에서는 보스바를 만들지 않는다 — BetterHud가 %inmcfishing_fight_*%
+        // 플레이스홀더를 읽어 리소스팩 HUD를 대신 그린다 (FightConfig.HudConfig.mode 참고).
+        FightConfig.HudConfig hudConfig = configManager.getFightConfig().hud();
+        if (!hudConfig.isBetterHud()) {
+            hud.showBossBar(player, session, hudConfig);
         }
         restrictMovement(player);
 
@@ -416,10 +373,7 @@ public class TrophyFightManager {
             session.transitionTo(endState);
         }
 
-        // HUD + 이동 해제. 승리·패배·취소 등 모든 종료 경로가 여기를 지난다.
-        if (fishingHud != null) {
-            fishingHud.hide(player);
-        }
+        // HUD + 이동 해제
         hud.hideBossBar(player);
         releaseMovement(player);
 
@@ -545,8 +499,9 @@ public class TrophyFightManager {
             // 물고기 상태를 타이틀로 계속 표시 (남은 지속시간 카운트다운 포함).
             // 매 틱 갱신해야 긴 상태(REST 등)에서 타이틀이 중간에 꺼지지 않는다
             // (패치예정.md 피드백: "상태의 유지가 길면 타이틀이 사라지는 문제가 있어").
-            // 글리프 HUD는 상태를 카드로 그리므로 타이틀을 겹쳐 띄우지 않는다.
-            if (!glyphHud(player)) {
+            // betterhud 모드에서는 상태 카드도 BetterHud가 그리므로 타이틀을 보내지 않는다.
+            boolean vanillaHud = !config.hud().isBetterHud();
+            if (vanillaHud) {
                 hud.updateStateTitle(player, currentFishState, session.getFishAI().getRemainingTicks(),
                         session.getStamina(), session.getReelState(), config.hud());
             }
@@ -574,6 +529,8 @@ public class TrophyFightManager {
                 double reelStateRatio = maxReelState > 0 ? session.getReelState() / maxReelState : 0.0;
                 double staminaDecrease = calculator.calculateStaminaDecrease(
                         session.getReelPower(), reelStateRatio, fishState);
+                // 좌클릭 연타 콤보 보너스 (계수 기본 0 → 평소엔 0.0이라 기존 밸런스 그대로)
+                staminaDecrease += calculator.calculateReelStaminaComboBonus(session.getReelCombo());
                 session.decreaseStamina(staminaDecrease);
             } else {
                 double staminaRegen = calculator.calculateStaminaRegen(
@@ -606,6 +563,12 @@ public class TrophyFightManager {
                 distanceChange = calculator.calculateDistanceChange(
                         effectiveReelPower, session.getPower(), session.getResistance(),
                         staminaRatio, isReeling, fishState);
+                // 좌클릭 연타 콤보 보너스. 이 분기는 idle(아무 클릭도 안 한 상태)까지 포함하므로
+                // 반드시 isReeling일 때만 더한다 — 아니면 손을 놓고 있어도 거리가 줄어든다.
+                // (계수 기본 0 → 평소엔 0.0이라 기존 밸런스 그대로)
+                if (isReeling) {
+                    distanceChange += calculator.calculateReelDistanceComboBonus(session.getReelCombo());
+                }
             }
             session.changeDistance(distanceChange);
 
@@ -651,10 +614,9 @@ public class TrophyFightManager {
                 Sounds.play(player, config.sound().fishExhausted);
             }
 
-            // 9. HUD 갱신 (매 틱)
-            if (glyphHud(player)) {
-                updateGlyphHud(player, session, currentFishState);
-            } else {
+            // 9. HUD 갱신 (매 틱) — vanilla 모드에서만. betterhud 모드는 BetterHud가
+            // 플레이스홀더를 틱 단위로 읽어 자체 렌더링하므로 여기서 할 일이 없다.
+            if (vanillaHud) {
                 hud.updateBossBar(player, session, session.getMaxDistance(), config.hud());
                 hud.updateActionBar(player, session, config.hud());
             }
@@ -682,8 +644,15 @@ public class TrophyFightManager {
             return;
         }
 
+        // 아래 세 패배 조건은 조건에 닿는 즉시 끝나지 않고 fail-grace 만큼 유예를 준다.
+        // 그 안에 수치를 되돌리면(우클릭으로 장력을 낮추는 등) 실패하지 않고 파이트가 이어진다.
+        // 유예 0이면 닿는 틱에 바로 실패 — 유예 도입 전 동작 그대로다.
+        // (승리 판정이 위에 있으므로, 거리 유예 중에 역전해서 이기면 승리가 우선한다)
+
         // 패배1: Tension ≥ Line Strength (줄 끊어짐)
-        if (session.getTension() >= session.getLineStrength()) {
+        if (session.tickFailGrace(FightFailReason.LINE_SNAPPED,
+                session.getTension() >= session.getLineStrength(),
+                config.general().lineSnappedGraceMillis)) {
             session.setFailReason(FightFailReason.LINE_SNAPPED);
             stopFight(player, FightState.FAILED);
             return;
@@ -694,14 +663,18 @@ public class TrophyFightManager {
         // maxDistance는 세션별로 낚싯대 line-strength 보너스가 반영된 값을 사용한다
         // (피드백: "낚싯대 옵션에 줄 강도가 높아질수록 거리값이 추가되게").
         double maxDistance = session.getMaxDistance();
-        if (maxDistance > 0 && session.getDistance() >= maxDistance) {
+        if (session.tickFailGrace(FightFailReason.DISTANCE_EXCEEDED,
+                maxDistance > 0 && session.getDistance() >= maxDistance,
+                config.general().distanceExceededGraceMillis)) {
             session.setFailReason(FightFailReason.DISTANCE_EXCEEDED);
             stopFight(player, FightState.FAILED);
             return;
         }
 
         // 패배2: Reel State ≤ 0 (릴 파손)
-        if (session.getReelState() <= 0) {
+        if (session.tickFailGrace(FightFailReason.REEL_BROKEN,
+                session.getReelState() <= 0,
+                config.general().reelBrokenGraceMillis)) {
             session.setFailReason(FightFailReason.REEL_BROKEN);
             stopFight(player, FightState.FAILED);
             return;

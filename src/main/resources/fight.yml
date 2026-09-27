@@ -20,6 +20,22 @@ trophy-fight:
   # 핵심 수치 계산은 매 틱 수행되지만, 파티클은 이 주기마다 출력됩니다.
   particle-interval: 2
 
+  # --- 실패 유예 (회복 창) ---
+  # 실패 조건에 도달해도 아래 시간 안에 수치를 되돌리면 실패하지 않습니다.
+  # 파이트는 1틱(0.05초)마다 계산되므로 유예가 없으면 한계에 닿는 순간 바로 끝나,
+  # 화면의 위험 경고(장력 75% / 거리 85% / 릴 30%)를 보고도 만회할 틈이 없습니다.
+  #
+  # 조건에서 벗어나면 타이머는 초기화되고, 다시 도달하면 처음부터 다시 셉니다.
+  # 유예 중에도 수치는 계속 움직이므로, 실제로 조건 아래로 되돌려야 살아남습니다.
+  # 0 = 유예 없음 (닿는 즉시 실패)
+  fail-grace:
+    # 장력이 줄 강도에 도달 — 우클릭(릴 풀기)으로 장력을 낮추면 회복됩니다.
+    line-snapped-millis: 300
+    # 거리가 최대 거리에 도달 — 좌클릭(릴 감기)으로 거리를 줄이면 회복됩니다.
+    distance-exceeded-millis: 300
+    # 릴 내구도 0 — 클릭을 멈추면 자연회복, 우클릭이면 더 빨리 회복됩니다.
+    reel-broken-millis: 300
+
   # --- AI 설정 (Fish AI 상태 기계) ---
   ai:
     # --- 상태 전이 확률 ---
@@ -32,7 +48,7 @@ trophy-fight:
     transitions:
       # 구간 경계 — 이 값들로 아래 표 중 무엇을 쓸지 정합니다.
       stamina-thresholds:
-        low: 0.2        # 물고기 체력 비율이 이 값 이하 = "지침"
+        low: 0.3        # 물고기 체력 비율이 이 값 이하 = "지침"
         mid: 0.5        # 이 값 이하 = "중간", 초과 = "초기"
       action-power-thresholds:
         critical: 1     # 행동력이 이 값 이하 = 매우 부족
@@ -143,42 +159,42 @@ trophy-fight:
         duration-ticks: { min: 40, max: 80 }
         action-power-cost: 0
         tension-rate: 0.005
-        auto-tension-rate: 0.0
+        auto-tension-rate: 0.01
         reel-stamina-multiplier: 1.0
-        reel-distance-multiplier: 1.0
-        release-distance-multiplier: 0.5
-        stamina-regen-ratio: 0.0016
+        reel-distance-multiplier: 0.01
+        release-distance-multiplier: 0.05
+        stamina-regen-ratio: 0.01
       slow_move:                     # 천천히 이동 — 릴을 감으면 거리를 많이 줄인다
         power: 20.0
         resistance: 20.0
         duration-ticks: { min: 30, max: 60 }
         action-power-cost: 1
-        tension-rate: 0.01
-        auto-tension-rate: 0.0
+        tension-rate: 0.009
+        auto-tension-rate: 0.05
         reel-stamina-multiplier: 1.0
-        reel-distance-multiplier: 1.5
-        release-distance-multiplier: 1.0
+        reel-distance-multiplier: 0.01
+        release-distance-multiplier: 0.05
         stamina-regen-ratio: 0.0008
       normal_move:                   # 일반 이동 — 기준이 되는 평범한 상태
         power: 40.0
         resistance: 40.0
-        duration-ticks: { min: 20, max: 50 }
+        duration-ticks: { min: 20, max: 40 }
         action-power-cost: 0
-        tension-rate: 0.015
-        auto-tension-rate: 1.0
+        tension-rate: 0.012
+        auto-tension-rate: 0.15
         reel-stamina-multiplier: 1.0
-        reel-distance-multiplier: 1.0
-        release-distance-multiplier: 2.0
+        reel-distance-multiplier: 0.005
+        release-distance-multiplier: 0.5
         stamina-regen-ratio: 0.0004
       turn:                          # 방향 전환 — 좌우 밸런스 구간
         power: 50.0
         resistance: 50.0
-        duration-ticks: { min: 15, max: 35 }
+        duration-ticks: { min: 15, max: 25 }
         action-power-cost: 1
-        tension-rate: 0.025
-        auto-tension-rate: 1.0
+        tension-rate: 0.03
+        auto-tension-rate: 0.3
         reel-stamina-multiplier: 1.0
-        reel-distance-multiplier: 1.0
+        reel-distance-multiplier: 0.001
         release-distance-multiplier: 3.0
         stamina-regen-ratio: 0.0002
       charge:                        # 강한 돌진 — 우클릭으로 버텨야 하는 구간
@@ -186,21 +202,21 @@ trophy-fight:
         resistance: 70.0
         duration-ticks: { min: 10, max: 25 }
         action-power-cost: 3
-        tension-rate: 0.045
+        tension-rate: 0.07
         auto-tension-rate: 3.0
         reel-stamina-multiplier: 1.5
-        reel-distance-multiplier: 1.0
+        reel-distance-multiplier: 0.0001
         release-distance-multiplier: 4.0
         stamina-regen-ratio: 0.0
       final_struggle:                # 마지막 발악 — 체력이 깎이지 않는 최대 위기
         power: 100.0
         resistance: 90.0
-        duration-ticks: { min: 5, max: 15 }
+        duration-ticks: { min: 10, max: 20 }
         action-power-cost: -1
-        tension-rate: 0.08
-        auto-tension-rate: 3.0
+        tension-rate: 0.12
+        auto-tension-rate: 6.0
         reel-stamina-multiplier: 0.0
-        reel-distance-multiplier: 1.0
+        reel-distance-multiplier: 0.0
         release-distance-multiplier: 6.0
         stamina-regen-ratio: 0.0
       dive:                          # 잠수 — 거리는 거의 안 변하고 장력만 오른다
@@ -208,10 +224,10 @@ trophy-fight:
         resistance: 100.0
         duration-ticks: { min: 8, max: 20 }
         action-power-cost: 1
-        tension-rate: 0.055
+        tension-rate: 0.12
         auto-tension-rate: 3.0
         reel-stamina-multiplier: 0.0
-        reel-distance-multiplier: 0.2
+        reel-distance-multiplier: 0.001
         release-distance-multiplier: 4.0
         stamina-regen-ratio: 0.0
       exhausted:                     # 탈진 — 발악 직후의 보상 구간
@@ -222,8 +238,8 @@ trophy-fight:
         tension-rate: 0.005
         auto-tension-rate: 0.0
         reel-stamina-multiplier: 2.0
-        reel-distance-multiplier: 2.0
-        release-distance-multiplier: 0.5
+        reel-distance-multiplier: 0.005
+        release-distance-multiplier: 0.1
         stamina-regen-ratio: 0.0
       circle:                        # 원형 유영 — 변화가 완만한 소강 구간
         power: 40.0
@@ -231,9 +247,9 @@ trophy-fight:
         duration-ticks: { min: 40, max: 60 }
         action-power-cost: 2
         tension-rate: 0.03
-        auto-tension-rate: 1.0
+        auto-tension-rate: 0.5
         reel-stamina-multiplier: 1.0
-        reel-distance-multiplier: 0.5
+        reel-distance-multiplier: 0.05
         release-distance-multiplier: 1.0
         stamina-regen-ratio: 0.0002
       jump:                          # 점프 — 어느 클릭도 효과가 약한 관망 구간
@@ -241,11 +257,11 @@ trophy-fight:
         resistance: 30.0
         duration-ticks: { min: 10, max: 16 }
         action-power-cost: 2
-        tension-rate: 0.015
-        auto-tension-rate: 1.0
+        tension-rate: 0.07
+        auto-tension-rate: 2.0
         reel-stamina-multiplier: 0.3
-        reel-distance-multiplier: 0.5
-        release-distance-multiplier: 1.0
+        reel-distance-multiplier: 0.005
+        release-distance-multiplier: 2.0
         stamina-regen-ratio: 0.0
       line_tangle:                   # 줄 엉킴 — 좌클릭이 거의 무효, 우클릭으로 푼다
         power: 50.0
@@ -277,23 +293,45 @@ trophy-fight:
     action-power:
       # 등급별 최대 행동력 (레어 트로피는 이 값의 2배)
       grade-max:
-        f: 3
-        e: 4
-        d: 5
-        c: 7
-        b: 9
-        a: 12
-        s: 15
+        f: 5
+        e: 7
+        d: 9
+        c: 12
+        b: 15
+        a: 20
+        s: 30
       # 위험 임계값 비율 — 행동력이 이 비율 이하이면 위험 상태로 간주하여
       # 강한 행동(CHARGE, FINAL_STRUGGLE)을 사용하려 한다.
       dangerous-threshold-ratio: 0.3
 
   # --- HUD 설정 (BossBar/ActionBar 표시) ---
   hud:
+    # HUD 표시 방식
+    #   vanilla   = 기본. 보스바/액션바/타이틀 텍스트 HUD (아래 설정 사용)
+    #   betterhud = BetterHud + ItemsAdder 리소스팩 그래픽 HUD.
+    #               이 플러그인은 파이트 중 보스바/액션바/타이틀을 출력하지 않고,
+    #               %inmcfishing_fight_*% 플레이스홀더(PlaceholderAPI)로 수치만 노출합니다.
+    #               BetterHud 미설치/리소스팩 문제 시 vanilla로 되돌리면 즉시 롤백됩니다.
+    #               (시작 인트로 !!!/3/2/1/START!! 연출은 모드와 무관하게 유지)
+    mode: betterhud
     # BossBar 게이지 색상 (Tension 위험도 표시)
     bar-color-safe: "&a"       # 안정 (초록)
     bar-color-warning: "&e"    # 주의 (노랑)
     bar-color-danger: "&c"     # 위험 (빨강)
+    # --- 경고 임계값 ---
+    # 파이트 실패 조건 3가지(줄 끊김 / 물고기 도망 / 릴 파손)에 각각 대응하는 경고 시점입니다.
+    # betterhud 모드에서는 게이지 테두리가 빨갛게 점멸하고 경고 문구가 뜹니다.
+    # vanilla 모드에서는 tension 값이 보스바 색(초록/노랑/빨강)을 결정합니다.
+    #
+    # 장력: 현재 장력 ÷ 줄 강도. danger 이상이면 위험(빨강·점멸), warning 이상이면 주의(노랑).
+    tension-danger-ratio: 0.75
+    tension-warning-ratio: 0.5
+    # 거리: 현재 거리 ÷ 최대 거리 × 100. 이 % 이상이면 경고.
+    # 기본 85 는 HUD 거리 트래커(frame_track) 그림의 빨간 위험 구간이 시작되는 지점입니다.
+    # 이 값만 바꾸면 경고 시점과 그림이 어긋나므로, 그림도 같이 손봐야 합니다.
+    distance-danger-percent: 80
+    # 릴 내구도: 남은 내구도가 이 % "미만"이면 경고. (0 이 되면 릴 파손으로 실패)
+    reel-danger-percent: 30
     # BossBar 네임 텍스트 ({distance}/{max_distance} = 현재/최대 거리)
     bossbar-title-format: "거리: {distance} / {max_distance} M"
     # ActionBar 텍스트 ({stamina}/{reel}/{distance}/{max_distance} = 각 수치)
@@ -344,46 +382,46 @@ trophy-fight:
     state-guide:
       rest:
         title: "&a🐟 휴식 ({remaining_seconds}초)"
-        subtitle: "&2L클릭으로 릴을 감으세요. (최고의 회수 타이밍)"
+        subtitle: "&2좌클릭으로 감기! 지금이 기회"
       slow-move:
         title: "&e🐟 천천히 이동 ({remaining_seconds}초)"
-        subtitle: "&6가장 많이 끌어올릴 수 있습니다. L클릭!"
+        subtitle: "&6좌클릭 연타! 최대 회수"
       normal-move:
         title: "&f🐟 이동 ({remaining_seconds}초)"
-        subtitle: "&7조금씩 릴을 감으세요. 장력을 주시하세요."
+        subtitle: "&7천천히 감으며 장력 확인!"
       turn:
         title: "&e🐟 방향 전환 ({remaining_seconds}초)"
-        subtitle: "&e장력이 증가합니다. 무리하지 마세요."
+        subtitle: "&e장력 상승! 무리하지 마세요."
       charge:
         title: "&6🐟 돌진! ({remaining_seconds}초)"
-        subtitle: "&6R클릭으로 줄을 풀어 장력을 낮추세요."
+        subtitle: "&6우클릭으로 줄을 풀어주세요!"
       final-struggle:
         title: "&c🐟 최후의 발악! ({remaining_seconds}초)"
-        subtitle: "&c지금은 버티세요. R클릭으로 줄을 관리하세요."
+        subtitle: "&c버티면서 줄 장력을 관리하세요!"
       dive:
         title: "&3🐟 잠수! ({remaining_seconds}초)"
-        subtitle: "&3우클릭 연타로 버티세요! 탠션이 폭증합니다."
+        subtitle: "&3우클릭 연타로 버티세요!"
       exhausted:
         title: "&7🐟 탈진! ({remaining_seconds}초)"
-        subtitle: "&2좌클릭 연타로 승부를 보세요! 저항이 없습니다."
+        subtitle: "&2좌클릭 연타로 마무리하세요!"
       circle:
         title: "&8🐟 원형 유영 ({remaining_seconds}초)"
-        subtitle: "&7좌우 클릭을 번갈아 밸런스를 유지하세요."
+        subtitle: "&7좌우 클릭을 번갈아 누르세요."
       jump:
         title: "&e🐟 점프! ({remaining_seconds}초)"
-        subtitle: "&7클릭을 잠시 멈추세요."
+        subtitle: "&7지금은 클릭을 멈추세요"
       line-tangle:
         title: "&c🐟 줄 엉킴!"
-        subtitle: "&c우클릭으로 줄을 풀어야 합니다!"
+        subtitle: "&c우클릭으로 줄을 풀어주세요!"
       stunned:
         title: "&7🐟 기절!"
-        subtitle: "&a거리가 0이 될 때까지 릴을 감으세요."
+        subtitle: "&a거리가 0이 될 때까지 감으세요!"
 
   # --- 사운드 설정 ---
   # 빈 문자열("") = 해당 상황 사운드 끄기
   sound:
     # 사운드 출력 인터벌 (틱). 기본값 8.
-    interval: 8
+    interval: 12
     # 물고기가 강하게 돌진
     charge: "entity.salmon.flop"
     # 릴이 과부하 상태
@@ -441,30 +479,38 @@ trophy-fight:
   #        수치가 커질수록 파이트가 짧고 격해지고, 작을수록 길고 완만해집니다.
   calc:
     # 우클릭(릴 풀기) 1회당 거리 증가 기본 배율. 여기에 상태별 배수가 곱해집니다.
-    release-base: 0.13
+    release-base: 0.05
     # 우클릭 연타 콤보 1당 장력 감소량. 콤보 3이면 -6.0.
-    release-tension-per-combo: 2.0
+    release-tension-per-combo: 0.5
     # 우클릭 시 릴 HP 회복 비율 (릴 HP 최대치 기준).
-    release-reel-regen-ratio: 0.008
+    release-reel-regen-ratio: 0.01
+
+    # 좌클릭(릴 감기) 연타 콤보 보너스. 둘 다 기본 0 = 콤보가 HUD에 표시만 되고
+    # 수치 효과는 없습니다. 0보다 크게 주면 연타할수록 아래 효과가 커집니다.
+    # (좌클릭은 이미 장력 상승·릴 소모라는 대가를 치르므로, 올릴 땐 조금씩 올리세요)
+    # 콤보 1당 추가 거리 감소량. 콤보 3에 0.5면 매 틱 거리 -1.5 추가.
+    reel-distance-per-combo: 0.001
+    # 콤보 1당 추가 물고기 체력 감소량.
+    reel-stamina-per-combo: 0.01
 
     # 물고기가 도망가며 늘어나는 거리 = 물고기 힘 × 이 값 (매 틱).
     # 올리면 거리가 빨리 벌어져 줄이 끊기기 쉬워집니다.
-    fish-escape-coefficient: 0.004
+    fish-escape-coefficient: 0.002
     # 좌클릭(릴 감기) 기본 회수량 = 릴 파워 × 이 값. 체력과 무관하게 항상 적용됩니다.
-    base-reel-coefficient: 0.036
+    base-reel-coefficient: 0.015
     # 물고기가 지칠수록 추가로 붙는 회수량 계수.
-    bonus-reel-coefficient: 0.105
+    bonus-reel-coefficient: 0.025
     # 기절 상태에서 릴을 감을 때의 거리 회수 계수 (위 두 계수를 타지 않는 독립 경로).
-    stunned-pull-coefficient: 0.03
+    stunned-pull-coefficient: 0.015
 
     # 릴 파워 1당 물고기 체력 감소량 (릴 상태 비율과 상태 배수가 함께 곱해집니다).
-    stamina-decrease-per-reel-power: 0.01
+    stamina-decrease-per-reel-power: 0.005
     # 릴을 감을 때 릴 HP가 닳는 계수.
-    reel-state-decay: 0.006
+    reel-state-decay: 0.02
     # 릴을 감지 않을 때 릴 HP가 회복되는 비율 (릴 HP 최대치 기준).
     reel-state-idle-regen-ratio: 0.0015
     # 릴을 감지 않을 때의 기본 장력 변화량. 음수 = 장력이 저절로 떨어짐.
-    idle-tension-base: -2.0
+    idle-tension-base: -0.001
 
     # 감쇠 상수 — 값이 클수록 물고기 저항/낚싯대 내구도의 영향이 "약해집니다".
     # 계산식: 이 값 / (이 값 + 저항). 예) 100이면 저항 100에서 효과가 절반.
@@ -484,13 +530,18 @@ trophy-fight:
   # 빠르게 해야 하고, 크면 한 번 눌러도 오래 유지됩니다.
   input:
     # 좌클릭(릴 감기) 유예. 마지막 클릭 후 이 시간 안이면 계속 감는 중으로 봅니다.
-    reel-grace-millis: 250
+    reel-grace-millis: 300
     # 우클릭(줄 풀기) 유예.
-    release-grace-millis: 250
+    release-grace-millis: 300
     # 우클릭 연타가 "콤보"로 이어지는 간격. 이 간격을 넘기면 콤보가 1로 초기화됩니다.
-    release-combo-window-millis: 250
+    release-combo-window-millis: 300
     # 콤보 상한 (표시·피드백용).
     max-release-combo: 10
+    # 좌클릭(릴 감기) 연타가 "콤보"로 이어지는 간격. 우클릭 쪽과 대칭입니다.
+    # 좌/우 콤보는 서로를 리셋하므로 동시에 쌓이지 않습니다.
+    reel-combo-window-millis: 300
+    # 좌클릭 콤보 상한.
+    max-reel-combo: 10
 
   # --- 스탯 설정 ---
   # Fight 핵심 스탯 기본값
@@ -505,7 +556,7 @@ trophy-fight:
     max-distance: 150.0
     # 낚싯대 line-strength(줄 강도) 1당 위 max-distance에 추가되는 보너스 비율.
     # 최종 Distance 상한 = max-distance + (낚싯대 options.line-strength × 이 값).
-    distance-per-line-strength: 1.0
+    distance-per-line-strength: 0.5
     # Fish Stamina가 0보다 큰 동안 Distance가 이 값 밑으로 내려가지 않는다. 등급별 설정 (0 = 하한 없음).
     min-distance-with-stamina:
       f: 50.0
@@ -524,9 +575,9 @@ trophy-fight:
     default-reel-state: 100.0
     # 기본 Reel Power — 낚싯대가 없거나 미등록일 때 쓰는 기본값 (기본값 + 낚싯대 보너스).
     # 0이면 물고기 체력을 소모시키지 못해 Fight에서 거리가 계속 늘어나며 항상 지게 됩니다.
-    default-reel-power: 30.0
+    default-reel-power: 100.0
     # 기본 Reel Durability — 낚싯대가 없거나 미등록일 때 쓰는 기본값 (기본값 + 낚싯대 보너스).
-    default-reel-durability: 30.0
+    default-reel-durability: 50.0
 
     # 등급별 난이도 차등 배수 (1.0 = 기본, 높을수록 어려움)
     # Rare Trophy는 기본 배수에 추가로 더 어려움
@@ -537,7 +588,7 @@ trophy-fight:
       c: 1.3
       b: 1.6
       a: 2.0
-      s: 2.5
+      s: 3.0
 
   # --- 줄 엉킴(LINE_TANGLE) 랜덤 페널티 이벤트 (피드백) ---
   # 기본 비활성. 활성 시 상태 전이 과정에서 일정 확률로 "줄 엉킴" 상태가 발동한다.

@@ -115,10 +115,6 @@ public class FishingService {
         if (plugin instanceof me.ninesik.fishing.InMcFishing inMcFishing) {
             // worldguard.yml(구역별 낚시 허용/등급 배수)도 함께 다시 읽는다.
             inMcFishing.getDependencyManager().getWorldGuard().reload();
-            // hud.yml(글리프 좌표·색·모드)도 함께 다시 읽고 글리프 문자 캐시를 비운다.
-            if (inMcFishing.getFishingHud() != null) {
-                inMcFishing.getFishingHud().reload();
-            }
             // Registry 재로드 — grades.yml, items/*-grade.yml(물고기), items/rod.yml(낚싯대) (피드백)
             // 실패하면 loadRegistries()가 registryManager.load()를 호출하지 않아 기존 Registry가
             // 그대로 유지된다. 예전에는 반환값을 버려서 어드민이 실패를 알 수 없었다.

@@ -1,5 +1,7 @@
 package me.ninesik.fishing.fight;
 
+import java.util.EnumMap;
+import java.util.Map;
 import java.util.UUID;
 
 import me.ninesik.fishing.model.RewardEntry;
@@ -88,24 +90,26 @@ public class FightSession {
      * 좌클릭(릴 감기) 시 무조건 리셋된다 (피드백: "좌클릭 하면 콤보 유지 안 되게").
      */
     private int releaseCombo = 0;
-
-    /**
-     * 좌클릭(릴 감기) 연타 콤보.
-     *
-     * <p>예전에는 우클릭 콤보만 셌고 좌클릭은 그 값을 0으로 리셋하기만 했다.
-     * HUD가 좌/우 콤보를 구분해 보여줄 수 있는데 좌클릭 쪽 값이 아예 없어서
-     * 한쪽만 표시됐다. 창/상한은 우클릭과 같은 설정을 쓴다.</p>
-     */
-    private int reelCombo = 0;
-
-    /** 마지막 좌클릭 콤보 시각. */
-    private long lastReelComboAt = 0L;
     /** 마지막 우클릭 콤보 갱신 시각(ms). */
     private long lastReleaseComboAt = 0L;
     /** 콤보 유지 윈도우(ms) — 이 시간 내 재우클릭이면 콤보가 유지된다. */
     private final long releaseComboWindowMillis;
     /** 연타 콤보 상한 (무한 증가 방지). */
     private final int maxReleaseCombo;
+
+    /**
+     * 릴 감기(좌클릭) 연타 콤보. 우클릭 콤보와 완전히 대칭이며, 반대쪽 클릭이 들어오면
+     * 리셋된다 — 따라서 두 콤보가 동시에 1 이상일 수 없다 (HUD가 같은 자리에서 교대 표시).
+     * 효과 계수(reel-distance-per-combo / reel-stamina-per-combo)는 기본 0이라,
+     * 켜기 전까지는 화면에 연타 수만 보이고 밸런스는 그대로다.
+     */
+    private int reelCombo = 0;
+    /** 마지막 좌클릭 콤보 갱신 시각(ms). */
+    private long lastReelComboAt = 0L;
+    /** 좌클릭 콤보 유지 윈도우(ms). */
+    private final long reelComboWindowMillis;
+    /** 좌클릭 연타 콤보 상한. */
+    private final int maxReelCombo;
 
     /** Reel State 상한값 (initStats에서 설정, 기본 100). */
     private double maxReelState = 100.0;
@@ -172,6 +176,14 @@ public class FightSession {
     private FightFailReason failReason = FightFailReason.NONE;
 
     /**
+     * 실패 조건별 "언제 처음 조건에 닿았는지"(ms). 키가 없으면 지금 그 조건을 만족하지 않는다.
+     *
+     * <p>실패를 즉시 확정하지 않고 유예를 두기 위한 래치다. 유예 안에 수치를 되돌리면
+     * 키가 지워지고, 다시 닿으면 처음부터 다시 센다. {@link #tickFailGrace}만 이 맵을 만진다.</p>
+     */
+    private final Map<FightFailReason, Long> failGraceSince = new EnumMap<>(FightFailReason.class);
+
+    /**
      * @param playerId 플레이어 UUID (Player 객체 아님)
      * @param fish     Fight 대상 물고기 스냅샷
      * @param startTime Fight 시작 시각 (System.currentTimeMillis())
@@ -182,6 +194,8 @@ public class FightSession {
         this.releaseGraceMillis = input.releaseGraceMillis;
         this.releaseComboWindowMillis = input.releaseComboWindowMillis;
         this.maxReleaseCombo = input.maxReleaseCombo;
+        this.reelComboWindowMillis = input.reelComboWindowMillis;
+        this.maxReelCombo = input.maxReelCombo;
         this.fish = fish;
         this.startTime = startTime;
         this.state = FightState.WAITING;
@@ -293,26 +307,45 @@ public class FightSession {
     }
 
     /**
-     * Distance를 변경한다. 0 미만으로 내려가지 않는다.
+     * 상한을 넘지 않게 자른다. 상한이 0 이하면 "제한 없음"으로 보고 그대로 둔다
+     * (거리 실패 판정도 {@code maxDistance > 0} 일 때만 걸리므로 같은 규칙을 쓴다).
+     *
+     * <p><b>왜 필요한가.</b> 예전에는 거리·장력에 하한(0)만 있고 상한이 없어서 값이
+     * 한계를 넘어 계속 쌓였다. 그런데 화면에 나가는 백분율은 100 에서 잘리므로
+     * (PlaceholderExpansion 의 percentOf) 초과분이 보이지 않았다. 장력이 줄 강도
+     * 100 에 대해 118 이어도 화면은 100.0%, 우클릭으로 103 까지 깎아도 여전히
+     * 100.0% 라, 되돌리는 행동을 해도 아무 반응이 없는 것처럼 보였다.
+     * 게다가 100% 아래로 내려가려면 보이지 않는 초과분까지 전부 걷어내야 했다.</p>
+     *
+     * <p>릴 내구도는 처음부터 {@code [0, max]} 로 물려 있었다. 나머지 둘도 같게 맞춘다.
+     * 실패 판정은 {@code >=} 라 상한에 붙어 있어도 그대로 걸리고, 회복 행동 한 틱이면
+     * 곧바로 상한 아래로 내려가 유예 래치가 풀린다.</p>
      */
-    public void changeDistance(double amount) {
-        this.distance = Math.max(0, distance + amount);
+    private static double capped(double value, double max) {
+        return max > 0 ? Math.min(max, value) : value;
     }
 
     /**
-     * Distance를 특정 값으로 직접 설정한다. 0 미만으로 내려가지 않는다.
+     * Distance를 변경한다. 0 미만으로 내려가지 않고, {@link #maxDistance}를 넘지 않는다.
+     */
+    public void changeDistance(double amount) {
+        this.distance = capped(Math.max(0, distance + amount), maxDistance);
+    }
+
+    /**
+     * Distance를 특정 값으로 직접 설정한다. 0 미만으로 내려가지 않고 상한도 넘지 않는다.
      * Fish Stamina가 남아있는 동안 Distance 하한을 강제할 때 사용한다
      * (피드백: "스테미너가 0보다 크면 거리값이 50 이하로 안줄어들게").
      */
     public void setDistance(double value) {
-        this.distance = Math.max(0, value);
+        this.distance = capped(Math.max(0, value), maxDistance);
     }
 
     /**
-     * Tension을 변경한다. 0 미만으로 내려가지 않는다.
+     * Tension을 변경한다. 0 미만으로 내려가지 않고, 줄 강도({@link #lineStrength})를 넘지 않는다.
      */
     public void changeTension(double amount) {
-        this.tension = Math.max(0, tension + amount);
+        this.tension = capped(Math.max(0, tension + amount), lineStrength);
     }
 
     /**
@@ -388,11 +421,12 @@ public class FightSession {
      * 좌클릭(릴 감기) 입력이 들어왔음을 기록한다.
      * 이후 {@code reel-grace-millis} 동안은 {@link #isReeling()}이 true를 반환한다.
      * 릴 풀기 상태는 초기화하고(좌/우 상호 배타), 우클릭 연타 콤보도 리셋한다 (피드백).
+     * 같은 {@code reel-combo-window-millis} 이내에 다시 좌클릭하면 연타 콤보가 증가한다.
      */
     public void registerReelClick() {
         long now = System.currentTimeMillis();
-        if (now - lastReelComboAt <= releaseComboWindowMillis) {
-            reelCombo = Math.min(maxReleaseCombo, reelCombo + 1);
+        if (now - lastReelComboAt <= reelComboWindowMillis) {
+            reelCombo = Math.min(maxReelCombo, reelCombo + 1);
         } else {
             reelCombo = 1;
         }
@@ -428,7 +462,9 @@ public class FightSession {
         return releaseCombo;
     }
 
-    /** 현재 좌클릭(릴 감기) 연타 콤보. */
+    /**
+     * 현재 좌클릭 연타 콤보를 반환한다 (거리·물고기 체력 추가 감소 계산에 사용).
+     */
     public int getReelCombo() {
         return reelCombo;
     }
@@ -491,6 +527,39 @@ public class FightSession {
      */
     public void setFailReason(FightFailReason failReason) {
         this.failReason = failReason != null ? failReason : FightFailReason.NONE;
+    }
+
+    /**
+     * 실패 조건의 현재 충족 여부를 넘기고, "이제 실제로 실패시켜야 하는가"를 돌려받는다.
+     * 매 틱 조건마다 한 번씩 호출한다.
+     *
+     * <p>조건에 처음 닿은 시각을 기록해 두고, {@code graceMillis}가 지나도록 여전히
+     * 조건을 만족하고 있을 때만 true를 반환한다. 그 안에 수치를 되돌리면(조건 미충족)
+     * 기록을 지우므로 실패하지 않고, 다시 닿으면 유예를 처음부터 다시 센다.</p>
+     *
+     * <p>{@code graceMillis}가 0이면 닿은 틱에 바로 true — 유예 도입 전과 같은 동작이다.</p>
+     *
+     * @param reason       실패 원인 (원인별로 독립된 타이머를 쓴다)
+     * @param conditionMet 지금 이 원인의 실패 조건을 만족하는가
+     * @param graceMillis  유예 시간(ms). 0이면 즉시 실패
+     * @return true면 유예까지 끝났으니 실패 처리할 것
+     */
+    public boolean tickFailGrace(FightFailReason reason, boolean conditionMet, long graceMillis) {
+        if (!conditionMet) {
+            failGraceSince.remove(reason);
+            return false;
+        }
+        long now = System.currentTimeMillis();
+        Long since = failGraceSince.putIfAbsent(reason, now);
+        return now - (since != null ? since : now) >= graceMillis;
+    }
+
+    /**
+     * 지금 이 원인으로 유예가 돌고 있는가 — 조건에는 닿았지만 아직 실패 확정 전인 상태.
+     * HUD가 "곧 실패" 연출로 전환하는 데 쓴다.
+     */
+    public boolean isInFailGrace(FightFailReason reason) {
+        return failGraceSince.containsKey(reason);
     }
 
     /**

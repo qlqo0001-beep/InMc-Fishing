@@ -1,12 +1,12 @@
 name: InMc-Fishing
-version: '1.5.1'
+version: '1.6.1'
 main: me.ninesik.fishing.InMcFishing
 description: Java 25 / Paper 26.2 기반 낚시 플러그인 (등급별 미니게임, 도감, 대회)
 author: NineSik
 api-version: '1.21'
 aliases: [IF]
 
-softdepend: [MMOItems, PlaceholderAPI, Vault, WorldGuard, ItemsAdder]
+softdepend: [MMOItems, PlaceholderAPI, Vault, WorldGuard]
 
 # Paper 라이브러리 로더가 서버 기동 시 Maven Central에서 내려받아 격리 로드한다.
 # (shadowJar는 org.bstats만 병합하므로 이 드라이버는 jar에 포함되지 않는다.
